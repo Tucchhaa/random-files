@@ -1,7 +1,7 @@
 /*!
 * DevExtreme (dx.all.js)
 * Version: 25.2.0
-* Build date: Fri Nov 07 2025
+* Build date: Fri Nov 14 2025
 *
 * Copyright (c) 2012 - 2025 Developer Express Inc. ALL RIGHTS RESERVED
 * Read about DevExtreme licensing here: https://js.devexpress.com/Licensing/
@@ -6320,6 +6320,947 @@ function rdatesToString(param, rdates, tzid) {
 
 /***/ }),
 
+/***/ 11610:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.convertTransitionTimingFuncToEasing = void 0;
+exports.getEasing = getEasing;
+exports.setEasing = setEasing;
+var _type = __webpack_require__(11528);
+const CSS_TRANSITION_EASING_REGEX = /cubic-bezier\((\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\)/;
+const TransitionTimingFuncMap = {
+  linear: 'cubic-bezier(0, 0, 1, 1)',
+  swing: 'cubic-bezier(0.445, 0.05, 0.55, 0.95)',
+  ease: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+  'ease-in': 'cubic-bezier(0.42, 0, 1, 1)',
+  'ease-out': 'cubic-bezier(0, 0, 0.58, 1)',
+  'ease-in-out': 'cubic-bezier(0.42, 0, 0.58, 1)'
+};
+const polynomBezier = (x1, y1, x2, y2) => {
+  const Cx = 3 * x1;
+  const Bx = 3 * (x2 - x1) - Cx;
+  const Ax = 1 - Cx - Bx;
+  const Cy = 3 * y1;
+  const By = 3 * (y2 - y1) - Cy;
+  const Ay = 1 - Cy - By;
+  const bezierX = t => t * (Cx + t * (Bx + t * Ax));
+  const bezierY = t => t * (Cy + t * (By + t * Ay));
+  const derivativeX = t => Cx + t * (2 * Bx + t * 3 * Ax);
+  const findXFor = t => {
+    let x = t;
+    let i = 0;
+    // eslint-disable-next-line no-undef-init
+    let z = undefined;
+    while (i < 14) {
+      z = bezierX(x) - t;
+      if (Math.abs(z) < 1e-3) {
+        break;
+      }
+      x -= z / derivativeX(x);
+      i += 1;
+    }
+    return x;
+  };
+  return t => bezierY(findXFor(t));
+};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let easing = {};
+const convertTransitionTimingFuncToEasing = cssTransitionEasing => {
+  // eslint-disable-next-line no-param-reassign
+  cssTransitionEasing = TransitionTimingFuncMap[cssTransitionEasing] || cssTransitionEasing;
+  // eslint-disable-next-line @stylistic/max-len
+  let coeffs = CSS_TRANSITION_EASING_REGEX.exec(cssTransitionEasing);
+  const numCoeffs = [];
+  let forceName = null;
+  if (!coeffs) {
+    forceName = 'linear';
+    coeffs = TransitionTimingFuncMap[forceName].match(CSS_TRANSITION_EASING_REGEX);
+  }
+  // @ts-expect-error
+  coeffs = coeffs.slice(1, 5);
+  for (let i = 0; i < coeffs.length; i += 1) {
+    numCoeffs[i] = parseFloat(coeffs[i]);
+  }
+  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+  const easingName = forceName || `cubicbezier_${numCoeffs.join('_').replace(/\./g, 'p')}`;
+  if (!(0, _type.isFunction)(easing[easingName])) {
+    easing[easingName] = function (x, t, b, c, d) {
+      return c * polynomBezier(numCoeffs[0], numCoeffs[1], numCoeffs[2], numCoeffs[3])(t / d) + b;
+    };
+  }
+  return easingName;
+};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+exports.convertTransitionTimingFuncToEasing = convertTransitionTimingFuncToEasing;
+function setEasing(value) {
+  easing = value;
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getEasing(name) {
+  return easing[name];
+}
+
+/***/ }),
+
+/***/ 26106:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.cancelAnimationFrame = cancelAnimationFrame;
+exports.requestAnimationFrame = requestAnimationFrame;
+var _call_once = _interopRequireDefault(__webpack_require__(13630));
+var _window = __webpack_require__(3104);
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+const window = (0, _window.hasWindow)() ? (0, _window.getWindow)() : {};
+const FRAME_ANIMATION_STEP_TIME = 1000 / 60;
+let request = function (callback) {
+  /* eslint-disable no-restricted-globals */
+  return setTimeout(callback, FRAME_ANIMATION_STEP_TIME);
+};
+let cancel = function (requestID) {
+  clearTimeout(requestID);
+};
+const setAnimationFrameMethods = (0, _call_once.default)(() => {
+  const nativeRequest = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame;
+  const nativeCancel = window.cancelAnimationFrame || window.webkitCancelAnimationFrame || window.mozCancelAnimationFrame || window.oCancelAnimationFrame || window.msCancelAnimationFrame;
+  if (nativeRequest && nativeCancel) {
+    request = nativeRequest;
+    cancel = nativeCancel;
+  }
+});
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+function requestAnimationFrame() {
+  setAnimationFrameMethods();
+  // @ts-ignore
+  for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+    args[_key] = arguments[_key];
+  }
+  return request.apply(window, args);
+}
+function cancelAnimationFrame(requestID) {
+  setAnimationFrameMethods();
+  cancel.apply(window, [requestID]);
+}
+
+/***/ }),
+
+/***/ 28885:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _frame = __webpack_require__(84096);
+var _position = _interopRequireDefault(__webpack_require__(3030));
+var _translator = __webpack_require__(88603);
+var _element = __webpack_require__(61404);
+var _errors = _interopRequireDefault(__webpack_require__(87129));
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _common = __webpack_require__(17781);
+var _deferred = __webpack_require__(87739);
+var _extend = __webpack_require__(52576);
+var _iterator = __webpack_require__(21274);
+var _type = __webpack_require__(11528);
+var _window = __webpack_require__(3104);
+var _events_engine = _interopRequireDefault(__webpack_require__(76772));
+var _remove = __webpack_require__(92492);
+var _index = __webpack_require__(34356);
+var _easing = __webpack_require__(11610);
+var _m_support = _interopRequireDefault(__webpack_require__(85991));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+const window = (0, _window.getWindow)();
+const removeEventName = (0, _index.addNamespace)(_remove.removeEvent, 'dxFX');
+const RELATIVE_VALUE_REGEX = /^([+-])=(.*)/i;
+const ANIM_DATA_KEY = 'dxAnimData';
+const ANIM_QUEUE_KEY = 'dxAnimQueue';
+const TRANSFORM_PROP = 'transform';
+const TransitionAnimationStrategy = {
+  initAnimation($element, config) {
+    $element.css({
+      transitionProperty: 'none'
+    });
+    if (typeof config.from === 'string') {
+      $element.addClass(config.from);
+    } else {
+      setProps($element, config.from);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const that = this;
+    // @ts-expect-error
+    const deferred = new _deferred.Deferred();
+    const {
+      cleanupWhen
+    } = config;
+    config.transitionAnimation = {
+      deferred,
+      finish() {
+        that._finishTransition($element);
+        if (cleanupWhen) {
+          (0, _deferred.when)(deferred, cleanupWhen).always(() => {
+            that._cleanup($element, config);
+          });
+        } else {
+          that._cleanup($element, config);
+        }
+        deferred.resolveWith($element, [config, $element]);
+      }
+    };
+    this._completeAnimationCallback($element, config).done(() => {
+      config.transitionAnimation.finish();
+    }).fail(() => {
+      deferred.rejectWith($element, [config, $element]);
+    });
+    if (!config.duration) {
+      config.transitionAnimation.finish();
+    }
+    // NOTE: Hack for setting 'from' css by browser before run animation
+    //       Do not move this hack to initAnimation since
+    //       some css props can be changed in the 'start' callback (T231434)
+    //       Unfortunately this can't be unit tested
+    // TODO: find better way if possible
+    $element.css('transform');
+  },
+  animate($element, config) {
+    this._startAnimation($element, config);
+    return config.transitionAnimation.deferred.promise();
+  },
+  _completeAnimationCallback($element, config) {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const that = this;
+    // @ts-expect-error
+    const startTime = Date.now() + config.delay;
+    // @ts-expect-error
+    const deferred = new _deferred.Deferred();
+    // @ts-expect-error
+    const transitionEndFired = new _deferred.Deferred();
+    // @ts-expect-error
+    const simulatedTransitionEndFired = new _deferred.Deferred();
+    // eslint-disable-next-line @typescript-eslint/init-declarations
+    let simulatedEndEventTimer;
+    const transitionEndEventFullName = `${_m_support.default.transitionEndEventName()}.dxFX`;
+    config.transitionAnimation.cleanup = function () {
+      clearTimeout(simulatedEndEventTimer);
+      clearTimeout(waitForJSCompleteTimer);
+      _events_engine.default.off($element, transitionEndEventFullName);
+      _events_engine.default.off($element, removeEventName);
+    };
+    _events_engine.default.one($element, transitionEndEventFullName, () => {
+      // NOTE: prevent native transitionEnd event from previous animation in queue (Chrome)
+      // @ts-expect-error
+      if (Date.now() - startTime >= config.duration) {
+        transitionEndFired.reject();
+      }
+    });
+    _events_engine.default.off($element, removeEventName);
+    _events_engine.default.on($element, removeEventName, () => {
+      that.stop($element, config);
+      deferred.reject();
+    });
+    // Fix for a visual bug (T244514): do not setup the timer until all js code has finished working
+    // eslint-disable-next-line no-restricted-globals
+    const waitForJSCompleteTimer = setTimeout(() => {
+      // eslint-disable-next-line no-restricted-globals
+      simulatedEndEventTimer = setTimeout(() => {
+        simulatedTransitionEndFired.reject();
+      },
+      // @ts-expect-error
+      config.duration + config.delay + fx._simulatedTransitionEndDelay);
+      (0, _deferred.when)(transitionEndFired, simulatedTransitionEndFired).fail(() => {
+        deferred.resolve();
+      });
+    });
+    return deferred.promise();
+  },
+  _startAnimation($element, config) {
+    $element.css({
+      transitionProperty: 'all',
+      transitionDelay: `${config.delay}ms`,
+      transitionDuration: `${config.duration}ms`,
+      transitionTimingFunction: config.easing
+    });
+    if (typeof config.to === 'string') {
+      $element[0].className += ` ${config.to}`;
+      // Do not uncomment: performance critical
+      // $element.addClass(config.to);
+    } else if (config.to) {
+      setProps($element, config.to);
+    }
+  },
+  _finishTransition($element) {
+    $element.css('transition', 'none');
+  },
+  _cleanup($element, config) {
+    // @ts-expect-error
+    config.transitionAnimation.cleanup();
+    if (typeof config.from === 'string') {
+      $element.removeClass(config.from);
+      // @ts-expect-error
+      $element.removeClass(config.to);
+    }
+  },
+  stop($element, config, jumpToEnd) {
+    if (!config) {
+      return;
+    }
+    if (jumpToEnd) {
+      config.transitionAnimation.finish();
+    } else {
+      if ((0, _type.isPlainObject)(config.to)) {
+        (0, _iterator.each)(config.to, key => {
+          // @ts-expect-error
+          $element.css(key, $element.css(key));
+        });
+      }
+      this._finishTransition($element);
+      this._cleanup($element, config);
+    }
+  }
+};
+const FrameAnimationStrategy = {
+  initAnimation($element, config) {
+    setProps($element, config.from);
+  },
+  animate($element, config) {
+    // @ts-expect-error
+    const deferred = new _deferred.Deferred();
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const that = this;
+    if (!config) {
+      return deferred.reject().promise();
+    }
+    (0, _iterator.each)(config.to, prop => {
+      // @ts-expect-error
+      if (config.from[prop] === undefined) {
+        // @ts-expect-error
+        config.from[prop] = that._normalizeValue($element.css(prop));
+      }
+    });
+    // @ts-expect-error
+    if (config.to[TRANSFORM_PROP]) {
+      // @ts-expect-error
+      config.from[TRANSFORM_PROP] = that._parseTransform(config.from[TRANSFORM_PROP]);
+      // @ts-expect-error
+      config.to[TRANSFORM_PROP] = that._parseTransform(config.to[TRANSFORM_PROP]);
+    }
+    config.frameAnimation = {
+      to: config.to,
+      from: config.from,
+      currentValue: config.from,
+      // @ts-expect-error
+      easing: (0, _easing.convertTransitionTimingFuncToEasing)(config.easing),
+      duration: config.duration,
+      startTime: new Date().valueOf(),
+      finish() {
+        this.currentValue = this.to;
+        this.draw();
+        // @ts-expect-error
+        (0, _frame.cancelAnimationFrame)(config.frameAnimation.animationFrameId);
+        deferred.resolve();
+      },
+      draw() {
+        if (config.draw) {
+          config.draw(this.currentValue);
+          return;
+        }
+        const currentValue = (0, _extend.extend)({}, this.currentValue);
+        if (currentValue[TRANSFORM_PROP]) {
+          // @ts-expect-error
+          // eslint-disable-next-line consistent-return
+          currentValue[TRANSFORM_PROP] = (0, _iterator.map)(currentValue[TRANSFORM_PROP], (value, prop) => {
+            if (prop === 'translate') {
+              return (0, _translator.getTranslateCss)(value);
+            }
+            if (prop === 'scale') {
+              return `scale(${value})`;
+            }
+            if (prop.substr(0, prop.length - 1) === 'rotate') {
+              return `${prop}(${value}deg)`;
+            }
+          }).join(' ');
+        }
+        $element.css(currentValue);
+      }
+    };
+    if (config.delay) {
+      config.frameAnimation.startTime += config.delay;
+      // eslint-disable-next-line no-restricted-globals
+      config.frameAnimation.delayTimeout = setTimeout(() => {
+        that._startAnimation($element, config);
+      }, config.delay);
+    } else {
+      that._startAnimation($element, config);
+    }
+    return deferred.promise();
+  },
+  _startAnimation($element, config) {
+    _events_engine.default.off($element, removeEventName);
+    _events_engine.default.on($element, removeEventName, () => {
+      if (config.frameAnimation) {
+        // @ts-expect-error
+        (0, _frame.cancelAnimationFrame)(config.frameAnimation.animationFrameId);
+      }
+    });
+    this._animationStep($element, config);
+  },
+  _parseTransform(transformString) {
+    const result = {};
+    (0, _iterator.each)(transformString.match(/\w+\d*\w*\([^)]*\)\s*/g), (i, part) => {
+      const translateData = (0, _translator.parseTranslate)(part);
+      const scaleData = part.match(/scale\((.+?)\)/);
+      const rotateData = part.match(/(rotate.)\((.+)deg\)/);
+      if (translateData) {
+        result.translate = translateData;
+      }
+      if (scaleData && scaleData[1]) {
+        result.scale = parseFloat(scaleData[1]);
+      }
+      if (rotateData && rotateData[1]) {
+        result[rotateData[1]] = parseFloat(rotateData[2]);
+      }
+    });
+    return result;
+  },
+  stop($element, config, jumpToEnd) {
+    const frameAnimation = config && config.frameAnimation;
+    if (!frameAnimation) {
+      return;
+    }
+    // @ts-expect-error
+    (0, _frame.cancelAnimationFrame)(frameAnimation.animationFrameId);
+    clearTimeout(frameAnimation.delayTimeout);
+    if (jumpToEnd) {
+      frameAnimation.finish();
+    }
+    delete config.frameAnimation;
+  },
+  _animationStep($element, config) {
+    const frameAnimation = config && config.frameAnimation;
+    if (!frameAnimation) {
+      return;
+    }
+    const now = new Date().valueOf();
+    // @ts-expect-error
+    if (now >= frameAnimation.startTime + frameAnimation.duration) {
+      frameAnimation.finish();
+      return;
+    }
+    // eslint-disable-next-line @stylistic/max-len
+    frameAnimation.currentValue = this._calcStepValue(frameAnimation, now - frameAnimation.startTime);
+    frameAnimation.draw();
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const that = this;
+    frameAnimation.animationFrameId = (0, _frame.requestAnimationFrame)(() => {
+      that._animationStep($element, config);
+    });
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  _calcStepValue(frameAnimation, currentDuration) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const calcValueRecursively = function (from, to) {
+      const result = Array.isArray(to) ? [] : {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const calcEasedValue = function (propName) {
+        // @ts-expect-error
+        const x = currentDuration / frameAnimation.duration;
+        const t = currentDuration;
+        // @ts-expect-error
+        const b = 1 * from[propName];
+        // @ts-expect-error
+        const c = to[propName] - from[propName];
+        const d = frameAnimation.duration;
+        // @ts-expect-error
+        return (0, _easing.getEasing)(frameAnimation.easing)(x, t, b, c, d);
+      };
+      // @ts-expect-error
+      // eslint-disable-next-line consistent-return
+      (0, _iterator.each)(to, (propName, endPropValue) => {
+        // @ts-expect-error
+        if (typeof endPropValue === 'string' && parseFloat(endPropValue) === false) {
+          return true;
+        }
+        result[propName] = typeof endPropValue === 'object'
+        // @ts-expect-error
+        ? calcValueRecursively(from[propName], endPropValue) : calcEasedValue(propName);
+      });
+      return result;
+    };
+    return calcValueRecursively(frameAnimation.from, frameAnimation.to);
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  _normalizeValue(value) {
+    const numericValue = parseFloat(value);
+    // @ts-expect-error
+    if (numericValue === false) {
+      return value;
+    }
+    return numericValue;
+  }
+};
+const FallbackToNoAnimationStrategy = {
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  initAnimation() {},
+  animate() {
+    // @ts-expect-error
+    return new _deferred.Deferred().resolve().promise();
+  },
+  stop: _common.noop,
+  isSynchronous: true
+};
+const getAnimationStrategy = function (config) {
+  // eslint-disable-next-line no-param-reassign
+  config = config || {};
+  const animationStrategies = {
+    transition: _m_support.default.transition() ? TransitionAnimationStrategy : FrameAnimationStrategy,
+    frame: FrameAnimationStrategy,
+    noAnimation: FallbackToNoAnimationStrategy
+  };
+  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+  let strategy = config.strategy || 'transition';
+  if (config.type === 'css' && !_m_support.default.transition()) {
+    strategy = 'noAnimation';
+  }
+  return animationStrategies[strategy];
+};
+const baseConfigValidator = function (config, animationType, validate, typeMessage) {
+  (0, _iterator.each)(['from', 'to'], function () {
+    if (!validate(config[this])) {
+      throw _errors.default.Error('E0010', animationType, this, typeMessage);
+    }
+  });
+};
+const isObjectConfigValidator = function (config, animationType) {
+  return baseConfigValidator(config, animationType, target => (0, _type.isPlainObject)(target), 'a plain object');
+};
+const isStringConfigValidator = function (config, animationType) {
+  return baseConfigValidator(config, animationType, target => typeof target === 'string', 'a string');
+};
+const CustomAnimationConfigurator = {
+  setup() {}
+};
+const CssAnimationConfigurator = {
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+  validateConfig(config) {
+    isStringConfigValidator(config, 'css');
+  },
+  setup() {}
+};
+const positionAliases = {
+  top: {
+    my: 'bottom center',
+    at: 'top center'
+  },
+  bottom: {
+    my: 'top center',
+    at: 'bottom center'
+  },
+  right: {
+    my: 'left center',
+    at: 'right center'
+  },
+  left: {
+    my: 'right center',
+    at: 'left center'
+  }
+};
+const SlideAnimationConfigurator = {
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+  validateConfig(config) {
+    isObjectConfigValidator(config, 'slide');
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+  setup($element, config) {
+    const location = (0, _translator.locate)($element);
+    if (config.type !== 'slide') {
+      const positioningConfig = config.type === 'slideIn' ? config.from : config.to;
+      positioningConfig.position = (0, _extend.extend)({
+        of: window
+      }, positionAliases[config.direction]);
+      setupPosition($element, positioningConfig);
+    }
+    this._setUpConfig(location, config.from);
+    this._setUpConfig(location, config.to);
+    (0, _translator.clearCache)($element);
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+  _setUpConfig(location, config) {
+    config.left = 'left' in config ? config.left : '+=0';
+    config.top = 'top' in config ? config.top : '+=0';
+    this._initNewPosition(location, config);
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+  _initNewPosition(location, config) {
+    const position = {
+      left: config.left,
+      top: config.top
+    };
+    delete config.left;
+    delete config.top;
+    let relativeValue = this._getRelativeValue(position.left);
+    if (relativeValue !== undefined) {
+      position.left = relativeValue + location.left;
+    } else {
+      config.left = 0;
+    }
+    relativeValue = this._getRelativeValue(position.top);
+    if (relativeValue !== undefined) {
+      position.top = relativeValue + location.top;
+    } else {
+      config.top = 0;
+    }
+    config[TRANSFORM_PROP] = (0, _translator.getTranslateCss)({
+      x: position.left,
+      y: position.top
+    });
+  },
+  // @ts-ignore
+  // eslint-disable-next-line consistent-return, @typescript-eslint/explicit-module-boundary-types
+  _getRelativeValue(value) {
+    // eslint-disable-next-line @typescript-eslint/init-declarations
+    let relativeValue;
+    // eslint-disable-next-line no-cond-assign
+    if (typeof value === 'string' && (relativeValue = RELATIVE_VALUE_REGEX.exec(value))) {
+      // @ts-expect-error
+      return parseInt(`${relativeValue[1]}1`, 10) * relativeValue[2];
+    }
+  }
+};
+const FadeAnimationConfigurator = {
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+  setup($element, config) {
+    const {
+      from,
+      to
+    } = config;
+    const defaultFromOpacity = config.type === 'fadeOut' ? 1 : 0;
+    const defaultToOpacity = config.type === 'fadeOut' ? 0 : 1;
+    let fromOpacity = (0, _type.isPlainObject)(from) ? String(from.opacity ?? defaultFromOpacity) : String(from);
+    let toOpacity = (0, _type.isPlainObject)(to) ? String(to.opacity ?? defaultToOpacity) : String(to);
+    if (!config.skipElementInitialStyles) {
+      fromOpacity = $element.css('opacity');
+    }
+    switch (config.type) {
+      case 'fadeIn':
+        toOpacity = 1;
+        break;
+      case 'fadeOut':
+        toOpacity = 0;
+        break;
+      default:
+        break;
+    }
+    config.from = {
+      visibility: 'visible',
+      opacity: fromOpacity
+    };
+    config.to = {
+      opacity: toOpacity
+    };
+  }
+};
+const PopAnimationConfigurator = {
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+  validateConfig(config) {
+    isObjectConfigValidator(config, 'pop');
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+  setup($element, config) {
+    const {
+      from,
+      to
+    } = config;
+    const fromOpacity = 'opacity' in from ? from.opacity : $element.css('opacity');
+    const toOpacity = 'opacity' in to ? to.opacity : 1;
+    const fromScale = 'scale' in from ? from.scale : 0;
+    const toScale = 'scale' in to ? to.scale : 1;
+    config.from = {
+      opacity: fromOpacity
+    };
+    const translate = (0, _translator.getTranslate)($element);
+    config.from[TRANSFORM_PROP] = this._getCssTransform(translate, fromScale);
+    config.to = {
+      opacity: toOpacity
+    };
+    config.to[TRANSFORM_PROP] = this._getCssTransform(translate, toScale);
+  },
+  _getCssTransform(translate, scale) {
+    return `${(0, _translator.getTranslateCss)(translate)}scale(${scale})`;
+  }
+};
+const animationConfigurators = {
+  custom: CustomAnimationConfigurator,
+  slide: SlideAnimationConfigurator,
+  slideIn: SlideAnimationConfigurator,
+  slideOut: SlideAnimationConfigurator,
+  fade: FadeAnimationConfigurator,
+  fadeIn: FadeAnimationConfigurator,
+  fadeOut: FadeAnimationConfigurator,
+  pop: PopAnimationConfigurator,
+  css: CssAnimationConfigurator
+};
+const getAnimationConfigurator = function (config) {
+  const result = animationConfigurators[config.type];
+  if (!result) {
+    throw _errors.default.Error('E0011', config.type);
+  }
+  return result;
+};
+const defaultJSConfig = {
+  type: 'custom',
+  from: {},
+  to: {},
+  duration: 400,
+  start: _common.noop,
+  complete: _common.noop,
+  easing: 'ease',
+  delay: 0
+};
+const defaultCssConfig = {
+  duration: 400,
+  easing: 'ease',
+  delay: 0
+};
+function setupAnimationOnElement() {
+  // eslint-disable-next-line @typescript-eslint/no-this-alias
+  const animation = this;
+  const $element = animation.element;
+  const {
+    config
+  } = animation;
+  setupPosition($element, config.from);
+  setupPosition($element, config.to);
+  animation.configurator.setup($element, config);
+  $element.data(ANIM_DATA_KEY, animation);
+  if (fx.off) {
+    config.duration = 0;
+    config.delay = 0;
+  }
+  animation.strategy.initAnimation($element, config);
+  if (config.start) {
+    const element = (0, _element.getPublicElement)($element);
+    config.start.apply(this, [element, config]);
+  }
+}
+const onElementAnimationComplete = function (animation) {
+  const $element = animation.element;
+  const {
+    config
+  } = animation;
+  $element.removeData(ANIM_DATA_KEY);
+  if (config.complete) {
+    const element = (0, _element.getPublicElement)($element);
+    config.complete.apply(this, [element, config]);
+  }
+  animation.deferred.resolveWith(this, [$element, config]);
+};
+const startAnimationOnElement = function () {
+  // eslint-disable-next-line @typescript-eslint/no-this-alias
+  const animation = this;
+  const $element = animation.element;
+  const {
+    config
+  } = animation;
+  animation.isStarted = true;
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  return animation.strategy.animate($element, config)
+  // @ts-expect-error
+  .done(() => {
+    onElementAnimationComplete(animation);
+  }).fail(function () {
+    animation.deferred.rejectWith(this, [$element, config]);
+  });
+};
+const stopAnimationOnElement = function (jumpToEnd) {
+  // eslint-disable-next-line @typescript-eslint/no-this-alias
+  const animation = this;
+  const $element = animation.element;
+  const {
+    config
+  } = animation;
+  clearTimeout(animation.startTimeout);
+  if (!animation.isStarted) {
+    animation.start();
+  }
+  animation.strategy.stop($element, config, jumpToEnd);
+};
+const scopedRemoveEvent = (0, _index.addNamespace)(_remove.removeEvent, 'dxFXStartAnimation');
+const subscribeToRemoveEvent = function (animation) {
+  _events_engine.default.off(animation.element, scopedRemoveEvent);
+  _events_engine.default.on(animation.element, scopedRemoveEvent, () => {
+    fx.stop(animation.element);
+  });
+  animation.deferred.always(() => {
+    _events_engine.default.off(animation.element, scopedRemoveEvent);
+  });
+};
+const createAnimation = function (element,
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+initialConfig) {
+  const defaultConfig = initialConfig.type === 'css' ? defaultCssConfig : defaultJSConfig;
+  const config = (0, _extend.extend)(true, {}, defaultConfig, initialConfig);
+  const configurator = getAnimationConfigurator(config);
+  const strategy = getAnimationStrategy(config);
+  const animation = {
+    element: (0, _renderer.default)(element),
+    config,
+    configurator,
+    strategy,
+    // @ts-expect-error
+    isSynchronous: strategy.isSynchronous,
+    setup: setupAnimationOnElement,
+    start: startAnimationOnElement,
+    stop: stopAnimationOnElement,
+    // @ts-expect-error
+    deferred: new _deferred.Deferred()
+  };
+  if ('validateConfig' in configurator && (0, _type.isFunction)(configurator.validateConfig)) {
+    configurator.validateConfig(config);
+  }
+  subscribeToRemoveEvent(animation);
+  return animation;
+};
+const animate = function (element,
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+config) {
+  const $element = (0, _renderer.default)(element);
+  if (!$element.length) {
+    // @ts-expect-error
+    return new _deferred.Deferred().resolve().promise();
+  }
+  const animation = createAnimation($element, config);
+  pushInAnimationQueue($element, animation);
+  return animation.deferred.promise();
+};
+function pushInAnimationQueue($element, animation) {
+  const queueData = getAnimQueueData($element);
+  writeAnimQueueData($element, queueData);
+  queueData.push(animation);
+  if (!isAnimating($element)) {
+    shiftFromAnimationQueue($element, queueData);
+  }
+}
+function getAnimQueueData($element) {
+  // @ts-expect-error
+  return $element.data(ANIM_QUEUE_KEY) || [];
+}
+function writeAnimQueueData($element, queueData) {
+  $element.data(ANIM_QUEUE_KEY, queueData);
+}
+const destroyAnimQueueData = function ($element) {
+  $element.removeData(ANIM_QUEUE_KEY);
+};
+function isAnimating(element) {
+  const $element = (0, _renderer.default)(element);
+  return !!$element.data(ANIM_DATA_KEY);
+}
+function shiftFromAnimationQueue($element, queueData) {
+  // eslint-disable-next-line no-param-reassign
+  queueData = getAnimQueueData($element);
+  if (!queueData.length) {
+    return;
+  }
+  const animation = queueData.shift();
+  if (queueData.length === 0) {
+    destroyAnimQueueData($element);
+  }
+  // @ts-expect-error
+  executeAnimation(animation).done(() => {
+    if (!isAnimating($element)) {
+      shiftFromAnimationQueue($element);
+    }
+  });
+}
+function executeAnimation(animation) {
+  animation.setup();
+  if (fx.off || animation.isSynchronous) {
+    animation.start();
+  } else {
+    // eslint-disable-next-line no-restricted-globals
+    animation.startTimeout = setTimeout(() => {
+      animation.start();
+    });
+  }
+  return animation.deferred.promise();
+}
+function setupPosition($element, config) {
+  if (!config || !config.position) {
+    return;
+  }
+  const win = (0, _renderer.default)(window);
+  let left = 0;
+  let top = 0;
+  const position = _position.default.calculate($element, config.position);
+  const offset = $element.offset();
+  const currentPosition = $element.position();
+  // @ts-expect-error
+  if (currentPosition.top > offset.top) {
+    // @ts-expect-error
+    top = win.scrollTop();
+  }
+  // @ts-expect-error
+  if (currentPosition.left > offset.left) {
+    // @ts-expect-error
+    left = win.scrollLeft();
+  }
+  (0, _extend.extend)(config, {
+    // @ts-expect-error
+    left: position.h.location - offset.left + currentPosition.left - left,
+    // @ts-expect-error
+    top: position.v.location - offset.top + currentPosition.top - top
+  });
+  delete config.position;
+}
+function setProps($element, props) {
+  (0, _iterator.each)(props, (key, value) => {
+    try {
+      $element.css(key, (0, _type.isFunction)(value) ? value() : value);
+      // eslint-disable-next-line no-empty
+    } catch (e) {}
+  });
+}
+const stop = function (element, jumpToEnd) {
+  const $element = (0, _renderer.default)(element);
+  const queueData = getAnimQueueData($element);
+  // TODO: think about complete all animation in queue
+  (0, _iterator.each)(queueData, (_, animation) => {
+    animation.config.delay = 0;
+    animation.config.duration = 0;
+    animation.isSynchronous = true;
+  });
+  if (!isAnimating($element)) {
+    shiftFromAnimationQueue($element, queueData);
+  }
+  const animation = $element.data(ANIM_DATA_KEY);
+  if (animation) {
+    animation.stop(jumpToEnd);
+  }
+  $element.removeData(ANIM_DATA_KEY);
+  destroyAnimQueueData($element);
+};
+const fx = {
+  off: false,
+  animationTypes: animationConfigurators,
+  animate,
+  createAnimation,
+  isAnimating,
+  stop,
+  _simulatedTransitionEndDelay: 100
+};
+var _default = exports["default"] = fx;
+
+/***/ }),
+
 /***/ 36972:
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -7112,6 +8053,341 @@ const AnimationPresetCollection = exports.PresetCollection = _component.Componen
   }
 });
 const animationPresets = exports.presets = new AnimationPresetCollection();
+
+/***/ }),
+
+/***/ 33100:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.TransitionExecutor = void 0;
+var _fx = _interopRequireDefault(__webpack_require__(27075));
+var _class = _interopRequireDefault(__webpack_require__(55620));
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _deferred = __webpack_require__(87739);
+var _extend = __webpack_require__(52576);
+var _iterator = __webpack_require__(21274);
+var _type = __webpack_require__(11528);
+var _m_presets = __webpack_require__(50084);
+var _m_common = _interopRequireDefault(__webpack_require__(39315));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+const directionPostfixes = {
+  forward: ' dx-forward',
+  backward: ' dx-backward',
+  none: ' dx-no-direction',
+  undefined: ' dx-no-direction'
+};
+const DX_ANIMATING_CLASS = 'dx-animating';
+const TransitionExecutor = exports.TransitionExecutor = _class.default.inherit({
+  ctor() {
+    this._accumulatedDelays = {
+      enter: 0,
+      leave: 0
+    };
+    this._animations = [];
+    this.reset();
+  },
+  _createAnimations($elements, initialConfig, configModifier, type) {
+    // eslint-disable-next-line no-param-reassign
+    $elements = (0, _renderer.default)($elements);
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const that = this;
+    const result = [];
+    // eslint-disable-next-line no-param-reassign
+    configModifier = configModifier || {};
+    const animationConfig = this._prepareElementAnimationConfig(initialConfig, configModifier, type);
+    if (animationConfig) {
+      $elements.each(function () {
+        const animation = that._createAnimation((0, _renderer.default)(this), animationConfig, configModifier);
+        if (animation) {
+          animation.element.addClass(DX_ANIMATING_CLASS);
+          animation.setup();
+          result.push(animation);
+        }
+      });
+    }
+    return result;
+  },
+  _prepareElementAnimationConfig(config, configModifier, type) {
+    // eslint-disable-next-line no-undef-init, @typescript-eslint/no-explicit-any
+    let result = undefined;
+    if (typeof config === 'string') {
+      const presetName = config;
+      // eslint-disable-next-line no-param-reassign
+      config = _m_presets.presets.getPreset(presetName);
+    }
+    if (!config) {
+      result = undefined;
+    } else if ((0, _type.isFunction)(config[type])) {
+      result = config[type];
+    } else {
+      result = (0, _extend.extend)({
+        skipElementInitialStyles: true,
+        cleanupWhen: this._completePromise
+      }, config, configModifier);
+      if (!result.type || result.type === 'css') {
+        const cssClass = `dx-${type}`;
+        const extraCssClasses = (result.extraCssClasses ? ` ${result.extraCssClasses}` : '') + directionPostfixes[result.direction];
+        result.type = 'css';
+        result.from = (result.from || cssClass) + extraCssClasses;
+        result.to = result.to || `${cssClass}-active`;
+      }
+      result.staggerDelay = result.staggerDelay || 0;
+      result.delay = result.delay || 0;
+      if (result.staggerDelay) {
+        result.delay += this._accumulatedDelays[type];
+        this._accumulatedDelays[type] += result.staggerDelay;
+      }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return result;
+  },
+  _createAnimation($element, animationConfig, configModifier) {
+    // eslint-disable-next-line no-undef-init
+    let result = undefined;
+    if ((0, _type.isPlainObject)(animationConfig)) {
+      result = _fx.default.createAnimation($element, animationConfig);
+    } else if ((0, _type.isFunction)(animationConfig)) {
+      result = animationConfig($element, configModifier);
+    }
+    return result;
+  },
+  _startAnimations() {
+    const animations = this._animations;
+    // eslint-disable-next-line @typescript-eslint/prefer-for-of
+    for (let i = 0; i < animations.length; i += 1) {
+      animations[i].start();
+    }
+  },
+  _stopAnimations(jumpToEnd) {
+    const animations = this._animations;
+    // eslint-disable-next-line @typescript-eslint/prefer-for-of
+    for (let i = 0; i < animations.length; i += 1) {
+      animations[i].stop(jumpToEnd);
+    }
+  },
+  _clearAnimations() {
+    const animations = this._animations;
+    // eslint-disable-next-line @typescript-eslint/prefer-for-of
+    for (let i = 0; i < animations.length; i += 1) {
+      animations[i].element.removeClass(DX_ANIMATING_CLASS);
+    }
+    this._animations.length = 0;
+  },
+  reset() {
+    this._accumulatedDelays.enter = 0;
+    this._accumulatedDelays.leave = 0;
+    this._clearAnimations();
+    // @ts-expect-error
+    this._completeDeferred = new _deferred.Deferred();
+    this._completePromise = this._completeDeferred.promise();
+  },
+  enter($elements, animationConfig, configModifier) {
+    const animations = this._createAnimations($elements, animationConfig, configModifier, 'enter');
+    // eslint-disable-next-line prefer-spread
+    this._animations.push.apply(this._animations, animations);
+  },
+  leave($elements, animationConfig, configModifier) {
+    const animations = this._createAnimations($elements, animationConfig, configModifier, 'leave');
+    // eslint-disable-next-line prefer-spread
+    this._animations.push.apply(this._animations, animations);
+  },
+  start() {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const that = this;
+    // eslint-disable-next-line no-undef-init
+    let result = undefined;
+    if (!this._animations.length) {
+      that.reset();
+      // @ts-expect-error
+      result = new _deferred.Deferred().resolve().promise();
+    } else {
+      const animationDeferreds = (0, _iterator.map)(this._animations, animation => {
+        // @ts-expect-error
+        // eslint-disable-next-line @typescript-eslint/no-shadow
+        const result = new _deferred.Deferred();
+        animation.deferred.always(() => {
+          result.resolve();
+        });
+        return result.promise();
+      });
+      result = _deferred.when.apply(_renderer.default, animationDeferreds).always(() => {
+        that._completeDeferred.resolve();
+        that.reset();
+      });
+      _m_common.default.executeAsync(() => {
+        that._startAnimations();
+      });
+    }
+    return result;
+  },
+  stop(jumpToEnd) {
+    this._stopAnimations(jumpToEnd);
+  }
+});
+
+/***/ }),
+
+/***/ 10469:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.resetPosition = exports.parseTranslate = exports.move = exports.locate = exports.getTranslateCss = exports.getTranslate = exports.clearCache = void 0;
+var _element_data = __webpack_require__(74663);
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _type = __webpack_require__(11528);
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+/* eslint-disable func-names */
+/* eslint-disable @typescript-eslint/prefer-optional-chain */
+/* eslint-disable @typescript-eslint/no-use-before-define */
+
+const TRANSLATOR_DATA_KEY = 'dxTranslator';
+const TRANSFORM_MATRIX_REGEX = /matrix(3d)?\((.+?)\)/;
+const TRANSLATE_REGEX = /translate(?:3d)?\((.+?)\)/;
+const locate = function ($element) {
+  // eslint-disable-next-line no-param-reassign
+  $element = (0, _renderer.default)($element);
+  const translate = getTranslate($element);
+  return {
+    left: translate.x,
+    top: translate.y
+  };
+};
+exports.locate = locate;
+function isPercentValue(value) {
+  return (0, _type.type)(value) === 'string' && value[value.length - 1] === '%';
+}
+function cacheTranslate($element, translate) {
+  if ($element.length) {
+    (0, _element_data.data)($element.get(0), TRANSLATOR_DATA_KEY, translate);
+  }
+}
+const clearCache = function ($element) {
+  if ($element.length) {
+    (0, _element_data.removeData)($element.get(0), TRANSLATOR_DATA_KEY);
+  }
+};
+exports.clearCache = clearCache;
+const getTranslateCss = function (translate) {
+  translate.x = translate.x || 0;
+  translate.y = translate.y || 0;
+  const xValueString = isPercentValue(translate.x) ? translate.x : `${translate.x}px`;
+  const yValueString = isPercentValue(translate.y) ? translate.y : `${translate.y}px`;
+  return `translate(${xValueString}, ${yValueString})`;
+};
+exports.getTranslateCss = getTranslateCss;
+const getTranslate = function ($element) {
+  let result = $element.length ? (0, _element_data.data)($element.get(0), TRANSLATOR_DATA_KEY) : null;
+  if (!result) {
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    const transformValue = $element.css('transform') || getTranslateCss({
+      x: 0,
+      y: 0
+    });
+    // eslint-disable-next-line @typescript-eslint/prefer-regexp-exec
+    let matrix = transformValue.match(TRANSFORM_MATRIX_REGEX);
+    const is3D = matrix && matrix[1];
+    if (matrix) {
+      matrix = matrix[2].split(',');
+      if (is3D === '3d') {
+        matrix = matrix.slice(12, 15);
+      } else {
+        matrix.push('0');
+        matrix = matrix.slice(4, 7);
+      }
+    } else {
+      matrix = ['0', '0', '0'];
+    }
+    result = {
+      x: parseFloat(matrix[0]),
+      y: parseFloat(matrix[1]),
+      z: parseFloat(matrix[2])
+    };
+    cacheTranslate($element, result);
+  }
+  return result;
+};
+exports.getTranslate = getTranslate;
+const move = function ($element,
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+position) {
+  // eslint-disable-next-line no-param-reassign
+  $element = (0, _renderer.default)($element);
+  const {
+    left,
+    top
+  } = position;
+  // eslint-disable-next-line @typescript-eslint/init-declarations
+  let translate;
+  if (left === undefined) {
+    translate = getTranslate($element);
+    translate.y = top || 0;
+  } else if (top === undefined) {
+    translate = getTranslate($element);
+    translate.x = left || 0;
+  } else {
+    translate = {
+      x: left || 0,
+      y: top || 0,
+      z: 0
+    };
+    cacheTranslate($element, translate);
+  }
+  $element.css({
+    transform: getTranslateCss(translate)
+  });
+  if (isPercentValue(left) || isPercentValue(top)) {
+    clearCache($element);
+  }
+};
+exports.move = move;
+const resetPosition = function ($element, finishTransition) {
+  // eslint-disable-next-line no-param-reassign
+  $element = (0, _renderer.default)($element);
+  // eslint-disable-next-line @typescript-eslint/init-declarations
+  let originalTransition;
+  const stylesConfig = {
+    left: 0,
+    top: 0,
+    transform: 'none'
+  };
+  if (finishTransition) {
+    originalTransition = $element.css('transition');
+    // @ts-expect-error
+    stylesConfig.transition = 'none';
+  }
+  $element.css(stylesConfig);
+  clearCache($element);
+  if (finishTransition) {
+    // @ts-expect-error
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    $element.get(0).offsetHeight;
+    $element.css('transition', originalTransition);
+  }
+};
+exports.resetPosition = resetPosition;
+const parseTranslate = function (translateString) {
+  // eslint-disable-next-line @typescript-eslint/prefer-regexp-exec
+  let result = translateString.match(TRANSLATE_REGEX);
+  if (!result || !result[1]) {
+    return undefined;
+  }
+  result = result[1].split(',');
+  return {
+    x: parseFloat(result[0]),
+    y: parseFloat(result[1]),
+    z: parseFloat(result[2])
+  };
+};
+exports.parseTranslate = parseTranslate;
 
 /***/ }),
 
@@ -7930,7 +9206,10 @@ class DxLicenseTrigger extends SafeHTMLElement {
     if (!licensePanel.length) {
       const license = document.createElement(componentNames.panel);
       Object.values(attributeNames).forEach(attrName => {
-        license.setAttribute(attrName, this.getAttribute(attrName));
+        const attrValue = this.getAttribute(attrName);
+        if (attrValue) {
+          license.setAttribute(attrName, attrValue);
+        }
       });
       license.setAttribute(DATA_PERMANENT_ATTRIBUTE, '');
       document.body.prepend(license);
@@ -7947,15 +9226,13 @@ function registerCustomComponents(customStyles) {
     customElements.define(componentNames.trigger, DxLicenseTrigger);
   }
 }
-function renderTrialPanel(buyNowUrl, licensingDocUrl, version) {
-  let subscriptions = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : '';
-  let customStyles = arguments.length > 4 ? arguments[4] : undefined;
+function renderTrialPanel(buyNowUrl, licensingDocUrl, version, subscriptions, customStyles) {
   registerCustomComponents(customStyles);
   const trialPanelTrigger = document.createElement(componentNames.trigger);
   trialPanelTrigger.setAttribute(attributeNames.buyNow, buyNowUrl);
   trialPanelTrigger.setAttribute(attributeNames.licensingDoc, licensingDocUrl);
   trialPanelTrigger.setAttribute(attributeNames.version, version);
-  trialPanelTrigger.setAttribute(attributeNames.subscriptions, subscriptions);
+  trialPanelTrigger.setAttribute(attributeNames.subscriptions, subscriptions ?? '');
   document.body.appendChild(trialPanelTrigger);
 }
 
@@ -30450,7 +31727,7 @@ class PivotGridHelpers {
     if (!this[`export${(0, _inflector.camelize)(area, true)}FieldHeaders`]) {
       return [];
     }
-    const fields = this._getAllFieldHeaders()[area === 'data' ? 'values' : `${area}s`].filter(fieldHeader => fieldHeader.area === area);
+    const fields = this._getAllFieldHeaders()[area === 'data' ? 'values' : `${area}s`].filter(fieldHeader => fieldHeader.area === area && fieldHeader.visible !== false);
     if ((0, _position.getDefaultAlignment)(this.rtlEnabled) === 'right') {
       fields.sort((a, b) => b.areaIndex - a.areaIndex);
     }
@@ -34491,6 +35768,9 @@ class FilterBuilder extends _ui3.default {
     treeViewPopup === null || treeViewPopup === void 0 || treeViewPopup.removeAttr('role');
     const treeViewNode = treeViewPopup === null || treeViewPopup === void 0 || (_treeViewPopup$find = treeViewPopup.find) === null || _treeViewPopup$find === void 0 ? void 0 : _treeViewPopup$find.call(treeViewPopup, `.${TREEVIEW_NODE_CONTAINER}`);
     treeViewNode === null || treeViewNode === void 0 || treeViewNode.attr('role', 'presentation');
+  }
+  addWidgetPrefix(className) {
+    return `${FILTER_BUILDER_CLASS}-${className}`;
   }
 }
 (0, _component_registrator.default)('dxFilterBuilder', FilterBuilder);
@@ -38933,7 +40213,7 @@ var _m_widget_base = _interopRequireDefault(__webpack_require__(99335));
 var _m_core = _interopRequireDefault(__webpack_require__(54353));
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 const DATAGRID_DEPRECATED_TEMPLATE_WARNING = 'Specifying grid templates with the jQuery selector name is now deprecated. Use the DOM Node or the jQuery object that references this selector instead.';
-_m_core.default.registerModulesOrder(['stateStoring', 'columns', 'aiColumn', 'selection', 'editorFactory', 'columnChooser', 'grouping', 'editing', 'editingRowBased', 'editingFormBased', 'editingCellBased', 'masterDetail', 'validating', 'adaptivity', 'data', 'virtualScrolling', 'columnHeaders', 'filterRow', 'headerPanel', 'headerFilter', 'sorting', 'search', 'rows', 'pager', 'columnsResizingReordering', 'contextMenu', 'keyboardNavigation', 'headersKeyboardNavigation', 'groupPanelKeyboardNavigation', 'errorHandling', 'summary', 'columnFixing', 'export', 'toast', 'gridView']);
+_m_core.default.registerModulesOrder(['stateStoring', 'columns', 'selection', 'editorFactory', 'columnChooser', 'grouping', 'editing', 'editingRowBased', 'editingFormBased', 'editingCellBased', 'masterDetail', 'validating', 'adaptivity', 'data', 'virtualScrolling', 'aiColumn', 'columnHeaders', 'filterRow', 'headerPanel', 'headerFilter', 'sorting', 'search', 'rows', 'pager', 'columnsResizingReordering', 'contextMenu', 'keyboardNavigation', 'headersKeyboardNavigation', 'groupPanelKeyboardNavigation', 'errorHandling', 'summary', 'columnFixing', 'export', 'toast', 'gridView']);
 class DataGrid extends _m_widget_base.default {
   _defaultOptionsRules() {
     // @ts-expect-error
@@ -41879,16 +43159,11 @@ class AIColumnCacheController extends _m_modules.Controller {
     }, {});
   }
   setCachedResponse(columnName, data) {
-    let columnCache = this.cache[columnName];
-    if (!columnCache) {
-      columnCache = {};
-      this.cache[columnName] = columnCache;
-    }
+    const columnCache = this.cache[columnName] ?? {};
+    this.cache[columnName] = columnCache;
     Object.entries(data).forEach(_ref => {
       let [key, value] = _ref;
-      if (columnCache && value !== '') {
-        columnCache[key] = value;
-      }
+      columnCache[key] = value;
     });
   }
   getCachedString(columnName, key) {
@@ -41915,9 +43190,41 @@ exports.AIColumnController = void 0;
 var _m_modules = __webpack_require__(74854);
 var _m_ai_column_integration_controller = __webpack_require__(41776);
 var _utils = __webpack_require__(40208);
+function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
 class AIColumnController extends _m_modules.Controller {
+  getDefaultCellValue(column, cellValue) {
+    var _column$ai2;
+    if (cellValue === undefined) {
+      var _column$ai;
+      return ((_column$ai = column.ai) === null || _column$ai === void 0 ? void 0 : _column$ai.emptyText) ?? null;
+    }
+    return ((_column$ai2 = column.ai) === null || _column$ai2 === void 0 ? void 0 : _column$ai2.noDataText) ?? null;
+  }
   addAICommandColumn() {
-    this.columnsController.addCommandColumn((0, _utils.getAICommandColumnDefaultOptions)());
+    const that = this;
+    const {
+      dataController,
+      aiColumnIntegrationController
+    } = this;
+    this.columnsController.addCommandColumn(_extends({}, (0, _utils.getAICommandColumnDefaultOptions)(), {
+      calculateCellValue(data) {
+        const key = dataController.keyOf(data);
+        const cellValue = aiColumnIntegrationController.getAIColumnText(this.name, key);
+        const defaultValue = that.getDefaultCellValue(this, cellValue);
+        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+        return cellValue || defaultValue;
+      }
+    }));
+  }
+  subscribeToDataSourceChanged() {
+    var _this$dataController$;
+    this.dataSourceChangedHandler = this.handleDataSourceChanged.bind(this);
+    (_this$dataController$ = this.dataController.dataSource()) === null || _this$dataController$ === void 0 || _this$dataController$.changed.add(this.dataSourceChangedHandler);
+  }
+  updateAICells() {
+    this.dataController.updateItems({
+      repaintChangesOnly: this.option('repaintChangesOnly')
+    });
   }
   callbackNames() {
     return ['aiRequestCompleted', 'aiRequestRejected'];
@@ -41925,22 +43232,21 @@ class AIColumnController extends _m_modules.Controller {
   init() {
     this.columnsController = this.getController('columns');
     this.dataController = this.getController('data');
-    this.addAICommandColumn();
     this.aiColumnIntegrationController = new _m_ai_column_integration_controller.AIColumnIntegrationController(this.component);
     this.aiColumnIntegrationController.init();
-    this.dataChangedHandler = this.handleDataChanged.bind(this);
-    this.dataController.changed.add(this.dataChangedHandler);
     this.aiColumnOptionChangedHandler = this.aiColumnOptionChanged.bind(this);
     this.columnsController.aiColumnOptionChanged.add(this.aiColumnOptionChangedHandler);
-  }
-  showResults(columnName, result, cachedData) {
-    // Update the results in the UI or internal state
+    this.subscribeToDataSourceChanged();
+    this.addAICommandColumn();
   }
   getAIColumns() {
     return this.columnsController.getColumns().filter(col => col.type === 'ai');
   }
-  handleDataChanged(e) {
+  handleDataSourceChanged(args) {
     const aiColumns = this.getAIColumns();
+    if ((args === null || args === void 0 ? void 0 : args.changeType) === 'loadError') {
+      return;
+    }
     for (const col of aiColumns) {
       if ((0, _utils.isAIColumnAutoMode)(col)) {
         this.sendRequest(col.name, true);
@@ -41953,10 +43259,19 @@ class AIColumnController extends _m_modules.Controller {
   }
   abortAIColumnRequest(columnName) {
     this.aiColumnIntegrationController.abortRequest(columnName);
+    if (!this.aiColumnIntegrationController.isAnyRequestAwaitingCompletion()) {
+      this.dataController.endCustomLoading();
+    }
   }
   sendRequest(columnName, useCache) {
+    let needToShowLoadPanel = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : true;
     const callbacks = this.getRequestCallbacks();
-    this.aiColumnIntegrationController.sendRequest(columnName, useCache, callbacks);
+    this.aiColumnIntegrationController.sendRequestCore({
+      columnName,
+      useCache,
+      needToShowLoadPanel,
+      callbacks
+    });
   }
   sendAIColumnRequest(columnName) {
     this.sendRequest(columnName, false);
@@ -41966,18 +43281,27 @@ class AIColumnController extends _m_modules.Controller {
   }
   getRequestCallbacks() {
     return {
+      onRequestSending: needToShowLoadPanel => {
+        if (needToShowLoadPanel) {
+          this.dataController.beginCustomLoading();
+        }
+      },
       onComplete: data => {
+        this.dataController.endCustomLoading();
         this.aiRequestCompleted.fire(data);
+        this.updateAICells();
       },
       onError: error => {
+        this.dataController.endCustomLoading();
         this.aiRequestRejected.fire(error);
       }
     };
   }
   clearAIColumn(columnName) {
-    this.aiColumnIntegrationController.abortRequest(columnName);
+    this.abortAIColumnRequest(columnName);
     this.aiColumnIntegrationController.clearAIColumn(columnName);
     this.columnsController.columnOption(columnName, 'ai.prompt', '');
+    this.updateAICells();
   }
   getAIColumnText(columnName, key) {
     return this.aiColumnIntegrationController.getAIColumnText(columnName, key);
@@ -41985,17 +43309,17 @@ class AIColumnController extends _m_modules.Controller {
   aiColumnOptionChanged(column, optionName, value) {
     const isPromptOptionName = (0, _utils.isPromptOption)(optionName, value);
     if (isPromptOptionName && column.name) {
+      var _column$ai3;
       this.aiColumnIntegrationController.clearAIColumn(column.name);
+      if (!((_column$ai3 = column.ai) !== null && _column$ai3 !== void 0 && _column$ai3.prompt)) {
+        this.updateAICells();
+      }
     }
   }
   dispose() {
+    var _this$dataController$2;
     super.dispose();
-    if (this.aiColumnOptionChangedHandler) {
-      this.columnsController.aiColumnOptionChanged.remove(this.aiColumnOptionChangedHandler);
-    }
-    if (this.dataChangedHandler) {
-      this.dataController.changed.remove(this.dataChangedHandler);
-    }
+    (_this$dataController$2 = this.dataController.dataSource()) === null || _this$dataController$2 === void 0 || _this$dataController$2.changed.remove(this.dataSourceChangedHandler);
   }
 }
 exports.AIColumnController = AIColumnController;
@@ -42016,7 +43340,6 @@ var _m_modules = __webpack_require__(74854);
 var _m_ai_column_cache_controller = __webpack_require__(27064);
 var _utils = __webpack_require__(40208);
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
 class AIColumnIntegrationController extends _m_modules.Controller {
   constructor() {
     super(...arguments);
@@ -42031,7 +43354,13 @@ class AIColumnIntegrationController extends _m_modules.Controller {
     this.createAction('onAIColumnRequestCreating');
     this.createAction('onAIColumnResponseReceived');
   }
-  sendRequest(columnName, useCache, callbacks) {
+  sendRequestCore(_ref) {
+    let {
+      columnName,
+      useCache,
+      needToShowLoadPanel,
+      callbacks
+    } = _ref;
     const aiIntegration = this.getAIIntegration(columnName);
     if (!aiIntegration) {
       return;
@@ -42068,12 +43397,12 @@ class AIColumnIntegrationController extends _m_modules.Controller {
       const keys = data.map(item => item[keyField]);
       cachedResponse = this.aiColumnCacheController.getCachedResponse(columnName, keys);
     }
-    const reducedData = (0, _utils.reduceDataCachedKeys)(data, cachedResponse, keyField);
+    const reducedData = (0, _utils.reduceDataCachedKeys)(args.data, cachedResponse, keyField);
     const areAllDataCached = Object.keys(reducedData).length === 0;
     if (areAllDataCached) {
-      this.showResult(columnName, {}, cachedResponse);
       return;
     }
+    callbacks.onRequestSending(needToShowLoadPanel);
     const abort = aiIntegration.generateGridColumn({
       text: prompt,
       data: reducedData,
@@ -42083,11 +43412,6 @@ class AIColumnIntegrationController extends _m_modules.Controller {
   }
   processCommandCompletion(columnName) {
     this.abortRequest(columnName);
-  }
-  /* eslint-disable @typescript-eslint/no-unused-vars */
-  showResult(columnName, response, cachedData) {
-    // TODO: Implement result display logic
-    const mergedData = _extends({}, cachedData, response);
   }
   getAICommandCallbacks(columnName, cachedResponse, callBacks) {
     const column = this.columnsController.getColumnByName(columnName);
@@ -42102,7 +43426,6 @@ class AIColumnIntegrationController extends _m_modules.Controller {
           };
           this.executeAction('onAIColumnResponseReceived', args);
           this.aiColumnCacheController.setCachedResponse(columnName, finalResponse.data);
-          this.showResult(columnName, finalResponse.data, cachedResponse);
           this.processCommandCompletion(columnName);
           callBacks === null || callBacks === void 0 || (_callBacks$onComplete = callBacks.onComplete) === null || _callBacks$onComplete === void 0 || _callBacks$onComplete.call(callBacks, finalResponse);
         }
@@ -42121,6 +43444,9 @@ class AIColumnIntegrationController extends _m_modules.Controller {
       }
     };
     return callbacks;
+  }
+  isAnyRequestAwaitingCompletion() {
+    return Object.values(this.aborts).some(abort => !!abort);
   }
   abortRequest(columnName) {
     var _this$aborts$columnNa, _this$aborts;
@@ -42208,6 +43534,7 @@ const columnHeadersViewExtender = Base => class AIColumnHeadersViewExtender exte
       showArrowIcon: false,
       icon: 'overflow',
       stylingMode: 'text',
+      useItemTextAsTitle: false,
       items: this.getDropDownButtonItems(column),
       onItemClick: e => {
         const {
@@ -42219,7 +43546,7 @@ const columnHeadersViewExtender = Base => class AIColumnHeadersViewExtender exte
             this.aiPromptEditorController.show($container[0], column);
             break;
           case 'regenerate':
-            this.aiColumnController.refreshAIColumn(column.name);
+            this.aiColumnController.sendRequest(column.name, false);
             break;
           case 'clear':
             this.aiColumnController.clearAIColumn(column.name);
@@ -42293,12 +43620,13 @@ const columnHeadersViewExtender = Base => class AIColumnHeadersViewExtender exte
     this.columnsResizer.resizeStarted.add(() => {
       var _this$activeDropDownB;
       /**
-       * We need to manually close the DropDownMenu button
+       * We need to manually close the DropDownMenu button and AIPromptEditor
        * because the stopPropagation method is called
        * when the cell resize is initiated.
        * Calling this method is necessary to fix bug T252661.
        */
       (_this$activeDropDownB = this.activeDropDownButtonInstance) === null || _this$activeDropDownB === void 0 || _this$activeDropDownB.close();
+      this.aiPromptEditorController.hide();
     });
     this.aiColumnOptionChangedHandler = this.aiColumnOptionChanged.bind(this);
     this._columnsController.aiColumnOptionChanged.add(this.aiColumnOptionChangedHandler);
@@ -42359,7 +43687,7 @@ class AIPromptEditorView extends _m_modules.View {
       },
       onRefresh: () => {
         this.promptEditorInstance.updateStateOnAction('regenerate');
-        this.aiColumnController.refreshAIColumn(column.name);
+        this.aiColumnController.sendRequest(column.name, false, false);
       },
       popupOptions: _extends({
         container: _m_dom_adapter.default.getBody(),
@@ -42437,7 +43765,8 @@ class AIPromptEditorView extends _m_modules.View {
       (_this$promptEditorIns5 = this.promptEditorInstance) === null || _this$promptEditorIns5 === void 0 || _this$promptEditorIns5.updatePrompt(value);
     }
     if (isPromptOptionName && (0, _utils.isAIColumnAutoMode)(column)) {
-      this.aiColumnController.sendAIColumnRequest(column.name);
+      var _this$promptEditorIns6;
+      this.aiColumnController.sendRequest(column.name, false, !((_this$promptEditorIns6 = this.promptEditorInstance) !== null && _this$promptEditorIns6 !== void 0 && _this$promptEditorIns6.isVisible()));
     }
     const needUpdatePopup = (0, _utils.isPopupOptions)(optionName, value);
     const needUpdateEditor = (0, _utils.isEditorOptions)(optionName, value);
@@ -42475,6 +43804,9 @@ class AIPromptEditorViewController extends _m_modules.ViewController {
   }
   show(cellElement, column) {
     return this.aiPromptEditorView.show(cellElement, column);
+  }
+  hide() {
+    return this.aiPromptEditorView.hide();
   }
 }
 exports.AIPromptEditorViewController = AIPromptEditorViewController;
@@ -47282,7 +48614,10 @@ const mergeColumns = (that, columns, commandColumns, needToExtend) => {
       if (needToExtend) {
         result[i] = (0, _extend.extend)({
           fixed: isColumnFixing
-        }, commandColumns[commandColumnIndex], column);
+        }, commandColumns[commandColumnIndex], column, {
+          calculateCellValue: commandColumns[commandColumnIndex].calculateCellValue,
+          cssClass: [commandColumns[commandColumnIndex].cssClass ?? '', column.cssClass ?? ''].join(' ').trim()
+        });
         if (column.type !== _const4.GROUP_COMMAND_COLUMN_NAME) {
           defaultCommandColumns = defaultCommandColumns.filter(callbackFilter);
         }
@@ -49029,6 +50364,7 @@ var _extend = __webpack_require__(52576);
 var _iterator = __webpack_require__(21274);
 var _type = __webpack_require__(11528);
 var _ui = _interopRequireDefault(__webpack_require__(35185));
+var _const = __webpack_require__(92806);
 var _m_modules = _interopRequireDefault(__webpack_require__(74854));
 var _m_utils = _interopRequireDefault(__webpack_require__(53226));
 var _m_data_helper_mixin = __webpack_require__(68910);
@@ -49563,7 +50899,7 @@ class DataController extends (0, _m_data_helper_mixin.DataHelperMixin)(_m_module
     for (let i = 0; i < columns.length; i++) {
       const column = columns[i];
       value = isModified ? undefined : null;
-      if (!column.command) {
+      if (!column.command || column.type === _const.AI_COLUMN_NAME) {
         if (column.calculateCellValue) {
           value = column.calculateCellValue(data);
         } else if (column.dataField) {
@@ -50289,7 +51625,7 @@ class DataController extends (0, _m_data_helper_mixin.DataHelperMixin)(_m_module
   }
   beginCustomLoading(messageText) {
     this._isCustomLoading = true;
-    this._loadingText = messageText || '';
+    this._loadingText = messageText ?? '';
     this._fireLoadingChanged();
   }
   endCustomLoading() {
@@ -72038,6 +73374,7 @@ var _const = __webpack_require__(91066);
 var _m_utils = _interopRequireDefault(__webpack_require__(53226));
 var _const2 = __webpack_require__(87396);
 var _m_columns_view = __webpack_require__(48921);
+var _utils = __webpack_require__(56095);
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); } /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */ /* eslint-disable @typescript-eslint/no-unused-vars */
 const ROWS_VIEW_CLASS = 'rowsview';
@@ -72802,7 +74139,7 @@ class RowsView extends _m_columns_view.ColumnsView {
     parameters.data = data;
     parameters.rowType = row.rowType;
     parameters.values = row.values;
-    parameters.text = !column.command ? _m_utils.default.formatValue(displayValue, column) : '';
+    parameters.text = (0, _utils.getCellText)(column, displayValue);
     parameters.rowIndex = row.rowIndex;
     parameters.summaryItems = summaryCells && summaryCells[options.columnIndex];
     parameters.resized = column.resizedCallbacks;
@@ -73285,6 +74622,23 @@ const rowsModule = exports.rowsModule = {
     rowsView: RowsView
   }
 };
+
+/***/ }),
+
+/***/ 56095:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.getCellText = void 0;
+var _const = __webpack_require__(92806);
+var _m_utils = _interopRequireDefault(__webpack_require__(53226));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+const getCellText = (column, displayValue) => !column.command || column.type === _const.AI_COLUMN_NAME ? _m_utils.default.formatValue(displayValue, column) : '';
+exports.getCellText = getCellText;
 
 /***/ }),
 
@@ -83989,11 +85343,11 @@ class ItemsController {
     this.selectedCardKeys = (0, _index.signal)([]);
     this.additionalItems = (0, _index.signal)([]);
     this.items = (0, _index.computed)(() => {
-      // NOTE: We should trigger computed by search options change
+      // NOTE: We should trigger computed by search options change,
       // But all work with these options encapsulated in SearchHighlightTextProcessor
       // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       this.searchController.highlightTextOptions.value;
-      return this.dataController.items.value.map((item, itemIndex) => this.createCardInfo(item, this.columnsController.visibleColumns.value, itemIndex, this.selectedCardKeys.value)).concat(this.additionalItems.value);
+      return this.dataController.items.value.map((item, itemIndex) => this.createCardInfo(item, this.columnsController.visibleColumns.peek(), itemIndex, this.selectedCardKeys.value)).concat(this.additionalItems.value);
     });
   }
   setSelectionState(keys) {
@@ -98480,7 +99834,7 @@ var _m_widget_base = _interopRequireDefault(__webpack_require__(99335));
 var _m_core = _interopRequireDefault(__webpack_require__(99477));
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 const TREELIST_CLASS = 'dx-treelist';
-_m_core.default.registerModulesOrder(['stateStoring', 'columns', 'aiColumn', 'selection', 'editorFactory', 'columnChooser', 'editingRowBased', 'editingFormBased', 'editingCellBased', 'editing', 'grouping', 'masterDetail', 'validating', 'adaptivity', 'data', 'virtualScrolling', 'columnHeaders', 'filterRow', 'headerPanel', 'headerFilter', 'sorting', 'search', 'rows', 'pager', 'columnsResizingReordering', 'contextMenu', 'keyboardNavigation', 'headersKeyboardNavigation', 'errorHandling', 'summary', 'columnFixing', 'export', 'toast', 'gridView']);
+_m_core.default.registerModulesOrder(['stateStoring', 'columns', 'selection', 'editorFactory', 'columnChooser', 'editingRowBased', 'editingFormBased', 'editingCellBased', 'editing', 'grouping', 'masterDetail', 'validating', 'adaptivity', 'data', 'virtualScrolling', 'aiColumn', 'columnHeaders', 'filterRow', 'headerPanel', 'headerFilter', 'sorting', 'search', 'rows', 'pager', 'columnsResizingReordering', 'contextMenu', 'keyboardNavigation', 'headersKeyboardNavigation', 'errorHandling', 'summary', 'columnFixing', 'export', 'toast', 'gridView']);
 class TreeList extends _m_widget_base.default {
   _initMarkup() {
     // @ts-expect-error
@@ -99530,6 +100884,454 @@ _m_core.default.registerModule('selection', (0, _extend.extend)(true, {}, _m_sel
     }
   }
 }));
+
+/***/ }),
+
+/***/ 24595:
+/***/ (function(__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
+
+
+
+var _m_error = _interopRequireDefault(__webpack_require__(40818));
+var _m_version = __webpack_require__(5388);
+var _jquery = _interopRequireDefault(__webpack_require__(10561));
+var _use_jquery = _interopRequireDefault(__webpack_require__(64688));
+__webpack_require__(49381);
+__webpack_require__(85004);
+__webpack_require__(63113);
+__webpack_require__(11447);
+__webpack_require__(32999);
+__webpack_require__(96979);
+__webpack_require__(30987);
+__webpack_require__(9008);
+__webpack_require__(76116);
+__webpack_require__(91828);
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+/* eslint-disable import/first */
+
+// eslint-disable-next-line import/no-extraneous-dependencies
+
+const useJQuery = (0, _use_jquery.default)();
+if (useJQuery && (0, _m_version.compare)(_jquery.default.fn.jquery, [1, 10]) < 0) {
+  // @ts-expect-error
+  throw _m_error.default.Error('E0012');
+}
+
+/***/ }),
+
+/***/ 91828:
+/***/ (function(__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
+
+
+
+var _m_ajax = __webpack_require__(14136);
+var _jquery = _interopRequireDefault(__webpack_require__(10561));
+var _use_jquery = _interopRequireDefault(__webpack_require__(64688));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+// eslint-disable-next-line import/no-extraneous-dependencies
+
+const useJQuery = (0, _use_jquery.default)();
+if (useJQuery) {
+  _m_ajax.Ajax.inject({
+    sendRequest(options) {
+      if (!options.responseType && !options.upload) {
+        return _jquery.default.ajax(options);
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return this.callBase.apply(this, [options]);
+    }
+  });
+}
+
+/***/ }),
+
+/***/ 76116:
+/***/ (function(__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
+
+
+
+var _m_component_registrator_callbacks = __webpack_require__(21233);
+var _m_errors = _interopRequireDefault(__webpack_require__(5583));
+var _jquery = _interopRequireDefault(__webpack_require__(10561));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+// eslint-disable-next-line import/no-extraneous-dependencies
+
+if (_jquery.default) {
+  // eslint-disable-next-line func-names
+  const registerJQueryComponent = function (name, componentClass) {
+    // @ts-expect-error
+    // eslint-disable-next-line func-names
+    _jquery.default.fn[name] = function (options) {
+      const isMemberInvoke = typeof options === 'string';
+      // eslint-disable-next-line @typescript-eslint/init-declarations
+      let result;
+      if (isMemberInvoke) {
+        const memberName = options;
+        // eslint-disable-next-line prefer-rest-params
+        const memberArgs = [].slice.call(arguments).slice(1);
+        this.each(function () {
+          const instance = componentClass.getInstance(this);
+          if (!instance) {
+            throw _m_errors.default.Error('E0009', name);
+          }
+          const member = instance[memberName];
+          const memberValue = member.apply(instance, memberArgs);
+          if (result === undefined) {
+            result = memberValue;
+          }
+        });
+      } else {
+        this.each(function () {
+          const instance = componentClass.getInstance(this);
+          if (instance) {
+            instance.option(options);
+          } else {
+            // eslint-disable-next-line no-new,new-cap
+            new componentClass(this, options);
+          }
+        });
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
+        result = this;
+      }
+      return result;
+    };
+  };
+  _m_component_registrator_callbacks.componentRegistratorCallbacks.add(registerJQueryComponent);
+}
+
+/***/ }),
+
+/***/ 63113:
+/***/ (function(__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
+
+
+
+var _m_deferred = __webpack_require__(77117);
+var _m_version = __webpack_require__(5388);
+var _jquery = _interopRequireDefault(__webpack_require__(10561));
+var _use_jquery = _interopRequireDefault(__webpack_require__(64688));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+// eslint-disable-next-line import/no-extraneous-dependencies
+
+const useJQuery = (0, _use_jquery.default)();
+if (useJQuery) {
+  const {
+    Deferred
+  } = _jquery.default;
+  const strategy = {
+    Deferred
+  };
+  // @ts-expect-error
+  strategy.when = (0, _m_version.compare)(_jquery.default.fn.jquery, [3]) < 0 ? _jquery.default.when
+  // eslint-disable-next-line func-names
+  : function (singleArg) {
+    if (arguments.length === 0) {
+      // @ts-expect-error
+      return new Deferred().resolve();
+    }
+    if (arguments.length === 1) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return singleArg !== null && singleArg !== void 0 && singleArg.then ? singleArg
+      // @ts-expect-error
+      : new Deferred().resolve(singleArg);
+    }
+    // @ts-expect-error
+    // eslint-disable-next-line prefer-spread, prefer-rest-params
+    return _jquery.default.when.apply(_jquery.default, arguments);
+  };
+  (0, _m_deferred.setStrategy)(strategy);
+}
+
+/***/ }),
+
+/***/ 96979:
+/***/ (function(__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
+
+
+
+var _easing = __webpack_require__(11610);
+var _jquery = _interopRequireDefault(__webpack_require__(10561));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+// eslint-disable-next-line import/no-extraneous-dependencies
+
+if (_jquery.default) {
+  (0, _easing.setEasing)(_jquery.default.easing);
+}
+
+/***/ }),
+
+/***/ 9008:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.getPublicElementJQuery = getPublicElementJQuery;
+var _m_element = __webpack_require__(93630);
+var _use_jquery = _interopRequireDefault(__webpack_require__(64688));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+const useJQuery = (0, _use_jquery.default)();
+// eslint-disable-next-line @stylistic/max-len
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type,@typescript-eslint/explicit-module-boundary-types
+function getPublicElementJQuery($element) {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  return $element;
+}
+if (useJQuery) {
+  (0, _m_element.setPublicElementWrapper)(getPublicElementJQuery);
+}
+
+/***/ }),
+
+/***/ 30987:
+/***/ (function(__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
+
+
+
+var _m_element_data = __webpack_require__(29489);
+var _jquery = _interopRequireDefault(__webpack_require__(10561));
+var _use_jquery = _interopRequireDefault(__webpack_require__(64688));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+// eslint-disable-next-line import/no-extraneous-dependencies
+
+const useJQuery = (0, _use_jquery.default)();
+if (useJQuery) {
+  (0, _m_element_data.setDataStrategy)(_jquery.default);
+}
+
+/***/ }),
+
+/***/ 32999:
+/***/ (function(__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
+
+
+
+var _event_registrator_callbacks = _interopRequireDefault(__webpack_require__(85030));
+var _m_dom_adapter = _interopRequireDefault(__webpack_require__(62018));
+var _m_events_engine = _interopRequireDefault(__webpack_require__(36306));
+var _jquery = _interopRequireDefault(__webpack_require__(10561));
+var _use_jquery = _interopRequireDefault(__webpack_require__(64688));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+// eslint-disable-next-line import/no-extraneous-dependencies
+
+const useJQuery = (0, _use_jquery.default)();
+if (useJQuery) {
+  _event_registrator_callbacks.default.add((name, eventObject) => {
+    _jquery.default.event.special[name] = eventObject;
+  });
+  if (_m_events_engine.default.passiveEventHandlersSupported()) {
+    _m_events_engine.default.forcePassiveFalseEventNames.forEach(eventName => {
+      _jquery.default.event.special[eventName] = {
+        setup(data, namespaces, handler) {
+          _m_dom_adapter.default.listen(this, eventName, handler, {
+            passive: false
+          });
+        }
+      };
+    });
+  }
+  _m_events_engine.default.set({
+    on(element) {
+      // @ts-expect-error
+      // eslint-disable-next-line prefer-spread,prefer-rest-params
+      (0, _jquery.default)(element).on.apply((0, _jquery.default)(element), Array.prototype.slice.call(arguments, 1));
+    },
+    one(element) {
+      // @ts-expect-error
+      // eslint-disable-next-line prefer-spread,prefer-rest-params
+      (0, _jquery.default)(element).one.apply((0, _jquery.default)(element), Array.prototype.slice.call(arguments, 1));
+    },
+    off(element) {
+      // @ts-expect-error
+      // eslint-disable-next-line prefer-spread,prefer-rest-params
+      (0, _jquery.default)(element).off.apply((0, _jquery.default)(element), Array.prototype.slice.call(arguments, 1));
+    },
+    trigger(element) {
+      // @ts-expect-error
+      // eslint-disable-next-line prefer-spread,prefer-rest-params
+      (0, _jquery.default)(element).trigger.apply((0, _jquery.default)(element), Array.prototype.slice.call(arguments, 1));
+    },
+    triggerHandler(element) {
+      // @ts-expect-error
+      // eslint-disable-next-line prefer-spread,prefer-rest-params,@stylistic/max-len
+      (0, _jquery.default)(element).triggerHandler.apply((0, _jquery.default)(element), Array.prototype.slice.call(arguments, 1));
+    },
+    Event: _jquery.default.Event
+  });
+}
+
+/***/ }),
+
+/***/ 11447:
+/***/ (function(__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
+
+
+
+var _m_ready_callbacks = _interopRequireDefault(__webpack_require__(18344));
+var _m_themes_callback = __webpack_require__(68831);
+var _jquery = _interopRequireDefault(__webpack_require__(10561));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+// eslint-disable-next-line import/no-extraneous-dependencies
+
+if (_jquery.default && !_m_themes_callback.themeReadyCallback.fired()) {
+  // @ts-expect-error
+  const holdReady = _jquery.default.holdReady || _jquery.default.fn.holdReady;
+  holdReady(true);
+  _m_themes_callback.themeReadyCallback.add(() => {
+    _m_ready_callbacks.default.add(() => {
+      holdReady(false);
+    });
+  });
+}
+
+/***/ }),
+
+/***/ 85004:
+/***/ (function(__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
+
+
+
+var _m_iterator = __webpack_require__(26044);
+var _m_type = __webpack_require__(39918);
+var _m_version = __webpack_require__(5388);
+var _m_event_registrator = _interopRequireDefault(__webpack_require__(65381));
+var _m_hook_touch_props = _interopRequireDefault(__webpack_require__(40866));
+var _index = __webpack_require__(61210);
+var _jquery = _interopRequireDefault(__webpack_require__(10561));
+var _use_jquery = _interopRequireDefault(__webpack_require__(64688));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+// eslint-disable-next-line import/no-extraneous-dependencies
+
+const useJQuery = (0, _use_jquery.default)();
+if (useJQuery) {
+  if ((0, _m_version.compare)(_jquery.default.fn.jquery, [3]) < 0) {
+    const POINTER_TYPE_MAP = {
+      2: 'touch',
+      3: 'pen',
+      4: 'mouse'
+    };
+    (0, _m_iterator.each)(['MSPointerDown', 'MSPointerMove', 'MSPointerUp', 'MSPointerCancel', 'MSPointerOver', 'MSPointerOut', 'mouseenter', 'mouseleave', 'pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'pointerover', 'pointerout', 'pointerenter', 'pointerleave'
+    // eslint-disable-next-line func-names
+    ], function () {
+      // @ts-expect-error
+      _jquery.default.event.fixHooks[this] = {
+        // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+        filter(event, originalEvent) {
+          const {
+            pointerType
+          } = originalEvent;
+          if ((0, _m_type.isNumeric)(pointerType)) {
+            event.pointerType = POINTER_TYPE_MAP[pointerType];
+          }
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+          return event;
+        },
+        // @ts-expect-error
+        props: _jquery.default.event.mouseHooks.props.concat(['pointerId', 'pointerType', 'originalTarget', 'width', 'height', 'pressure', 'result', 'tiltX', 'charCode', 'tiltY', 'detail', 'isPrimary', 'prevValue'])
+      };
+    });
+    (0, _m_iterator.each)(['touchstart', 'touchmove', 'touchend', 'touchcancel'], function () {
+      // @ts-expect-error
+      _jquery.default.event.fixHooks[this] = {
+        // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+        filter(event, originalEvent) {
+          (0, _m_hook_touch_props.default)((name, hook) => {
+            event[name] = hook(originalEvent);
+          });
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+          return event;
+        },
+        // @ts-expect-error
+        props: _jquery.default.event.mouseHooks.props.concat(['touches', 'changedTouches', 'targetTouches', 'detail', 'result', 'originalTarget', 'charCode', 'prevValue'])
+      };
+    });
+    // @ts-expect-error
+    _jquery.default.event.fixHooks.wheel = _jquery.default.event.mouseHooks;
+    const DX_EVENT_HOOKS = {
+      // @ts-expect-error
+      props: _jquery.default.event.mouseHooks.props.concat(['pointerType', 'pointerId', 'pointers'])
+    };
+    _m_event_registrator.default.callbacks.add(name => {
+      // @ts-expect-error
+      _jquery.default.event.fixHooks[name] = DX_EVENT_HOOKS;
+    });
+    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+    const fix = function (event, originalEvent) {
+      // @ts-expect-error
+      const fixHook = _jquery.default.event.fixHooks[originalEvent.type] || _jquery.default.event.mouseHooks;
+      // @ts-expect-error
+      const props = fixHook.props ? _jquery.default.event.props.concat(fixHook.props) : _jquery.default.event.props;
+      let propIndex = props.length;
+      // eslint-disable-next-line no-cond-assign
+      while (propIndex -= 1) {
+        const prop = props[propIndex];
+        event[prop] = originalEvent[prop];
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return fixHook.filter ? fixHook.filter(event, originalEvent) : event;
+    };
+    (0, _index.setEventFixMethod)(fix);
+  } else {
+    (0, _m_hook_touch_props.default)((name, hook) => {
+      // @ts-expect-error
+      _jquery.default.event.addProp(name, hook);
+    });
+  }
+}
+
+/***/ }),
+
+/***/ 49381:
+/***/ (function(__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
+
+
+
+var _m_renderer_base = _interopRequireDefault(__webpack_require__(1811));
+var _jquery = _interopRequireDefault(__webpack_require__(10561));
+var _use_jquery = _interopRequireDefault(__webpack_require__(64688));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+// eslint-disable-next-line import/no-extraneous-dependencies
+
+const useJQuery = (0, _use_jquery.default)();
+if (useJQuery) {
+  _m_renderer_base.default.set(_jquery.default);
+}
+
+/***/ }),
+
+/***/ 64688:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = _default;
+var _config = _interopRequireDefault(__webpack_require__(66636));
+var _jquery = _interopRequireDefault(__webpack_require__(10561));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+// eslint-disable-next-line import/no-extraneous-dependencies
+
+// @ts-expect-error
+const {
+  useJQuery
+} = (0, _config.default)();
+// @ts-expect-error
+if (_jquery.default && useJQuery !== false) {
+  // @ts-expect-error
+  (0, _config.default)({
+    useJQuery: true
+  });
+}
+// eslint-disable-next-line func-names
+function _default() {
+  // @ts-expect-error
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  return _jquery.default && (0, _config.default)().useJQuery;
+}
 
 /***/ }),
 
@@ -104101,8 +105903,10 @@ var _appointment_groups_utils = __webpack_require__(11649);
 var _m_customize_form_items = __webpack_require__(10504);
 var _m_recurrence_form = __webpack_require__(58452);
 var _utils = __webpack_require__(63512);
+const _excluded = ["items", "onContentReady", "onInitialized"];
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
+function _objectWithoutPropertiesLoose(r, e) { if (null == r) return {}; var t = {}; for (var n in r) if ({}.hasOwnProperty.call(r, n)) { if (e.includes(n)) continue; t[n] = r[n]; } return t; }
 const CLASSES = {
   form: 'dx-scheduler-form',
   icon: 'dx-icon',
@@ -104265,7 +106069,14 @@ class AppointmentForm {
   }
   createForm(items) {
     const element = (0, _renderer.default)('<div>');
-    return this.scheduler.createComponent(element, _form.default, {
+    const editingConfig = this.scheduler.getEditingConfig();
+    const _ref = (editingConfig === null || editingConfig === void 0 ? void 0 : editingConfig.form) ?? {},
+      {
+        onContentReady,
+        onInitialized
+      } = _ref,
+      customFormOptions = _objectWithoutPropertiesLoose(_ref, _excluded);
+    const defaultOptions = {
       items,
       formData: {},
       showColonAfterLabel: false,
@@ -104311,13 +106122,17 @@ class AppointmentForm {
       onInitialized: e => {
         this._dxForm = e.component;
         this._recurrenceForm.dxForm = this.dxForm;
+        onInitialized === null || onInitialized === void 0 || onInitialized.call(this, e);
       },
       onContentReady: e => {
         const $formElement = e.component.$element();
         this._$mainGroup = $formElement.find(`.${CLASSES.mainGroup}`);
         this._$recurrenceGroup = $formElement.find(`.${CLASSES.recurrenceGroup}`);
+        onContentReady === null || onContentReady === void 0 || onContentReady.call(this, e);
       }
-    });
+    };
+    const formOptions = (0, _extend.extend)(true, defaultOptions, customFormOptions);
+    return this.scheduler.createComponent(element, _form.default, formOptions);
   }
   createMainFormGroup() {
     return {
@@ -104751,8 +106566,11 @@ class AppointmentForm {
   }
   showRecurrenceGroup() {
     var _this$_$mainGroup, _this$_$recurrenceGro, _this$dxForm$getEdito;
-    const overlayHeight = this.dxPopup.$overlayContent().get(0).clientHeight;
-    this.dxPopup.option('height', overlayHeight);
+    const currentHeight = this.dxPopup.option('height');
+    if (currentHeight === 'auto' || currentHeight === undefined) {
+      const overlayHeight = this.dxPopup.$overlayContent().get(0).clientHeight;
+      this.dxPopup.option('height', overlayHeight);
+    }
     (_this$_$mainGroup = this._$mainGroup) === null || _this$_$mainGroup === void 0 || _this$_$mainGroup.addClass(CLASSES.mainHidden);
     (_this$_$recurrenceGro = this._$recurrenceGroup) === null || _this$_$recurrenceGro === void 0 || _this$_$recurrenceGro.removeClass(CLASSES.recurrenceHidden);
     const repeatEditorValue = (_this$dxForm$getEdito = this.dxForm.getEditor(REPEAT_EDITOR_NAME)) === null || _this$dxForm$getEdito === void 0 ? void 0 : _this$dxForm$getEdito.option('value');
@@ -104760,9 +106578,14 @@ class AppointmentForm {
     this._popup.updateToolbarForRecurrenceGroup();
   }
   showMainGroup() {
-    var _this$_$mainGroup2, _this$_$recurrenceGro2;
+    var _editingConfig$popup, _this$_$mainGroup2, _this$_$recurrenceGro2;
     let saveRecurrenceValue = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : true;
-    this.dxPopup.option('height', undefined);
+    const currentHeight = this.dxPopup.option('height');
+    const editingConfig = this.scheduler.getEditingConfig();
+    const configuredHeight = (editingConfig === null || editingConfig === void 0 || (_editingConfig$popup = editingConfig.popup) === null || _editingConfig$popup === void 0 ? void 0 : _editingConfig$popup.height) ?? 'auto';
+    if (typeof currentHeight === 'number') {
+      this.dxPopup.option('height', configuredHeight);
+    }
     (_this$_$mainGroup2 = this._$mainGroup) === null || _this$_$mainGroup2 === void 0 || _this$_$mainGroup2.removeClass(CLASSES.mainHidden);
     (_this$_$recurrenceGro2 = this._$recurrenceGroup) === null || _this$_$recurrenceGro2 === void 0 || _this$_$recurrenceGro2.addClass(CLASSES.recurrenceHidden);
     this._popup.updateToolbarForMainGroup();
@@ -104824,6 +106647,7 @@ class AppointmentForm {
         location: 'after',
         name: 'settings',
         options: {
+          disabled: false,
           icon: 'optionsoutline',
           stylingMode: 'text',
           onClick: () => {
@@ -105562,6 +107386,7 @@ var _message = _interopRequireDefault(__webpack_require__(4671));
 var _renderer = _interopRequireDefault(__webpack_require__(64553));
 var _date = _interopRequireDefault(__webpack_require__(41380));
 var _deferred = __webpack_require__(87739);
+var _extend = __webpack_require__(52576);
 var _size = __webpack_require__(57653);
 var _window = __webpack_require__(3104);
 var _ui = _interopRequireDefault(__webpack_require__(10720));
@@ -105625,7 +107450,10 @@ class AppointmentPopup {
     return this.scheduler.createComponent(popupElement, _ui.default, options);
   }
   _createPopupConfig() {
-    return {
+    const editingConfig = this.scheduler.getEditingConfig();
+    const customPopupOptions = (editingConfig === null || editingConfig === void 0 ? void 0 : editingConfig.popup) ?? {};
+    this.customToolbarItems = customPopupOptions.toolbarItems;
+    const defaultPopupConfig = {
       height: 'auto',
       maxHeight: '90%',
       showCloseButton: false,
@@ -105633,8 +107461,10 @@ class AppointmentPopup {
       preventScrollEvents: false,
       enableBodyScroll: false,
       _ignorePreventScrollEventsDeprecation: true,
-      onHiding: () => {
+      onHiding: e => {
+        var _customPopupOptions$o;
         this.scheduler.focus();
+        customPopupOptions === null || customPopupOptions === void 0 || (_customPopupOptions$o = customPopupOptions.onHiding) === null || _customPopupOptions$o === void 0 || _customPopupOptions$o.call(customPopupOptions, e);
       },
       contentTemplate: () => {
         this.form.create({
@@ -105644,11 +107474,19 @@ class AppointmentPopup {
         });
         return this.form.dxForm.$element();
       },
-      onShowing: e => this._onShowing(e),
+      onShowing: e => {
+        var _customPopupOptions$o2;
+        this._onShowing(e);
+        customPopupOptions === null || customPopupOptions === void 0 || (_customPopupOptions$o2 = customPopupOptions.onShowing) === null || _customPopupOptions$o2 === void 0 || _customPopupOptions$o2.call(customPopupOptions, e);
+      },
       wrapperAttr: {
         class: APPOINTMENT_POPUP_CLASS
       }
     };
+    return (0, _extend.extend)(true, {}, defaultPopupConfig, customPopupOptions, {
+      onHiding: defaultPopupConfig.onHiding,
+      onShowing: defaultPopupConfig.onShowing
+    });
   }
   _onShowing(e) {
     this._updateForm();
@@ -105822,7 +107660,17 @@ class AppointmentPopup {
     const shiftDifference = originTimezoneShift - clonedTimezoneShift;
     return shiftDifference ? new Date(clonedDate.getTime() + shiftDifference * _date.default.dateToMilliseconds('hour')) : clonedDate;
   }
+  tryApplyCustomToolbarItems() {
+    if (this.customToolbarItems) {
+      this.popup.option('toolbarItems', this.customToolbarItems);
+      return true;
+    }
+    return false;
+  }
   updateToolbarForRecurrenceGroup() {
+    if (this.tryApplyCustomToolbarItems()) {
+      return;
+    }
     const toolbarItems = [{
       toolbar: 'top',
       location: 'before',
@@ -105868,6 +107716,9 @@ class AppointmentPopup {
     this.popup.option('toolbarItems', toolbarItems);
   }
   updateToolbarForMainGroup() {
+    if (this.tryApplyCustomToolbarItems()) {
+      return;
+    }
     const isCreating = this.state.action === ACTION_TO_APPOINTMENT.CREATE;
     const formTitleKey = isCreating ? 'dxScheduler-newPopupTitle' : 'dxScheduler-editPopupTitle';
     const toolbarItems = [{
@@ -105990,6 +107841,7 @@ class RecurrenceForm {
     this._recurrenceRule = new _utils.RecurrenceRule('', new Date());
     this.weekDayItems = [];
     this._weekDayButtons = {};
+    this._readOnly = false;
     this.scheduler = scheduler;
     this.weekDayItems = this.createWeekDayItems();
   }
@@ -106036,9 +107888,7 @@ class RecurrenceForm {
     this._dxForm = value;
   }
   setReadOnly(value) {
-    Object.values(this._weekDayButtons).forEach(button => {
-      button === null || button === void 0 || button.option('disabled', value);
-    });
+    this._readOnly = value;
   }
   get recurrenceRule() {
     return this._recurrenceRule;
@@ -106175,6 +108025,7 @@ class RecurrenceForm {
           const buttonContainer = (0, _renderer.default)('<div>').appendTo($container);
           this._weekDayButtons[item.key] = this.scheduler.createComponent(buttonContainer, _button.default, {
             text: item.text,
+            disabled: this._readOnly,
             onClick: () => {
               const isSelected = this.recurrenceRule.byDay.includes(item.key);
               if (isSelected) {
@@ -109419,6 +111270,10 @@ class AppointmentDragBehavior {
       var _appointmentDragging$;
       e.itemData = this.getItemData(e.itemElement);
       e.itemSettings = this.getItemSettings(e.itemElement);
+      if (this.scheduler._isAppointmentBeingUpdated(e.itemData)) {
+        e.cancel = true;
+        return;
+      }
       (_appointmentDragging$ = appointmentDragging.onDragStart) === null || _appointmentDragging$ === void 0 || _appointmentDragging$.call(appointmentDragging, e);
       if (!e.cancel) {
         options.onDragStart(e);
@@ -109428,6 +111283,14 @@ class AppointmentDragBehavior {
   createDragMoveHandler(options, appointmentDragging) {
     return e => {
       var _appointmentDragging$2;
+      if (!this.appointmentInfo) {
+        e.cancel = true;
+        return;
+      }
+      if (this.scheduler._isAppointmentBeingUpdated(this.appointmentInfo.appointment)) {
+        e.cancel = true;
+        return;
+      }
       (_appointmentDragging$2 = appointmentDragging.onDragMove) === null || _appointmentDragging$2 === void 0 || _appointmentDragging$2.call(appointmentDragging, e);
       if (!e.cancel) {
         options.onDragMove(e);
@@ -109437,6 +111300,10 @@ class AppointmentDragBehavior {
   createDragEndHandler(options, appointmentDragging) {
     return e => {
       var _appointmentDragging$3;
+      if (!this.appointmentInfo) {
+        e.cancel = true;
+        return;
+      }
       const updatedData = this.appointments.invoke('getUpdatedData', e.itemData);
       this.appointmentInfo = null;
       e.toItemData = (0, _extend.extend)({}, e.itemData, updatedData);
@@ -110658,6 +112525,10 @@ const RECURRENCE_EDITING_MODE = {
   CANCEL: 'cancel'
 };
 class Scheduler extends _scheduler_options_base_widget.SchedulerOptionsBaseWidget {
+  constructor() {
+    super(...arguments);
+    this._updatingAppointments = new Set();
+  }
   get timeZoneCalculator() {
     if (!this._timeZoneCalculator) {
       this._timeZoneCalculator = (0, _index.createTimeZoneCalculator)(this.option('timeZone'));
@@ -111247,7 +113118,8 @@ class Scheduler extends _scheduler_options_base_widget.SchedulerOptionsBaseWidge
     this._editing.allowDragging = this._editing.allowDragging && this._editing.allowUpdating;
     this._editing.allowResizing = this._editing.allowResizing && this._editing.allowUpdating;
     const isReadOnly = Object.values(_extends({}, this._editing, {
-      form: undefined
+      form: undefined,
+      popup: undefined
     })).every(value => !value);
     this.$element().toggleClass(WIDGET_READONLY_CLASS, isReadOnly);
   }
@@ -111906,6 +113778,9 @@ class Scheduler extends _scheduler_options_base_widget.SchedulerOptionsBaseWidge
       // @ts-expect-error
       dragEvent.cancel = new _deferred.Deferred();
     }
+    if ((0, _type.isPromise)(updatingOptions.cancel) && dragEvent) {
+      this._updatingAppointments.add(target);
+    }
     return this._processActionResult(updatingOptions, function (canceled) {
       // @ts-expect-error
       let deferred = new _deferred.Deferred();
@@ -111914,13 +113789,18 @@ class Scheduler extends _scheduler_options_base_widget.SchedulerOptionsBaseWidge
         try {
           deferred = this.appointmentDataSource.update(target, rawAppointment).done(() => {
             dragEvent === null || dragEvent === void 0 || dragEvent.cancel.resolve(false);
-          }).always(storeAppointment => this._onDataPromiseCompleted(StoreEventNames.UPDATED, storeAppointment)).fail(() => performFailAction());
+          }).always(storeAppointment => {
+            this._updatingAppointments.delete(target);
+            this._onDataPromiseCompleted(StoreEventNames.UPDATED, storeAppointment);
+          }).fail(() => performFailAction());
         } catch (err) {
           performFailAction(err);
+          this._updatingAppointments.delete(target);
           deferred.resolve();
         }
       } else {
         performFailAction();
+        this._updatingAppointments.delete(target);
         deferred.resolve();
       }
       return deferred.promise();
@@ -112178,6 +114058,9 @@ class Scheduler extends _scheduler_options_base_widget.SchedulerOptionsBaseWidge
   }
   _getDragBehavior() {
     return this._workSpace.dragBehavior;
+  }
+  _isAppointmentBeingUpdated(appointmentData) {
+    return this._updatingAppointments.has(appointmentData);
   }
   getViewOffsetMs() {
     const offsetFromOptions = this.getViewOption('offset');
@@ -118813,7 +120696,8 @@ const DEFAULT_SCHEDULER_OPTIONS = exports.DEFAULT_SCHEDULER_OPTIONS = {
     allowTimeZoneEditing: false,
     form: {
       iconsShowMode: DEFAULT_ICONS_SHOW_MODE
-    }
+    },
+    popup: {}
   },
   showAllDayPanel: true,
   showCurrentTimeIndicator: true,
@@ -118876,7 +120760,9 @@ const DEFAULT_SCHEDULER_INTERNAL_OPTIONS = exports.DEFAULT_SCHEDULER_INTERNAL_OP
   renovateRender: true,
   editing: _extends({
     legacyForm: false
-  }, DEFAULT_SCHEDULER_OPTIONS.editing),
+  }, DEFAULT_SCHEDULER_OPTIONS.editing, {
+    popup: {}
+  }),
   _draggingMode: 'outlook',
   _appointmentTooltipOffset: {
     x: 0,
@@ -125357,7 +127243,11 @@ class SchedulerWorkSpace extends _ui2.default {
     }
     const isMultiSelectionAllowed = this.option('allowMultipleCellSelection');
     const currentCellData = this._getFullCellData($cell);
-    const focusedCellData = this.cellsSelectionState.getFocusedCell().cellData;
+    const focusedCell = this.cellsSelectionState.getFocusedCell();
+    if (!focusedCell) {
+      return;
+    }
+    const focusedCellData = focusedCell.cellData;
     const nextFocusedCellData = this.cellsSelectionController.moveToCell({
       isMultiSelection,
       isMultiSelectionAllowed,
@@ -125400,7 +127290,11 @@ class SchedulerWorkSpace extends _ui2.default {
     return $cell.hasClass(ALL_DAY_TABLE_CELL_CLASS);
   }
   _focusInHandler(e) {
-    if ((0, _renderer.default)(e.target).is(this._focusTarget()) && this._isCellClick) {
+    const $target = (0, _renderer.default)(e.target);
+    const $focusTarget = this._focusTarget();
+    // T1312256: On macOS, e.target can be a child element of the workspace root
+    const isTargetInsideWorkspace = $target.is($focusTarget) || $target.closest($focusTarget).length > 0;
+    if (isTargetInsideWorkspace && this._isCellClick) {
       delete this._isCellClick;
       delete this._contextMenuHandled;
       // @ts-expect-error
@@ -135872,10 +137766,7 @@ class Chat extends _widget.default {
     return options;
   }
   _getAttachmentDownloadHandler() {
-    const {
-      onAttachmentDownloadClick
-    } = this.option();
-    if (!onAttachmentDownloadClick) {
+    if (!this.hasActionSubscription('onAttachmentDownloadClick')) {
       return;
     }
     // eslint-disable-next-line consistent-return
@@ -135883,6 +137774,32 @@ class Chat extends _widget.default {
       var _this$_attachmentDown;
       (_this$_attachmentDown = this._attachmentDownloadAction) === null || _this$_attachmentDown === void 0 || _this$_attachmentDown.call(this, e);
     };
+  }
+  on(eventName) {
+    for (var _len = arguments.length, args = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+      args[_key - 1] = arguments[_key];
+    }
+    // @ts-expect-error ts-error
+    const result = super.on.apply(this, [eventName, ...args]);
+    if (eventName === 'attachmentDownloadClick') {
+      this._updateAttachmentDownloadHandler();
+    }
+    return result;
+  }
+  off(eventName) {
+    for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+      args[_key2 - 1] = arguments[_key2];
+    }
+    // @ts-expect-error ts-error
+    const result = super.off.apply(this, [eventName, ...args]);
+    if (eventName === 'attachmentDownloadClick') {
+      this._updateAttachmentDownloadHandler();
+    }
+    return result;
+  }
+  _updateAttachmentDownloadHandler() {
+    var _this$_messageList2;
+    (_this$_messageList2 = this._messageList) === null || _this$_messageList2 === void 0 || _this$_messageList2.option('onAttachmentDownloadClick', this._getAttachmentDownloadHandler());
   }
   _allowEditAction(message) {
     const {
@@ -136263,9 +138180,7 @@ class Chat extends _widget.default {
         break;
       case 'onAttachmentDownloadClick':
         this._createAttachmentDownloadAction();
-        this._messageList.option({
-          onAttachmentDownloadClick: this._getAttachmentDownloadHandler()
-        });
+        this._updateAttachmentDownloadHandler();
         break;
       case 'showDayHeaders':
       case 'showAvatar':
@@ -136542,14 +138457,16 @@ class File extends _dom_component.default {
       focusStateEnabled,
       hoverStateEnabled
     } = this.option();
+    // @ts-expect-error format params should be extended
+    const ariaLabel = _message.default.format('dxChat-downloadButtonLabel', (data === null || data === void 0 ? void 0 : data.name) ?? '');
     // @ts-expect-error useInkRipple should be optional
     const configuration = {
       activeStateEnabled,
       focusStateEnabled,
       hoverStateEnabled,
+      hint: ariaLabel,
       elementAttr: {
-        // @ts-expect-error format params should be extended
-        'aria-label': _message.default.format('dxChat-downloadButtonLabel', (data === null || data === void 0 ? void 0 : data.name) ?? '')
+        'aria-label': ariaLabel
       },
       icon: 'download',
       stylingMode: 'text',
@@ -136752,7 +138669,6 @@ var _index = __webpack_require__(98834);
 var _message = _interopRequireDefault(__webpack_require__(4671));
 var _devices = _interopRequireDefault(__webpack_require__(65951));
 var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _size = __webpack_require__(57653);
 var _themes = __webpack_require__(52071);
 var _toolbar = _interopRequireDefault(__webpack_require__(2850));
 var _widget = _interopRequireDefault(__webpack_require__(89275));
@@ -137061,16 +138977,16 @@ class ChatTextArea extends _m_text_area.default {
     (_this$_sendButton = this._sendButton) === null || _this$_sendButton === void 0 || _this$_sendButton.option('disabled', shouldDisable);
   }
   _renderButtonContainers() {}
-  _getHeightDifference($input) {
-    const baseDifference = super._getHeightDifference($input);
-    const gap = parseFloat(this.$element().css('gap') ?? '0');
-    const informerHeight = this._informer ? (0, _size.getOuterHeight)(this._informer.$element()) : 0;
-    const fileUploaderHeight = (0, _size.getOuterHeight)(this._$fileUploader);
-    const toolbarHeight = (0, _size.getOuterHeight)(this._$toolbar);
-    const visibleSections = [toolbarHeight, informerHeight, fileUploaderHeight].filter(Boolean).length;
-    const totalExtraHeight = toolbarHeight + informerHeight + fileUploaderHeight + visibleSections * gap;
-    const difference = baseDifference + totalExtraHeight;
-    return difference;
+  _getAdjustedMaxHeight(maxHeight) {
+    return maxHeight;
+  }
+  _getMaxHeight() {
+    const cssValue = this._input().css('maxHeight');
+    if (!cssValue || cssValue === 'none') {
+      return undefined;
+    }
+    const maxHeight = parseFloat(cssValue);
+    return maxHeight;
   }
   _keyPressHandler(e) {
     super._keyPressHandler(e);
@@ -137679,9 +139595,6 @@ class MessageBubble extends _widget.default {
   _renderAttachments() {
     const {
       attachments,
-      activeStateEnabled,
-      focusStateEnabled,
-      hoverStateEnabled,
       onAttachmentDownloadClick
     } = this.option();
     if (!this._$attachments) {
@@ -137690,9 +139603,6 @@ class MessageBubble extends _widget.default {
     this._$attachments.empty();
     if (attachments !== null && attachments !== void 0 && attachments.length) {
       this._createComponent(this._$attachments, _file_view.default, {
-        activeStateEnabled,
-        focusStateEnabled,
-        hoverStateEnabled,
         files: attachments,
         onDownload: onAttachmentDownloadClick
       });
@@ -140878,7 +142788,7 @@ const indexExists = index => index !== NOT_EXISTING_INDEX;
 exports.indexExists = indexExists;
 class CollectionWidget extends _collection_widget.default {
   constructor(element, options) {
-    CollectionWidget._userOptions = options ?? {};
+    CollectionWidget._initUserOptions = options ?? {};
     // @ts-expect-error
     super(element, options);
   }
@@ -140907,6 +142817,8 @@ class CollectionWidget extends _collection_widget.default {
     });
   }
   _init() {
+    this._userOptions = _extends({}, CollectionWidget._initUserOptions);
+    CollectionWidget._initUserOptions = undefined;
     this._initEditStrategy();
     super._init();
     this._initKeyGetter();
@@ -141175,7 +143087,7 @@ class CollectionWidget extends _collection_widget.default {
         [name]: optionValue
       } = this.option();
       const length = (0, _type.isDefined)(optionValue) && Array.isArray(optionValue) && optionValue.length;
-      return !!length || name in CollectionWidget._userOptions;
+      return !!length || name in (this._userOptions ?? {});
     };
     if (isOptionDefined('selectedItems')) {
       optionName = 'selectedItems';
@@ -141640,7 +143552,7 @@ class CollectionWidget extends _collection_widget.default {
     });
   }
 }
-CollectionWidget._userOptions = {};
+CollectionWidget._initUserOptions = {};
 var _default = exports["default"] = CollectionWidget;
 
 /***/ }),
@@ -150635,6 +152547,2363 @@ var _default = exports["default"] = RangeCalendarStrategy;
 
 /***/ }),
 
+/***/ 26579:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _diagram = __webpack_require__(49206);
+// eslint-disable-next-line @stylistic/max-len
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types,@typescript-eslint/no-unused-vars */
+
+class DiagramBar {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  constructor(owner) {
+    const {
+      EventDispatcher
+    } = (0, _diagram.getDiagram)();
+    this.onChanged = new EventDispatcher(); // IBar.onChanged: EventDispatcher<IBarListener>
+    this._owner = owner;
+  }
+  raiseBarCommandExecuted(key, parameter) {
+    this.onChanged.raise('notifyBarCommandExecuted', parseInt(key, 10), parameter);
+  }
+  getCommandKeys() {
+    // IBar.getCommandKeys(): DiagramCommand[]
+    throw 'Not Implemented';
+  }
+  setItemValue(key, value) {
+    // IBar.setItemValue(key: DiagramCommand, value: any)
+  }
+  setItemEnabled(key, enabled) {
+    // IBar.setItemEnabled(key: DiagramCommand, enabled: boolean)
+  }
+  setItemVisible(key, enabled) {
+    // IBar.setItemVisible(key: DiagramCommand, visible: boolean)
+  }
+  setEnabled(enabled) {
+    // IBar.setEnabled(enabled: boolean)
+  }
+  setItemSubItems(key, items) {
+    // IBar.setItemSubItems(key: DiagramCommand, items: any[])
+  }
+  isVisible() {
+    // IBar.isVisible(): boolean
+    return true;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getKeys(items) {
+    const keys = items.reduce((commands, item) => {
+      if (item.command !== undefined) {
+        commands.push(item.command);
+      }
+      if (item.items) {
+        // eslint-disable-next-line no-param-reassign
+        commands = commands.concat(this._getKeys(item.items));
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return commands;
+    }, []);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return keys;
+  }
+}
+var _default = exports["default"] = DiagramBar;
+
+/***/ }),
+
+/***/ 88618:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _file_saver = __webpack_require__(47486);
+var _message = _interopRequireDefault(__webpack_require__(4671));
+var _extend = __webpack_require__(52576);
+var _type = __webpack_require__(11528);
+var _window = __webpack_require__(3104);
+var _diagram = __webpack_require__(49206);
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+
+const SEPARATOR = 'separator';
+const SEPARATOR_COMMAND = {
+  widget: SEPARATOR
+};
+const CSS_CLASSES = {
+  SMALL_EDITOR_ITEM: 'dx-diagram-sm-edit-item',
+  MEDIUM_EDITOR_ITEM: 'dx-diagram-md-edit-item',
+  LARGE_EDITOR_ITEM: 'dx-diagram-lg-edit-item',
+  IMAGE_DROPDOWN_ITEM: 'dx-diagram-image-dropdown-item',
+  COLOR_EDITOR_ITEM: 'dx-diagram-color-edit-item',
+  LARGE_ICON_ITEM: 'dx-diagram-lg-icon-item'
+};
+const DiagramCommandsManager = {
+  SHOW_TOOLBOX_COMMAND_NAME: 'toolbox',
+  SHOW_PROPERTIES_PANEL_COMMAND_NAME: 'propertiesPanel',
+  getAllCommands() {
+    const {
+      DiagramCommand
+    } = (0, _diagram.getDiagram)();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return,no-return-assign
+    return this._allCommands || (this._allCommands = {
+      separator: SEPARATOR_COMMAND,
+      exportSvg: {
+        command: DiagramCommand.ExportSvg,
+        text: _message.default.format('dxDiagram-commandExportToSvg'),
+        getParameter: widget => dataURI => {
+          this._exportTo(widget, dataURI, 'SVG', 'image/svg+xml');
+        }
+      },
+      exportPng: {
+        command: DiagramCommand.ExportPng,
+        text: _message.default.format('dxDiagram-commandExportToPng'),
+        getParameter: widget => dataURI => {
+          this._exportTo(widget, dataURI, 'PNG', 'image/png');
+        }
+      },
+      exportJpg: {
+        command: DiagramCommand.ExportJpg,
+        text: _message.default.format('dxDiagram-commandExportToJpg'),
+        getParameter: widget => dataURI => {
+          this._exportTo(widget, dataURI, 'JPEG', 'image/jpeg');
+        }
+      },
+      undo: {
+        command: DiagramCommand.Undo,
+        hint: _message.default.format('dxDiagram-commandUndo'),
+        text: _message.default.format('dxDiagram-commandUndo'),
+        icon: 'undo',
+        menuIcon: 'undo'
+      },
+      redo: {
+        command: DiagramCommand.Redo,
+        hint: _message.default.format('dxDiagram-commandRedo'),
+        text: _message.default.format('dxDiagram-commandRedo'),
+        icon: 'redo',
+        menuIcon: 'redo'
+      },
+      cut: {
+        command: DiagramCommand.Cut,
+        hint: _message.default.format('dxDiagram-commandCut'),
+        text: _message.default.format('dxDiagram-commandCut'),
+        icon: 'cut',
+        menuIcon: 'cut'
+      },
+      copy: {
+        command: DiagramCommand.Copy,
+        hint: _message.default.format('dxDiagram-commandCopy'),
+        text: _message.default.format('dxDiagram-commandCopy'),
+        icon: 'copy',
+        menuIcon: 'copy'
+      },
+      paste: {
+        command: DiagramCommand.PasteInPosition,
+        hint: _message.default.format('dxDiagram-commandPaste'),
+        text: _message.default.format('dxDiagram-commandPaste'),
+        icon: 'paste',
+        menuIcon: 'paste'
+      },
+      selectAll: {
+        command: DiagramCommand.SelectAll,
+        hint: _message.default.format('dxDiagram-commandSelectAll'),
+        text: _message.default.format('dxDiagram-commandSelectAll'),
+        icon: 'dx-diagram-i-button-select-all dx-diagram-i',
+        menuIcon: 'dx-diagram-i-menu-select-all dx-diagram-i'
+      },
+      delete: {
+        command: DiagramCommand.Delete,
+        hint: _message.default.format('dxDiagram-commandDelete'),
+        text: _message.default.format('dxDiagram-commandDelete'),
+        icon: 'remove',
+        menuIcon: 'remove'
+      },
+      fontName: {
+        command: DiagramCommand.FontName,
+        hint: _message.default.format('dxDiagram-commandFontName'),
+        text: _message.default.format('dxDiagram-commandFontName'),
+        widget: 'dxSelectBox',
+        items: ['Arial', 'Arial Black', 'Helvetica', 'Times New Roman', 'Courier New', 'Courier', 'Verdana', 'Georgia', 'Comic Sans MS', 'Trebuchet MS'].map(item => ({
+          text: item,
+          value: item
+        })),
+        cssClass: CSS_CLASSES.MEDIUM_EDITOR_ITEM
+      },
+      fontSize: {
+        command: DiagramCommand.FontSize,
+        hint: _message.default.format('dxDiagram-commandFontSize'),
+        text: _message.default.format('dxDiagram-commandFontSize'),
+        widget: 'dxSelectBox',
+        items: [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72].map(item => ({
+          text: `${item}pt`,
+          value: `${item}pt`
+        })),
+        cssClass: CSS_CLASSES.SMALL_EDITOR_ITEM
+      },
+      bold: {
+        command: DiagramCommand.Bold,
+        hint: _message.default.format('dxDiagram-commandBold'),
+        text: _message.default.format('dxDiagram-commandBold'),
+        icon: 'bold',
+        menuIcon: 'bold'
+      },
+      italic: {
+        command: DiagramCommand.Italic,
+        hint: _message.default.format('dxDiagram-commandItalic'),
+        text: _message.default.format('dxDiagram-commandItalic'),
+        icon: 'italic',
+        menuIcon: 'italic'
+      },
+      underline: {
+        command: DiagramCommand.Underline,
+        hint: _message.default.format('dxDiagram-commandUnderline'),
+        text: _message.default.format('dxDiagram-commandUnderline'),
+        icon: 'underline',
+        menuIcon: 'underline'
+      },
+      fontColor: {
+        command: DiagramCommand.FontColor,
+        text: _message.default.format('dxDiagram-commandTextColor'),
+        hint: _message.default.format('dxDiagram-commandTextColor'),
+        widget: 'dxColorBox',
+        icon: 'dx-icon dx-icon-color',
+        menuIcon: 'dx-icon dx-icon-color',
+        cssClass: CSS_CLASSES.COLOR_EDITOR_ITEM
+      },
+      lineColor: {
+        command: DiagramCommand.StrokeColor,
+        text: _message.default.format('dxDiagram-commandLineColor'),
+        hint: _message.default.format('dxDiagram-commandLineColor'),
+        widget: 'dxColorBox',
+        icon: 'dx-icon dx-icon-background',
+        menuIcon: 'dx-icon dx-icon-background',
+        cssClass: CSS_CLASSES.COLOR_EDITOR_ITEM
+      },
+      lineWidth: {
+        command: DiagramCommand.StrokeWidth,
+        text: _message.default.format('dxDiagram-commandLineWidth'),
+        hint: _message.default.format('dxDiagram-commandLineWidth'),
+        widget: 'dxSelectBox',
+        items: [1, 2, 3, 4, 5, 6, 7, 8].map(item => ({
+          text: `${item}px`,
+          value: item.toString()
+        })),
+        cssClass: CSS_CLASSES.SMALL_EDITOR_ITEM
+      },
+      lineStyle: {
+        command: DiagramCommand.StrokeStyle,
+        text: _message.default.format('dxDiagram-commandLineStyle'),
+        hint: _message.default.format('dxDiagram-commandLineStyle'),
+        widget: 'dxSelectBox',
+        items: [{
+          value: '',
+          menuIcon: 'dx-diagram-i-line-solid dx-diagram-i',
+          hint: _message.default.format('dxDiagram-commandLineStyleSolid')
+        }, {
+          value: '2,2',
+          menuIcon: 'dx-diagram-i-line-dotted dx-diagram-i',
+          hint: _message.default.format('dxDiagram-commandLineStyleDotted')
+        }, {
+          value: '6,2',
+          menuIcon: 'dx-diagram-i-line-dashed dx-diagram-i',
+          hint: _message.default.format('dxDiagram-commandLineStyleDashed')
+        }],
+        cssClass: CSS_CLASSES.IMAGE_DROPDOWN_ITEM
+      },
+      fillColor: {
+        command: DiagramCommand.FillColor,
+        text: _message.default.format('dxDiagram-commandFillColor'),
+        hint: _message.default.format('dxDiagram-commandFillColor'),
+        widget: 'dxColorBox',
+        icon: 'dx-diagram-i dx-diagram-i-button-fill',
+        menuIcon: 'dx-diagram-i dx-diagram-i-menu-fill',
+        cssClass: CSS_CLASSES.COLOR_EDITOR_ITEM
+      },
+      textAlignLeft: {
+        command: DiagramCommand.TextLeftAlign,
+        hint: _message.default.format('dxDiagram-commandAlignLeft'),
+        text: _message.default.format('dxDiagram-commandAlignLeft'),
+        icon: 'alignleft',
+        menuIcon: 'alignleft'
+      },
+      textAlignCenter: {
+        command: DiagramCommand.TextCenterAlign,
+        hint: _message.default.format('dxDiagram-commandAlignCenter'),
+        text: _message.default.format('dxDiagram-commandAlignCenter'),
+        icon: 'aligncenter',
+        menuIcon: 'aligncenter'
+      },
+      textAlignRight: {
+        command: DiagramCommand.TextRightAlign,
+        hint: _message.default.format('dxDiagram-commandAlignRight'),
+        text: _message.default.format('dxDiagram-commandAlignRight'),
+        icon: 'alignright',
+        menuIcon: 'alignright'
+      },
+      lock: {
+        command: DiagramCommand.Lock,
+        hint: _message.default.format('dxDiagram-commandLock'),
+        text: _message.default.format('dxDiagram-commandLock'),
+        icon: 'dx-diagram-i-button-lock dx-diagram-i',
+        menuIcon: 'dx-diagram-i-menu-lock dx-diagram-i'
+      },
+      unlock: {
+        command: DiagramCommand.Unlock,
+        hint: _message.default.format('dxDiagram-commandUnlock'),
+        text: _message.default.format('dxDiagram-commandUnlock'),
+        icon: 'dx-diagram-i-button-unlock dx-diagram-i',
+        menuIcon: 'dx-diagram-i-menu-unlock dx-diagram-i'
+      },
+      bringToFront: {
+        command: DiagramCommand.BringToFront,
+        hint: _message.default.format('dxDiagram-commandBringToFront'),
+        text: _message.default.format('dxDiagram-commandBringToFront'),
+        icon: 'dx-diagram-i-button-bring-to-front dx-diagram-i',
+        menuIcon: 'dx-diagram-i-menu-bring-to-front dx-diagram-i'
+      },
+      sendToBack: {
+        command: DiagramCommand.SendToBack,
+        hint: _message.default.format('dxDiagram-commandSendToBack'),
+        text: _message.default.format('dxDiagram-commandSendToBack'),
+        icon: 'dx-diagram-i-button-send-to-back dx-diagram-i',
+        menuIcon: 'dx-diagram-i-menu-send-to-back dx-diagram-i'
+      },
+      insertShapeImage: {
+        command: DiagramCommand.InsertShapeImage,
+        text: _message.default.format('dxDiagram-commandInsertShapeImage'),
+        icon: 'dx-diagram-i-button-image-insert dx-diagram-i',
+        menuIcon: 'dx-diagram-i-menu-image-insert dx-diagram-i'
+      },
+      editShapeImage: {
+        command: DiagramCommand.EditShapeImage,
+        text: _message.default.format('dxDiagram-commandEditShapeImage'),
+        icon: 'dx-diagram-i-button-image-edit dx-diagram-i',
+        menuIcon: 'dx-diagram-i-menu-image-edit dx-diagram-i'
+      },
+      deleteShapeImage: {
+        command: DiagramCommand.DeleteShapeImage,
+        text: _message.default.format('dxDiagram-commandDeleteShapeImage'),
+        icon: 'dx-diagram-i-button-image-delete dx-diagram-i',
+        menuIcon: 'dx-diagram-i-menu-image-delete dx-diagram-i'
+      },
+      connectorLineType: {
+        command: DiagramCommand.ConnectorLineOption,
+        widget: 'dxSelectBox',
+        hint: _message.default.format('dxDiagram-commandConnectorLineType'),
+        text: _message.default.format('dxDiagram-commandConnectorLineType'),
+        items: [{
+          value: 0,
+          menuIcon: 'dx-diagram-i-connector-straight dx-diagram-i',
+          hint: _message.default.format('dxDiagram-commandConnectorLineStraight'),
+          text: _message.default.format('dxDiagram-commandConnectorLineStraight')
+        }, {
+          value: 1,
+          menuIcon: 'dx-diagram-i-connector-orthogonal dx-diagram-i',
+          hint: _message.default.format('dxDiagram-commandConnectorLineOrthogonal'),
+          text: _message.default.format('dxDiagram-commandConnectorLineOrthogonal')
+        }],
+        cssClass: CSS_CLASSES.IMAGE_DROPDOWN_ITEM
+      },
+      connectorLineStart: {
+        command: DiagramCommand.ConnectorStartLineEnding,
+        widget: 'dxSelectBox',
+        items: [{
+          value: 0,
+          menuIcon: 'dx-diagram-i-connector-begin-none dx-diagram-i',
+          hint: _message.default.format('dxDiagram-commandConnectorLineNone'),
+          text: _message.default.format('dxDiagram-commandConnectorLineNone')
+        }, {
+          value: 1,
+          menuIcon: 'dx-diagram-i-connector-begin-arrow dx-diagram-i',
+          hint: _message.default.format('dxDiagram-commandConnectorLineArrow'),
+          text: _message.default.format('dxDiagram-commandConnectorLineArrow')
+        }, {
+          value: 2,
+          menuIcon: 'dx-diagram-i-connector-begin-outlined-triangle dx-diagram-i',
+          hint: _message.default.format('dxDiagram-commandConnectorLineArrow'),
+          text: _message.default.format('dxDiagram-commandConnectorLineArrow')
+        }, {
+          value: 3,
+          menuIcon: 'dx-diagram-i-connector-begin-filled-triangle dx-diagram-i',
+          hint: _message.default.format('dxDiagram-commandConnectorLineArrow'),
+          text: _message.default.format('dxDiagram-commandConnectorLineArrow')
+        }],
+        hint: _message.default.format('dxDiagram-commandConnectorLineStart'),
+        text: _message.default.format('dxDiagram-commandConnectorLineStart'),
+        cssClass: CSS_CLASSES.IMAGE_DROPDOWN_ITEM
+      },
+      connectorLineEnd: {
+        command: DiagramCommand.ConnectorEndLineEnding,
+        widget: 'dxSelectBox',
+        items: [{
+          value: 0,
+          menuIcon: 'dx-diagram-i-connector-end-none dx-diagram-i',
+          hint: _message.default.format('dxDiagram-commandConnectorLineNone'),
+          text: _message.default.format('dxDiagram-commandConnectorLineNone')
+        }, {
+          value: 1,
+          menuIcon: 'dx-diagram-i-connector-end-arrow dx-diagram-i',
+          hint: _message.default.format('dxDiagram-commandConnectorLineArrow'),
+          text: _message.default.format('dxDiagram-commandConnectorLineArrow')
+        }, {
+          value: 2,
+          menuIcon: 'dx-diagram-i-connector-end-outlined-triangle dx-diagram-i',
+          hint: _message.default.format('dxDiagram-commandConnectorLineArrow'),
+          text: _message.default.format('dxDiagram-commandConnectorLineArrow')
+        }, {
+          value: 3,
+          menuIcon: 'dx-diagram-i-connector-end-filled-triangle dx-diagram-i',
+          hint: _message.default.format('dxDiagram-commandConnectorLineArrow'),
+          text: _message.default.format('dxDiagram-commandConnectorLineArrow')
+        }],
+        hint: _message.default.format('dxDiagram-commandConnectorLineEnd'),
+        text: _message.default.format('dxDiagram-commandConnectorLineEnd'),
+        cssClass: CSS_CLASSES.IMAGE_DROPDOWN_ITEM
+      },
+      layoutTreeTopToBottom: {
+        command: DiagramCommand.AutoLayoutTreeVertical,
+        text: _message.default.format('dxDiagram-commandLayoutTopToBottom'),
+        hint: _message.default.format('dxDiagram-commandLayoutTopToBottom'),
+        icon: 'dx-diagram-i-button-layout-tree-tb dx-diagram-i',
+        cssClass: CSS_CLASSES.LARGE_ICON_ITEM
+      },
+      layoutTreeBottomToTop: {
+        command: DiagramCommand.AutoLayoutTreeVerticalBottomToTop,
+        text: _message.default.format('dxDiagram-commandLayoutBottomToTop'),
+        hint: _message.default.format('dxDiagram-commandLayoutBottomToTop'),
+        icon: 'dx-diagram-i-button-layout-tree-bt dx-diagram-i',
+        cssClass: CSS_CLASSES.LARGE_ICON_ITEM
+      },
+      layoutTreeLeftToRight: {
+        command: DiagramCommand.AutoLayoutTreeHorizontal,
+        text: _message.default.format('dxDiagram-commandLayoutLeftToRight'),
+        hint: _message.default.format('dxDiagram-commandLayoutLeftToRight'),
+        icon: 'dx-diagram-i-button-layout-tree-lr dx-diagram-i',
+        cssClass: CSS_CLASSES.LARGE_ICON_ITEM
+      },
+      layoutTreeRightToLeft: {
+        command: DiagramCommand.AutoLayoutTreeHorizontalRightToLeft,
+        text: _message.default.format('dxDiagram-commandLayoutRightToLeft'),
+        hint: _message.default.format('dxDiagram-commandLayoutRightToLeft'),
+        icon: 'dx-diagram-i-button-layout-tree-rl dx-diagram-i',
+        cssClass: CSS_CLASSES.LARGE_ICON_ITEM
+      },
+      layoutLayeredTopToBottom: {
+        command: DiagramCommand.AutoLayoutLayeredVertical,
+        text: _message.default.format('dxDiagram-commandLayoutTopToBottom'),
+        hint: _message.default.format('dxDiagram-commandLayoutTopToBottom'),
+        icon: 'dx-diagram-i-button-layout-layered-tb dx-diagram-i',
+        cssClass: CSS_CLASSES.LARGE_ICON_ITEM
+      },
+      layoutLayeredBottomToTop: {
+        command: DiagramCommand.AutoLayoutLayeredVerticalBottomToTop,
+        text: _message.default.format('dxDiagram-commandLayoutBottomToTop'),
+        hint: _message.default.format('dxDiagram-commandLayoutBottomToTop'),
+        icon: 'dx-diagram-i-button-layout-layered-bt dx-diagram-i',
+        cssClass: CSS_CLASSES.LARGE_ICON_ITEM
+      },
+      layoutLayeredLeftToRight: {
+        command: DiagramCommand.AutoLayoutLayeredHorizontal,
+        text: _message.default.format('dxDiagram-commandLayoutLeftToRight'),
+        hint: _message.default.format('dxDiagram-commandLayoutLeftToRight'),
+        icon: 'dx-diagram-i-button-layout-layered-lr dx-diagram-i',
+        cssClass: CSS_CLASSES.LARGE_ICON_ITEM
+      },
+      layoutLayeredRightToLeft: {
+        command: DiagramCommand.AutoLayoutLayeredHorizontalRightToLeft,
+        text: _message.default.format('dxDiagram-commandLayoutRightToLeft'),
+        hint: _message.default.format('dxDiagram-commandLayoutRightToLeft'),
+        icon: 'dx-diagram-i-button-layout-layered-rl dx-diagram-i',
+        cssClass: CSS_CLASSES.LARGE_ICON_ITEM
+      },
+      fullScreen: {
+        command: DiagramCommand.Fullscreen,
+        hint: _message.default.format('dxDiagram-commandFullscreen'),
+        text: _message.default.format('dxDiagram-commandFullscreen'),
+        icon: 'dx-diagram-i dx-diagram-i-button-fullscreen',
+        menuIcon: 'dx-diagram-i dx-diagram-i-menu-fullscreen',
+        cssClass: CSS_CLASSES.COLOR_EDITOR_ITEM
+      },
+      units: {
+        command: DiagramCommand.ViewUnits,
+        hint: _message.default.format('dxDiagram-commandUnits'),
+        text: _message.default.format('dxDiagram-commandUnits'),
+        widget: 'dxSelectBox'
+      },
+      simpleView: {
+        command: DiagramCommand.ToggleSimpleView,
+        hint: _message.default.format('dxDiagram-commandSimpleView'),
+        text: _message.default.format('dxDiagram-commandSimpleView'),
+        widget: 'dxCheckBox'
+      },
+      showGrid: {
+        command: DiagramCommand.ShowGrid,
+        hint: _message.default.format('dxDiagram-commandShowGrid'),
+        text: _message.default.format('dxDiagram-commandShowGrid'),
+        widget: 'dxCheckBox'
+      },
+      snapToGrid: {
+        command: DiagramCommand.SnapToGrid,
+        hint: _message.default.format('dxDiagram-commandSnapToGrid'),
+        text: _message.default.format('dxDiagram-commandSnapToGrid'),
+        widget: 'dxCheckBox'
+      },
+      gridSize: {
+        command: DiagramCommand.GridSize,
+        hint: _message.default.format('dxDiagram-commandGridSize'),
+        text: _message.default.format('dxDiagram-commandGridSize'),
+        widget: 'dxSelectBox'
+      },
+      pageSize: {
+        command: DiagramCommand.PageSize,
+        hint: _message.default.format('dxDiagram-commandPageSize'),
+        text: _message.default.format('dxDiagram-commandPageSize'),
+        widget: 'dxSelectBox',
+        cssClass: CSS_CLASSES.LARGE_EDITOR_ITEM,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        getCommandValue: v => JSON.parse(v),
+        getEditorValue: v => JSON.stringify(v)
+      },
+      pageOrientation: {
+        command: DiagramCommand.PageLandscape,
+        hint: _message.default.format('dxDiagram-commandPageOrientation'),
+        text: _message.default.format('dxDiagram-commandPageOrientation'),
+        widget: 'dxSelectBox',
+        items: [{
+          value: true,
+          text: _message.default.format('dxDiagram-commandPageOrientationLandscape')
+        }, {
+          value: false,
+          text: _message.default.format('dxDiagram-commandPageOrientationPortrait')
+        }],
+        cssClass: CSS_CLASSES.MEDIUM_EDITOR_ITEM
+      },
+      pageColor: {
+        command: DiagramCommand.PageColor,
+        hint: _message.default.format('dxDiagram-commandPageColor'),
+        text: _message.default.format('dxDiagram-commandPageColor'),
+        widget: 'dxColorBox',
+        icon: 'dx-diagram-i dx-diagram-i-button-fill',
+        menuIcon: 'dx-diagram-i dx-diagram-i-menu-fill',
+        cssClass: CSS_CLASSES.COLOR_EDITOR_ITEM
+      },
+      zoomLevel: {
+        command: DiagramCommand.ZoomLevel,
+        hint: _message.default.format('dxDiagram-commandZoomLevel'),
+        text: _message.default.format('dxDiagram-commandZoomLevel'),
+        widget: 'dxTextBox',
+        items: [SEPARATOR_COMMAND, {
+          command: DiagramCommand.FitToScreen,
+          hint: _message.default.format('dxDiagram-commandFitToContent'),
+          text: _message.default.format('dxDiagram-commandFitToContent')
+        }, {
+          command: DiagramCommand.FitToWidth,
+          hint: _message.default.format('dxDiagram-commandFitToWidth'),
+          text: _message.default.format('dxDiagram-commandFitToWidth')
+        }, SEPARATOR_COMMAND, {
+          command: DiagramCommand.AutoZoomToContent,
+          hint: _message.default.format('dxDiagram-commandAutoZoomByContent'),
+          text: _message.default.format('dxDiagram-commandAutoZoomByContent')
+        }, {
+          command: DiagramCommand.AutoZoomToWidth,
+          hint: _message.default.format('dxDiagram-commandAutoZoomByWidth'),
+          text: _message.default.format('dxDiagram-commandAutoZoomByWidth')
+        }],
+        getEditorDisplayValue: v => `${Math.round(v * 100)}%`,
+        cssClass: CSS_CLASSES.SMALL_EDITOR_ITEM
+      },
+      // Custom commands
+      toolbox: {
+        command: this.SHOW_TOOLBOX_COMMAND_NAME,
+        iconChecked: 'dx-diagram-i dx-diagram-i-button-toolbox-close',
+        iconUnchecked: 'dx-diagram-i dx-diagram-i-button-toolbox-open',
+        hint: _message.default.format('dxDiagram-uiShowToolbox'),
+        text: _message.default.format('dxDiagram-uiShowToolbox')
+      },
+      propertiesPanel: {
+        command: this.SHOW_PROPERTIES_PANEL_COMMAND_NAME,
+        iconChecked: 'close',
+        iconUnchecked: 'dx-diagram-i dx-diagram-i-button-properties-panel-open',
+        hint: _message.default.format('dxDiagram-uiProperties'),
+        text: _message.default.format('dxDiagram-uiProperties')
+      }
+    });
+  },
+  getMainToolbarCommands(commands, excludeCommands) {
+    const allCommands = this.getAllCommands();
+    const mainToolbarCommands = commands ? this._getPreparedCommands(allCommands, commands) : this._getDefaultMainToolbarCommands(allCommands);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._prepareToolbarCommands(mainToolbarCommands, excludeCommands);
+  },
+  _getDefaultMainToolbarCommands(allCommands) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return,no-return-assign
+    return this._defaultMainToolbarCommands || (this._defaultMainToolbarCommands = [allCommands.undo, allCommands.redo, allCommands.separator, allCommands.fontName, allCommands.fontSize, allCommands.bold, allCommands.italic, allCommands.underline, allCommands.separator, allCommands.lineWidth, allCommands.lineStyle, allCommands.separator, allCommands.fontColor, allCommands.lineColor, allCommands.fillColor, allCommands.separator, allCommands.textAlignLeft, allCommands.textAlignCenter, allCommands.textAlignRight, allCommands.separator, allCommands.connectorLineType, allCommands.connectorLineStart, allCommands.connectorLineEnd, allCommands.separator, {
+      text: _message.default.format('dxDiagram-uiLayout'),
+      showText: 'always',
+      items: [{
+        text: _message.default.format('dxDiagram-uiLayoutTree'),
+        items: [allCommands.layoutTreeTopToBottom, allCommands.layoutTreeBottomToTop, allCommands.layoutTreeLeftToRight, allCommands.layoutTreeRightToLeft]
+      }, {
+        text: _message.default.format('dxDiagram-uiLayoutLayered'),
+        items: [allCommands.layoutLayeredTopToBottom, allCommands.layoutLayeredBottomToTop, allCommands.layoutLayeredLeftToRight, allCommands.layoutLayeredRightToLeft]
+      }]
+    }]);
+  },
+  getHistoryToolbarCommands(commands, excludeCommands) {
+    const allCommands = this.getAllCommands();
+    const historyToolbarCommands = commands ? this._getPreparedCommands(allCommands, commands) : this._getDefaultHistoryToolbarCommands(allCommands);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._prepareToolbarCommands(historyToolbarCommands, excludeCommands);
+  },
+  _getDefaultHistoryToolbarCommands(allCommands) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return,no-return-assign
+    return this._defaultHistoryToolbarCommands || (this._defaultHistoryToolbarCommands = [allCommands.undo, allCommands.redo, allCommands.separator, allCommands.toolbox]);
+  },
+  getViewToolbarCommands(commands, excludeCommands) {
+    const allCommands = this.getAllCommands();
+    const viewToolbarCommands = commands ? this._getPreparedCommands(allCommands, commands) : this._getDefaultViewToolbarCommands(allCommands);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._prepareToolbarCommands(viewToolbarCommands, excludeCommands);
+  },
+  _getDefaultViewToolbarCommands(allCommands) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return,no-return-assign
+    return this._defaultViewToolbarCommands || (this._defaultViewToolbarCommands = [allCommands.zoomLevel, allCommands.separator, allCommands.fullScreen, allCommands.separator, {
+      widget: 'dxButton',
+      icon: 'export',
+      text: _message.default.format('dxDiagram-uiExport'),
+      hint: _message.default.format('dxDiagram-uiExport'),
+      items: [allCommands.exportSvg, allCommands.exportPng, allCommands.exportJpg]
+    }, {
+      icon: 'preferences',
+      hint: _message.default.format('dxDiagram-uiSettings'),
+      text: _message.default.format('dxDiagram-uiSettings'),
+      items: [allCommands.units, allCommands.separator, allCommands.showGrid, allCommands.snapToGrid, allCommands.gridSize, allCommands.separator, allCommands.simpleView, allCommands.toolbox]
+    }]);
+  },
+  getPropertiesToolbarCommands(commands, excludeCommands) {
+    const allCommands = this.getAllCommands();
+    const propertiesCommands = commands ? this._getPreparedCommands(allCommands, commands) : this._getDefaultPropertiesToolbarCommands(allCommands);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._prepareToolbarCommands(propertiesCommands, excludeCommands);
+  },
+  _getDefaultPropertiesToolbarCommands(allCommands) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return,no-return-assign
+    return this._defaultPropertiesToolbarCommands || (this._defaultPropertiesToolbarCommands = [allCommands.propertiesPanel]);
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getDefaultPropertyPanelCommandGroups() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return,no-return-assign
+    return this._defaultPropertyPanelCommandGroups || (this._defaultPropertyPanelCommandGroups = [{
+      title: _message.default.format('dxDiagram-uiStyle'),
+      groups: [{
+        title: _message.default.format('dxDiagram-uiText'),
+        commands: ['fontName', 'fontSize', 'bold', 'italic', 'underline', 'textAlignLeft', 'textAlignCenter', 'textAlignRight', 'fontColor']
+      }, {
+        title: _message.default.format('dxDiagram-uiObject'),
+        commands: ['lineStyle', 'lineWidth', 'lineColor', 'fillColor']
+      }, {
+        title: _message.default.format('dxDiagram-uiConnector'),
+        commands: ['connectorLineType', 'connectorLineStart', 'connectorLineEnd']
+      }]
+    }, {
+      title: _message.default.format('dxDiagram-uiLayout'),
+      groups: [{
+        title: _message.default.format('dxDiagram-uiLayoutLayered'),
+        commands: ['layoutLayeredTopToBottom', 'layoutLayeredBottomToTop', 'layoutLayeredLeftToRight', 'layoutLayeredRightToLeft']
+      }, {
+        title: _message.default.format('dxDiagram-uiLayoutTree'),
+        commands: ['layoutTreeTopToBottom', 'layoutTreeBottomToTop', 'layoutTreeLeftToRight', 'layoutTreeRightToLeft']
+      }]
+    }, {
+      title: _message.default.format('dxDiagram-uiDiagram'),
+      groups: [{
+        title: _message.default.format('dxDiagram-uiPage'),
+        commands: ['pageSize', 'pageOrientation', 'pageColor']
+      }]
+    }]);
+  },
+  _preparePropertyPanelGroups(groups) {
+    const allCommands = this.getAllCommands();
+    const result = [];
+    groups.forEach(g => {
+      let {
+        commands
+      } = g;
+      if (commands) {
+        commands = this._getPreparedCommands(allCommands, commands);
+        commands = this._prepareToolbarCommands(commands);
+      }
+      let subGroups = [];
+      if (g.groups) {
+        subGroups = [];
+        g.groups.forEach(sg => {
+          var _subGroups;
+          let subCommands = sg.commands;
+          if (subCommands) {
+            subCommands = this._getPreparedCommands(allCommands, subCommands);
+            subCommands = this._prepareToolbarCommands(subCommands);
+          }
+          (_subGroups = subGroups) === null || _subGroups === void 0 || _subGroups.push({
+            title: sg.title,
+            commands: subCommands
+          });
+        });
+      }
+      result.push({
+        title: g.title,
+        commands,
+        groups: subGroups
+      });
+    });
+    return result;
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getPropertyPanelCommandTabs(commandGroups) {
+    // eslint-disable-next-line no-param-reassign
+    commandGroups = commandGroups || this._getDefaultPropertyPanelCommandGroups();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._preparePropertyPanelGroups(commandGroups);
+  },
+  getContextMenuCommands(commands) {
+    const allCommands = this.getAllCommands();
+    const contextMenuCommands = commands ? this._getPreparedCommands(allCommands, commands) : this._getDefaultContextMenuCommands(allCommands);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._prepareContextMenuCommands(contextMenuCommands);
+  },
+  _getDefaultContextMenuCommands(allCommands) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return,no-return-assign
+    return this._defaultContextMenuCommands || (this._defaultContextMenuCommands = [allCommands.cut, allCommands.copy, allCommands.paste, allCommands.delete, allCommands.separator, allCommands.selectAll, allCommands.separator, allCommands.bringToFront, allCommands.sendToBack, allCommands.separator, allCommands.lock, allCommands.unlock, allCommands.separator, allCommands.insertShapeImage, allCommands.editShapeImage, allCommands.deleteShapeImage]);
+  },
+  _getPreparedCommands(allCommands, commands) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return commands
+    // eslint-disable-next-line array-callback-return,consistent-return
+    .map(c => {
+      if (c.widget && c.widget === SEPARATOR) {
+        const command = {
+          command: c,
+          location: c.location
+        };
+        return command;
+      }
+      if (allCommands[c]) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        return allCommands[c];
+      }
+      if (c.text || c.icon || c.name) {
+        const internalCommand = c.name && allCommands[c.name];
+        const command = {
+          command: internalCommand === null || internalCommand === void 0 ? void 0 : internalCommand.command,
+          name: c.name,
+          location: c.location,
+          text: c.text || (internalCommand === null || internalCommand === void 0 ? void 0 : internalCommand.text),
+          hint: c.text || (internalCommand === null || internalCommand === void 0 ? void 0 : internalCommand.hint),
+          icon: c.icon || (internalCommand === null || internalCommand === void 0 ? void 0 : internalCommand.icon),
+          menuIcon: c.icon || (internalCommand === null || internalCommand === void 0 ? void 0 : internalCommand.menuIcon),
+          widget: internalCommand === null || internalCommand === void 0 ? void 0 : internalCommand.widget,
+          cssClass: internalCommand === null || internalCommand === void 0 ? void 0 : internalCommand.cssClass,
+          getParameter: internalCommand === null || internalCommand === void 0 ? void 0 : internalCommand.getParameter,
+          getCommandValue: internalCommand === null || internalCommand === void 0 ? void 0 : internalCommand.getCommandValue,
+          getEditorValue: internalCommand === null || internalCommand === void 0 ? void 0 : internalCommand.getEditorValue,
+          getEditorDisplayValue: internalCommand === null || internalCommand === void 0 ? void 0 : internalCommand.getEditorDisplayValue,
+          iconChecked: internalCommand === null || internalCommand === void 0 ? void 0 : internalCommand.iconChecked,
+          iconUnchecked: internalCommand === null || internalCommand === void 0 ? void 0 : internalCommand.iconUnchecked,
+          items: Array.isArray(c.items) ? this._getPreparedCommands(allCommands, c.items) : internalCommand === null || internalCommand === void 0 ? void 0 : internalCommand.items
+        };
+        return command;
+      }
+    })
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    .filter(c => c);
+  },
+  _prepareContextMenuCommands(commands, excludeCommands, rootCommand) {
+    let beginGroup = false;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return commands
+    // eslint-disable-next-line array-callback-return
+    .map(c => {
+      if (!this._isValidCommand(c, excludeCommands)) return;
+      if (c.widget && c.widget === SEPARATOR) {
+        beginGroup = true;
+      } else {
+        const command = this._cloneCommand(c, excludeCommands);
+        command.icon = command.menuIcon;
+        command.beginGroup = beginGroup;
+        command.rootCommand = !command.command ? rootCommand === null || rootCommand === void 0 ? void 0 : rootCommand.command : undefined;
+        beginGroup = false;
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return,consistent-return
+        return command;
+      }
+    })
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    .filter(c => c);
+  },
+  _prepareToolbarCommands(commands, excludeCommands) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return commands
+    // eslint-disable-next-line array-callback-return,consistent-return
+    .map(c => {
+      if (this._isValidCommand(c, excludeCommands)) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        return this._cloneCommand(c, excludeCommands);
+      }
+    })
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    .filter(c => c).filter((c, index, arr) => {
+      if (c.widget === SEPARATOR && index === arr.length - 1) {
+        return false;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return c;
+    });
+  },
+  _cloneCommand(c, excludeCommands) {
+    const command = (0, _extend.extend)({}, c);
+    if (Array.isArray(c.items)) {
+      command.items = this._prepareContextMenuCommands(c.items, excludeCommands, command);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return command;
+  },
+  _isValidCommand(c, excludeCommands) {
+    // eslint-disable-next-line no-param-reassign
+    excludeCommands = excludeCommands || [];
+    return excludeCommands.indexOf(c.command) === -1;
+  },
+  _exportTo(widget, dataURI, format, mimeString) {
+    const window = (0, _window.getWindow)();
+    // @ts-expect-error ts-error
+    if (window !== null && window !== void 0 && window.atob && (0, _type.isFunction)(window.Blob)) {
+      const blob = this._getBlobByDataURI(window, dataURI, mimeString);
+      const options = widget.option('export');
+      _file_saver.fileSaver.saveAs(options.fileName || 'foo', format, blob);
+    }
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getBlobByDataURI(window, dataURI, mimeString) {
+    const byteString = window.atob(dataURI.split(',')[1]);
+    const ia = new Uint8Array(byteString.length);
+    for (let i = 0; i < byteString.length; i += 1) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return new window.Blob([ia.buffer], {
+      type: mimeString
+    });
+  }
+};
+var _default = exports["default"] = DiagramCommandsManager;
+
+/***/ }),
+
+/***/ 29898:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _diagram = _interopRequireDefault(__webpack_require__(43904));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+class EdgesOption extends _diagram.default {
+  // eslint-disable-next-line @stylistic/max-len
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type,@typescript-eslint/explicit-module-boundary-types
+  _getKeyExpr() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._diagramWidget._createOptionGetter('edges.keyExpr');
+  }
+}
+var _default = exports["default"] = EdgesOption;
+
+/***/ }),
+
+/***/ 49206:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.getDiagram = getDiagram;
+var _ui = _interopRequireDefault(__webpack_require__(35185));
+var _devexpressDiagram = _interopRequireWildcard(__webpack_require__(36761));
+var Diagram = _devexpressDiagram;
+function _getRequireWildcardCache(e) { if ("function" != typeof WeakMap) return null; var r = new WeakMap(), t = new WeakMap(); return (_getRequireWildcardCache = function (e) { return e ? t : r; })(e); }
+function _interopRequireWildcard(e, r) { if (!r && e && e.__esModule) return e; if (null === e || "object" != typeof e && "function" != typeof e) return { default: e }; var t = _getRequireWildcardCache(r); if (t && t.has(e)) return t.get(e); var n = { __proto__: null }, a = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var u in e) if ("default" !== u && {}.hasOwnProperty.call(e, u)) { var i = a ? Object.getOwnPropertyDescriptor(e, u) : null; i && (i.get || i.set) ? Object.defineProperty(n, u, i) : n[u] = e[u]; } return n.default = e, t && t.set(e, n), n; }
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getDiagram() {
+  if (!_devexpressDiagram.default) {
+    throw _ui.default.Error('E1041', 'devexpress-diagram');
+  }
+  return Diagram;
+}
+
+/***/ }),
+
+/***/ 43904:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _data = __webpack_require__(11036);
+var _component = __webpack_require__(17863);
+var _extend = __webpack_require__(52576);
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+// @ts-expect-error ts-error
+
+// @ts-expect-error ts-error
+const ItemsOptionBase = _component.Component.inherit({}).include(_data.DataHelperMixin);
+class ItemsOption extends ItemsOptionBase {
+  constructor(diagramWidget) {
+    super();
+    this._diagramWidget = diagramWidget;
+    this._resetCache();
+  }
+  _dataSourceChangedHandler(newItems, e) {
+    this._resetCache();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    this._items = newItems.map(item => (0, _extend.extend)(true, {}, item));
+    this._dataSourceItems = newItems.slice();
+    if (e !== null && e !== void 0 && e.changes) {
+      const internalChanges = e.changes.filter(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      change => change.internalChange);
+      const externalChanges = e.changes.filter(change => !change.internalChange);
+      if (internalChanges.length) {
+        this._reloadContentByChanges(internalChanges, false);
+      }
+      if (externalChanges.length) {
+        this._reloadContentByChanges(externalChanges, true);
+      }
+    } else {
+      this._diagramWidget._onDataSourceChanged();
+    }
+  }
+  _dataSourceLoadingChangedHandler(isLoading) {
+    // @ts-expect-error ts-error
+    if (isLoading && !this._dataSource.isLoaded()) {
+      this._diagramWidget._showLoadingIndicator();
+    } else {
+      this._diagramWidget._hideLoadingIndicator();
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _prepareData(dataObj) {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const key in dataObj) {
+      // eslint-disable-next-line no-continue
+      if (!Object.prototype.hasOwnProperty.call(dataObj, key)) continue;
+      if (dataObj[key] === undefined) {
+        dataObj[key] = null;
+      }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return dataObj;
+  }
+  insert(data, callback, errorCallback) {
+    this._resetCache();
+    const store = this._getStore();
+    store.insert(this._prepareData(data))
+    // eslint-disable-next-line @typescript-eslint/no-shadow
+    .done((data, key) => {
+      store.push([{
+        type: 'insert',
+        key,
+        data,
+        internalChange: true
+      }]);
+      if (callback) {
+        callback(data);
+      }
+      this._resetCache();
+    }).fail(error => {
+      if (errorCallback) {
+        errorCallback(error);
+      }
+      this._resetCache();
+    });
+  }
+  update(key, data, callback, errorCallback) {
+    const store = this._getStore();
+    const storeKey = this._getStoreKey(store, key, data);
+    store.update(storeKey, this._prepareData(data))
+    // eslint-disable-next-line @typescript-eslint/no-shadow
+    .done((data, key) => {
+      store.push([{
+        type: 'update',
+        key,
+        data,
+        internalChange: true
+      }]);
+      if (callback) {
+        callback(key, data);
+      }
+    }).fail(error => {
+      if (errorCallback) {
+        errorCallback(error);
+      }
+    });
+  }
+  remove(key, data, callback, errorCallback) {
+    this._resetCache();
+    const store = this._getStore();
+    const storeKey = this._getStoreKey(store, key, data);
+    store.remove(storeKey)
+    // eslint-disable-next-line @typescript-eslint/no-shadow
+    .done(key => {
+      store.push([{
+        type: 'remove',
+        key,
+        internalChange: true
+      }]);
+      if (callback) {
+        callback(key);
+      }
+      this._resetCache();
+    }).fail(error => {
+      if (errorCallback) {
+        errorCallback(error);
+      }
+      this._resetCache();
+    });
+  }
+  findItem(itemKey) {
+    if (!this._items) {
+      return null;
+    }
+    return this._getItemByKey(itemKey);
+  }
+  getItems() {
+    return this._items;
+  }
+  hasItems() {
+    return !!this._items;
+  }
+  _reloadContentByChanges(changes, isExternalChanges) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return,no-param-reassign
+    changes = changes.map(change => (0, _extend.extend)(change, {
+      internalKey: this._getInternalKey(change.key)
+    }));
+    this._diagramWidget._reloadContentByChanges(changes, isExternalChanges);
+  }
+  _getItemByKey(key) {
+    this._ensureCache();
+    const cache = this._cache;
+    const index = this._getIndexByKey(key);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return cache.items[index];
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getIndexByKey(key) {
+    this._ensureCache();
+    const cache = this._cache;
+    if (typeof key === 'object') {
+      for (let i = 0, {
+          length
+        } = cache.keys; i < length; i += 1) {
+        if (cache.keys[i] === key) return i;
+      }
+    } else {
+      const keySet = cache.keySet
+      // eslint-disable-next-line @typescript-eslint/no-shadow
+      || cache.keys.reduce((accumulator, key, index) => {
+        accumulator[key] = index;
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        return accumulator;
+      }, {});
+      if (!cache.keySet) {
+        cache.keySet = keySet;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return keySet[key];
+    }
+    return -1;
+  }
+  _ensureCache() {
+    const cache = this._cache;
+    if (!cache.keys) {
+      cache.keys = [];
+      cache.items = [];
+      this._fillCache(cache, this._items);
+    }
+  }
+  _fillCache(cache, items) {
+    if (!(items !== null && items !== void 0 && items.length)) return;
+    const keyExpr = this._getKeyExpr();
+    // @ts-expect-error ts-error
+    if (keyExpr) {
+      items.forEach(item => {
+        // @ts-expect-error ts-error
+        cache.keys.push(keyExpr(item));
+        cache.items.push(item);
+      });
+    }
+    const itemsExpr = this._getItemsExpr();
+    // @ts-expect-error ts-error
+    if (itemsExpr) {
+      // @ts-expect-error ts-error
+      items.forEach(item => this._fillCache(cache, itemsExpr(item)));
+    }
+    const containerChildrenExpr = this._getContainerChildrenExpr();
+    // @ts-expect-error ts-error
+    if (containerChildrenExpr) {
+      // @ts-expect-error ts-error
+      items.forEach(item => this._fillCache(cache, containerChildrenExpr(item)));
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getKeyExpr() {
+    throw 'Not Implemented';
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getItemsExpr() {}
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getContainerChildrenExpr() {}
+  _initDataSource() {
+    var _this$_dataSource;
+    super._initDataSource();
+    // @ts-expect-error ts-error
+    (_this$_dataSource = this._dataSource) === null || _this$_dataSource === void 0 || _this$_dataSource.paginate(false);
+  }
+  _dataSourceOptions() {
+    return {
+      paginate: false
+    };
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getStore() {
+    var _this$_dataSource2;
+    // @ts-expect-error ts-error
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return (_this$_dataSource2 = this._dataSource) === null || _this$_dataSource2 === void 0 ? void 0 : _this$_dataSource2.store();
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getStoreKey(store, internalKey, data) {
+    let storeKey = store.keyOf(data);
+    if (storeKey === data) {
+      const keyExpr = this._getKeyExpr();
+      this._dataSourceItems.forEach(item => {
+        // @ts-expect-error ts-error
+        if (keyExpr(item) === internalKey) storeKey = item;
+      });
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return storeKey;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getInternalKey(storeKey) {
+    if (typeof storeKey === 'object') {
+      const keyExpr = this._getKeyExpr();
+      // @ts-expect-error ts-error
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return keyExpr(storeKey);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return storeKey;
+  }
+  _resetCache() {
+    this._cache = {};
+  }
+}
+var _default = exports["default"] = ItemsOption;
+
+/***/ }),
+
+/***/ 5955:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _diagram = _interopRequireDefault(__webpack_require__(43904));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+class NodesOption extends _diagram.default {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  _getKeyExpr() {
+    return this._diagramWidget._createOptionGetter('nodes.keyExpr');
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  _getItemsExpr() {
+    return this._diagramWidget._createOptionGetter('nodes.itemsExpr');
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  _getContainerChildrenExpr() {
+    return this._diagramWidget._createOptionGetter('nodes.containerChildrenExpr');
+  }
+}
+var _default = exports["default"] = NodesOption;
+
+/***/ }),
+
+/***/ 82578:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _diagram = _interopRequireDefault(__webpack_require__(26579));
+var _diagram2 = __webpack_require__(49206);
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+
+class DiagramOptionsUpdateBar extends _diagram.default {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  constructor(owner) {
+    super(owner);
+    const {
+      DiagramCommand
+    } = (0, _diagram2.getDiagram)();
+    this.commandOptions = {};
+    this.commandOptions[DiagramCommand.Fullscreen] = 'fullScreen';
+    this.commandOptions[DiagramCommand.ZoomLevel] = value => {
+      if (typeof this._getOption('zoomLevel') === 'object') {
+        this._setOption('zoomLevel.value', value);
+      } else {
+        this._setOption('zoomLevel', value);
+      }
+    };
+    this.commandOptions[DiagramCommand.SwitchAutoZoom] = value => {
+      const {
+        AutoZoomMode
+      } = (0, _diagram2.getDiagram)();
+      switch (value) {
+        case AutoZoomMode.FitContent:
+          this._setOption('autoZoomMode', 'fitContent');
+          break;
+        case AutoZoomMode.FitToWidth:
+          this._setOption('autoZoomMode', 'fitWidth');
+          break;
+        case AutoZoomMode.Disabled:
+          this._setOption('autoZoomMode', 'disabled');
+          break;
+        default:
+          break;
+      }
+    };
+    this.commandOptions[DiagramCommand.ToggleSimpleView] = 'simpleView';
+    this.commandOptions[DiagramCommand.ShowGrid] = 'showGrid';
+    this.commandOptions[DiagramCommand.SnapToGrid] = 'snapToGrid';
+    this.commandOptions[DiagramCommand.GridSize] = value => {
+      if (typeof this._getOption('gridSize') === 'object') {
+        this._setOption('gridSize.value', value);
+      } else {
+        this._setOption('gridSize', value);
+      }
+    };
+    this.commandOptions[DiagramCommand.ViewUnits] = 'viewUnits';
+    this.commandOptions[DiagramCommand.PageSize] = value => {
+      const pageSize = this._getOption('pageSize');
+      if (pageSize === undefined || pageSize.width !== value.width || pageSize.height !== value.height) {
+        this._setOption('pageSize', value);
+      }
+    };
+    this.commandOptions[DiagramCommand.PageLandscape] = value => {
+      this._setOption('pageOrientation', value ? 'landscape' : 'portrait');
+    };
+    this.commandOptions[DiagramCommand.ViewUnits] = value => {
+      const {
+        DiagramUnit
+      } = (0, _diagram2.getDiagram)();
+      switch (value) {
+        case DiagramUnit.In:
+          this._setOption('viewUnits', 'in');
+          break;
+        case DiagramUnit.Cm:
+          this._setOption('viewUnits', 'cm');
+          break;
+        case DiagramUnit.Px:
+          this._setOption('viewUnits', 'px');
+          break;
+        default:
+          break;
+      }
+    };
+    this.commandOptions[DiagramCommand.PageColor] = 'pageColor';
+    this._updateLock = 0;
+  }
+  getCommandKeys() {
+    // @ts-expect-error ts-error
+    return Object.keys(this.commandOptions).map(key => parseInt(key, 10));
+  }
+  setItemValue(key, value) {
+    if (this.isUpdateLocked()) return;
+    this.beginUpdate();
+    try {
+      var _this$commandOptions;
+      if (typeof ((_this$commandOptions = this.commandOptions) === null || _this$commandOptions === void 0 ? void 0 : _this$commandOptions[key]) === 'function') {
+        var _this$commandOptions2;
+        (_this$commandOptions2 = this.commandOptions) === null || _this$commandOptions2 === void 0 || _this$commandOptions2[key].call(this, value);
+      } else {
+        var _this$commandOptions3;
+        this._setOption((_this$commandOptions3 = this.commandOptions) === null || _this$commandOptions3 === void 0 ? void 0 : _this$commandOptions3[key], value);
+      }
+    } finally {
+      this.endUpdate();
+    }
+  }
+  beginUpdate() {
+    this._updateLock += 1;
+  }
+  endUpdate() {
+    this._updateLock -= 1;
+  }
+  isUpdateLocked() {
+    return this._updateLock > 0;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  _getOption(name) {
+    return this._owner.option(name);
+  }
+  _setOption(name, value) {
+    this._owner.option(name, value);
+  }
+}
+var _default = exports["default"] = DiagramOptionsUpdateBar;
+
+/***/ }),
+
+/***/ 56017:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _message = _interopRequireDefault(__webpack_require__(4671));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+const DiagramToolboxManager = {
+  getDefaultGroups() {
+    if (!this._groups) {
+      this._groups = {
+        general: {
+          category: 'general',
+          title: _message.default.format('dxDiagram-categoryGeneral')
+        },
+        flowchart: {
+          category: 'flowchart',
+          title: _message.default.format('dxDiagram-categoryFlowchart')
+        },
+        orgChart: {
+          category: 'orgChart',
+          title: _message.default.format('dxDiagram-categoryOrgChart')
+        },
+        containers: {
+          category: 'containers',
+          title: _message.default.format('dxDiagram-categoryContainers')
+        },
+        custom: {
+          category: 'custom',
+          title: _message.default.format('dxDiagram-categoryCustom')
+        }
+      };
+    }
+    return this._groups;
+  },
+  getGroups(groups) {
+    const defaultGroups = this.getDefaultGroups();
+    if (groups) {
+      return groups.map(g => {
+        if (typeof g === 'string') {
+          var _defaultGroups$g;
+          return {
+            category: g,
+            title: ((_defaultGroups$g = defaultGroups[g]) === null || _defaultGroups$g === void 0 ? void 0 : _defaultGroups$g.title) || g
+          };
+        }
+        return g;
+      }).filter(g => g);
+    }
+    return [defaultGroups.general, defaultGroups.flowchart, defaultGroups.orgChart, defaultGroups.containers];
+  }
+};
+var _default = exports["default"] = DiagramToolboxManager;
+
+/***/ }),
+
+/***/ 18811:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _context_menu = _interopRequireDefault(__webpack_require__(34378));
+var _widget = _interopRequireDefault(__webpack_require__(89275));
+var _diagram = _interopRequireDefault(__webpack_require__(26579));
+var _diagram2 = _interopRequireDefault(__webpack_require__(88618));
+var _diagram3 = __webpack_require__(49206);
+var _uiDiagram = _interopRequireDefault(__webpack_require__(35814));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+const DIAGRAM_TOUCHBAR_CLASS = 'dx-diagram-touchbar';
+const DIAGRAM_TOUCHBAR_OVERLAY_CLASS = 'dx-diagram-touchbar-overlay';
+const DIAGRAM_TOUCHBAR_TARGET_CLASS = 'dx-diagram-touchbar-target';
+const DIAGRAM_TOUCHBAR_MIN_UNWRAPPED_WIDTH = 800;
+const DIAGRAM_TOUCHBAR_Y_OFFSET = 32;
+class DiagramContextMenu extends _context_menu.default {
+  _renderContextMenuOverlay() {
+    // @ts-expect-error ts-error
+    super._renderContextMenuOverlay();
+    // @ts-expect-error ts-error
+    if (this._overlay && this.option('isTouchBarMode')) {
+      // @ts-expect-error ts-error
+      this._overlay.option('onShown', () => {
+        var _this$_overlay;
+        // @ts-expect-error ts-error
+        const $content = (0, _renderer.default)((_this$_overlay = this._overlay) === null || _this$_overlay === void 0 ? void 0 : _this$_overlay.$content());
+        $content.parent().addClass(DIAGRAM_TOUCHBAR_OVERLAY_CLASS);
+      });
+    }
+  }
+}
+class DiagramContextMenuBar extends _diagram.default {
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getCommandKeys() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._getKeys(this._owner._commands);
+  }
+  setItemValue(key, value) {
+    this._owner._setItemValue(key, value);
+  }
+  setItemEnabled(key, enabled) {
+    this._owner._setItemEnabled(key, enabled);
+  }
+  setItemVisible(key, visible) {
+    this._owner._setItemVisible(key, visible);
+  }
+  setItemSubItems(key, items) {
+    this._owner._setItemSubItems(key, items);
+  }
+  setEnabled(enabled) {
+    this._owner._setEnabled(enabled);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  isVisible() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._owner.isVisible();
+  }
+}
+class DiagramContextMenuWrapper extends _widget.default {
+  _init() {
+    super._init();
+    this._createOnVisibilityChangingAction();
+    this._createOnInternalCommand();
+    this._createOnCustomCommand();
+    this._createOnItemClickAction();
+    this._tempState = undefined;
+    this._commands = [];
+    this._commandToIndexMap = {};
+    this.bar = new DiagramContextMenuBar(this);
+  }
+  _initMarkup() {
+    super._initMarkup();
+    this._commands = this._getCommands();
+    this._commandToIndexMap = {};
+    this._fillCommandToIndexMap(this._commands, []);
+    this._$contextMenuTargetElement = (0, _renderer.default)('<div>').addClass(DIAGRAM_TOUCHBAR_TARGET_CLASS).appendTo(this.$element());
+    const $contextMenu = (0, _renderer.default)('<div>').appendTo(this.$element());
+    this._contextMenuInstance = this._createComponent($contextMenu, DiagramContextMenu, {
+      isTouchBarMode: this._isTouchBarMode(),
+      cssClass: this._isTouchBarMode() ? DIAGRAM_TOUCHBAR_CLASS : _uiDiagram.default.getContextMenuCssClass(),
+      hideOnOutsideClick: false,
+      showEvent: '',
+      focusStateEnabled: false,
+      items: this._commands,
+      position: this._isTouchBarMode() ? {
+        my: {
+          x: 'center',
+          y: 'bottom'
+        },
+        at: {
+          x: 'center',
+          y: 'top'
+        },
+        of: this._$contextMenuTargetElement
+      } : {},
+      itemTemplate(itemData, itemIndex, itemElement) {
+        _uiDiagram.default.getContextMenuItemTemplate(this, itemData, itemIndex, itemElement);
+      },
+      onItemClick: _ref => {
+        let {
+          itemData
+        } = _ref;
+        return this._onItemClick(itemData);
+      },
+      onShowing: e => {
+        if (this._inOnShowing === true) return;
+        this._inOnShowing = true;
+        this._onVisibilityChangingAction({
+          visible: true,
+          component: this
+        });
+        e.component.option('items', e.component.option('items'));
+        delete this._inOnShowing;
+      }
+    });
+  }
+  _show(x, y, selection) {
+    var _this$_contextMenuIns;
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    (_this$_contextMenuIns = this._contextMenuInstance) === null || _this$_contextMenuIns === void 0 || _this$_contextMenuIns.hide();
+    if (this._isTouchBarMode()) {
+      var _this$_$contextMenuTa, _this$_$contextMenuTa2, _this$_contextMenuIns2;
+      (_this$_$contextMenuTa = this._$contextMenuTargetElement) === null || _this$_$contextMenuTa === void 0 || _this$_$contextMenuTa.show();
+      if (!selection) {
+        // eslint-disable-next-line no-param-reassign
+        selection = {
+          x,
+          y,
+          width: 0,
+          height: 0
+        };
+      }
+      const widthCorrection = selection.width > DIAGRAM_TOUCHBAR_MIN_UNWRAPPED_WIDTH ? 0 : (DIAGRAM_TOUCHBAR_MIN_UNWRAPPED_WIDTH - selection.width) / 2;
+      (_this$_$contextMenuTa2 = this._$contextMenuTargetElement) === null || _this$_$contextMenuTa2 === void 0 || _this$_$contextMenuTa2.css({
+        left: selection.x - widthCorrection,
+        top: selection.y - DIAGRAM_TOUCHBAR_Y_OFFSET,
+        width: selection.width + 2 * widthCorrection,
+        height: selection.height + 2 * DIAGRAM_TOUCHBAR_Y_OFFSET
+      });
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      (_this$_contextMenuIns2 = this._contextMenuInstance) === null || _this$_contextMenuIns2 === void 0 || _this$_contextMenuIns2.show();
+    } else {
+      var _this$_contextMenuIns3, _this$_contextMenuIns4;
+      (_this$_contextMenuIns3 = this._contextMenuInstance) === null || _this$_contextMenuIns3 === void 0 || _this$_contextMenuIns3.option('position', {
+        offset: `${x} ${y}`
+      });
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      (_this$_contextMenuIns4 = this._contextMenuInstance) === null || _this$_contextMenuIns4 === void 0 || _this$_contextMenuIns4.show();
+    }
+  }
+  _hide() {
+    var _this$_$contextMenuTa3, _this$_contextMenuIns5;
+    (_this$_$contextMenuTa3 = this._$contextMenuTargetElement) === null || _this$_$contextMenuTa3 === void 0 || _this$_$contextMenuTa3.hide();
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    (_this$_contextMenuIns5 = this._contextMenuInstance) === null || _this$_contextMenuIns5 === void 0 || _this$_contextMenuIns5.hide();
+  }
+  _isTouchBarMode() {
+    const {
+      Browser
+    } = (0, _diagram3.getDiagram)();
+    return Browser.TouchUI;
+  }
+  _onItemClick(itemData) {
+    let processed = false;
+    if (this._onItemClickAction) {
+      processed = this._onItemClickAction(itemData);
+    }
+    if (!processed) {
+      var _this$_contextMenuIns6;
+      _uiDiagram.default.onContextMenuItemClick(this, itemData, this._executeCommand.bind(this));
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      (_this$_contextMenuIns6 = this._contextMenuInstance) === null || _this$_contextMenuIns6 === void 0 || _this$_contextMenuIns6.hide();
+    }
+  }
+  _executeCommand(command, name, value) {
+    if (typeof command === 'number') {
+      var _this$bar;
+      (_this$bar = this.bar) === null || _this$bar === void 0 || _this$bar.raiseBarCommandExecuted(command, value);
+    } else if (typeof command === 'string') {
+      this._onInternalCommandAction({
+        command
+      });
+    }
+    if (name !== undefined) {
+      this._onCustomCommandAction({
+        name
+      });
+    }
+  }
+  _createOnInternalCommand() {
+    this._onInternalCommandAction = this._createActionByOption('onInternalCommand');
+  }
+  _createOnCustomCommand() {
+    this._onCustomCommandAction = this._createActionByOption('onCustomCommand');
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  _getCommands() {
+    return _diagram2.default.getContextMenuCommands(this.option('commands'));
+  }
+  _fillCommandToIndexMap(commands, indexPath) {
+    commands.forEach((command, index) => {
+      const commandIndexPath = indexPath.concat([index]);
+      if (command.command !== undefined) {
+        this._commandToIndexMap[command.command] = commandIndexPath;
+      }
+      if (Array.isArray(command.items)) {
+        this._fillCommandToIndexMap(command.items, commandIndexPath);
+      }
+    });
+  }
+  _setItemEnabled(key, enabled) {
+    this._setItemVisible(key, enabled);
+  }
+  _setItemVisible(key, visible) {
+    const itemOptionText = _uiDiagram.default.getItemOptionText(this._contextMenuInstance, this._commandToIndexMap[key]);
+    _uiDiagram.default.updateContextMenuItemVisible(this._contextMenuInstance, itemOptionText, visible);
+  }
+  _setItemValue(key, value) {
+    const itemOptionText = _uiDiagram.default.getItemOptionText(this._contextMenuInstance, this._commandToIndexMap[key]);
+    _uiDiagram.default.updateContextMenuItemValue(this._contextMenuInstance, itemOptionText, key, value);
+  }
+  _setItemSubItems(key, items) {
+    const itemOptionText = _uiDiagram.default.getItemOptionText(this._contextMenuInstance, this._commandToIndexMap[key]);
+    _uiDiagram.default.updateContextMenuItems(this._contextMenuInstance, itemOptionText, key, items);
+  }
+  _setEnabled(enabled) {
+    var _this$_contextMenuIns7;
+    (_this$_contextMenuIns7 = this._contextMenuInstance) === null || _this$_contextMenuIns7 === void 0 || _this$_contextMenuIns7.option('disabled', !enabled);
+  }
+  isVisible() {
+    return this._inOnShowing;
+  }
+  _createOnVisibilityChangingAction() {
+    this._onVisibilityChangingAction = this._createActionByOption('onVisibilityChanging');
+  }
+  _createOnItemClickAction() {
+    this._onItemClickAction = this._createActionByOption('onItemClick');
+  }
+  _optionChanged(args) {
+    switch (args.name) {
+      case 'onVisibilityChanging':
+        this._createOnVisibilityChangingAction();
+        break;
+      case 'onInternalCommand':
+        this._createOnInternalCommand();
+        break;
+      case 'onCustomCommand':
+        this._createOnCustomCommand();
+        break;
+      case 'onItemClick':
+        this._createOnItemClickAction();
+        break;
+      case 'commands':
+        this._invalidate();
+        break;
+      case 'export':
+        break;
+      default:
+        super._optionChanged(args);
+    }
+  }
+}
+var _default = exports["default"] = {
+  DiagramContextMenuWrapper,
+  DiagramContextMenu
+};
+
+/***/ }),
+
+/***/ 33533:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _window = __webpack_require__(3104);
+var _widget = _interopRequireDefault(__webpack_require__(89275));
+var _diagram = __webpack_require__(49206);
+var _m_popover = _interopRequireDefault(__webpack_require__(7784));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+const DIAGRAM_CONTEXT_TOOLBOX_TARGET_CLASS = 'dx-diagram-context-toolbox-target';
+const DIAGRAM_CONTEXT_TOOLBOX_CLASS = 'dx-diagram-context-toolbox';
+const DIAGRAM_TOUCH_CONTEXT_TOOLBOX_CLASS = 'dx-diagram-touch-context-toolbox';
+const DIAGRAM_CONTEXT_TOOLBOX_CONTENT_CLASS = 'dx-diagram-context-toolbox-content';
+const DIAGRAM_CONTEXT_TOOLBOX_MINHEIGHT = 150;
+class DiagramContextToolbox extends _widget.default {
+  _init() {
+    super._init();
+    this._onShownAction = this._createActionByOption('onShown');
+    const window = (0, _window.getWindow)();
+    this._popoverPositionData = [{
+      my: {
+        x: 'center',
+        y: 'top'
+      },
+      at: {
+        x: 'center',
+        y: 'bottom'
+      },
+      offset: {
+        x: 0,
+        y: 5
+      },
+      calcMaxHeight: rect => Math.max(DIAGRAM_CONTEXT_TOOLBOX_MINHEIGHT, window.innerHeight - rect.bottom - 6)
+    }, {
+      my: {
+        x: 'right',
+        y: 'center'
+      },
+      at: {
+        x: 'left',
+        y: 'center'
+      },
+      offset: {
+        x: -5,
+        y: 0
+      },
+      calcMaxHeight: rect => Math.max(DIAGRAM_CONTEXT_TOOLBOX_MINHEIGHT, Math.min(rect.top, window.innerHeight - rect.bottom) * 2 - 2)
+    }, {
+      my: {
+        x: 'center',
+        y: 'bottom'
+      },
+      at: {
+        x: 'center',
+        y: 'top'
+      },
+      offset: {
+        x: 0,
+        y: -5
+      },
+      calcMaxHeight: rect => Math.max(DIAGRAM_CONTEXT_TOOLBOX_MINHEIGHT, rect.top - 6)
+    }, {
+      my: {
+        x: 'left',
+        y: 'center'
+      },
+      at: {
+        x: 'right',
+        y: 'center'
+      },
+      offset: {
+        x: 5,
+        y: 0
+      },
+      calcMaxHeight: rect => Math.max(DIAGRAM_CONTEXT_TOOLBOX_MINHEIGHT, Math.min(rect.top, window.innerHeight - rect.bottom) * 2 - 2)
+    }];
+  }
+  _initMarkup() {
+    super._initMarkup();
+    this._$popoverTargetElement = (0, _renderer.default)('<div>').addClass(DIAGRAM_CONTEXT_TOOLBOX_TARGET_CLASS).appendTo(this.$element());
+    const $popoverElement = (0, _renderer.default)('<div>').addClass(DIAGRAM_CONTEXT_TOOLBOX_CLASS).appendTo(this.$element());
+    if (this._isTouchMode()) {
+      $popoverElement.addClass(DIAGRAM_TOUCH_CONTEXT_TOOLBOX_CLASS);
+    }
+    this._popoverInstance = this._createComponent($popoverElement, _m_popover.default, {
+      hideOnOutsideClick: false,
+      container: this.$element()
+    });
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  _isTouchMode() {
+    const {
+      Browser
+    } = (0, _diagram.getDiagram)();
+    return Browser.TouchUI;
+  }
+  _show(x, y, side, category, callback) {
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this._popoverInstance.hide();
+    this._$popoverTargetElement.css({
+      // @ts-expect-error ts-error
+      left: x + this._popoverPositionData[side].offset.x,
+      // @ts-expect-error ts-error
+      top: y + this._popoverPositionData[side].offset.y
+    }).show();
+    // correct offset when parent has position absolute, relative, etc (T1010677)
+    const window = (0, _window.getWindow)();
+    const targetDiv = this._$popoverTargetElement.get(0);
+    this._$popoverTargetElement.css({
+      left:
+      // @ts-expect-error ts-error
+      targetDiv.offsetLeft - (targetDiv.getBoundingClientRect().left + window.scrollX
+      // @ts-expect-error ts-error
+      - targetDiv.offsetLeft),
+      top:
+      // @ts-expect-error ts-error
+      targetDiv.offsetTop - (targetDiv.getBoundingClientRect().top + window.scrollY
+      // @ts-expect-error ts-error
+      - targetDiv.offsetTop)
+    });
+    const posRect = targetDiv.getBoundingClientRect();
+    this._popoverInstance.option({
+      maxHeight: this._popoverPositionData[side].calcMaxHeight(posRect),
+      width: this.option('toolboxWidth') !== undefined ? this.option('toolboxWidth') : undefined,
+      position: {
+        my: this._popoverPositionData[side].my,
+        at: this._popoverPositionData[side].at,
+        of: this._$popoverTargetElement
+      },
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      contentTemplate: () => (0, _renderer.default)('<div>').append((0, _renderer.default)('<div>').addClass(DIAGRAM_CONTEXT_TOOLBOX_CONTENT_CLASS))
+      // @ts-expect-error ts-error
+      .dxScrollView({
+        width: '100%',
+        height: '100%'
+      }),
+      onContentReady: () => {
+        const $element = this.$element().find(`.${DIAGRAM_CONTEXT_TOOLBOX_CONTENT_CLASS}`);
+        this._onShownAction({
+          // @ts-expect-error ts-error
+          category,
+          callback,
+          $element,
+          hide: () => this._popoverInstance.hide()
+        });
+      }
+    });
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this._popoverInstance.show();
+  }
+  _hide() {
+    this._$popoverTargetElement.hide();
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this._popoverInstance.hide();
+  }
+}
+var _default = exports["default"] = DiagramContextToolbox;
+
+/***/ }),
+
+/***/ 87672:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _message = _interopRequireDefault(__webpack_require__(4671));
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _window = __webpack_require__(3104);
+var _file_uploader = _interopRequireDefault(__webpack_require__(26980));
+var _diagram = __webpack_require__(49206);
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+
+const DiagramDialogManager = {
+  getConfigurations() {
+    const {
+      DiagramCommand
+    } = (0, _diagram.getDiagram)();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return,no-return-assign
+    return this.dialogList || (this.dialogList = [{
+      command: DiagramCommand.InsertShapeImage,
+      title: _message.default.format('dxDiagram-dialogInsertShapeImageTitle'),
+      onGetContent: this.getChangeImageDialogContent
+    }, {
+      command: DiagramCommand.EditShapeImage,
+      title: _message.default.format('dxDiagram-dialogEditShapeImageTitle'),
+      onGetContent: this.getChangeImageDialogContent
+    }]);
+  },
+  getChangeImageDialogContent(args) {
+    const $uploader = (0, _renderer.default)('<div>');
+    args.component._createComponent($uploader, _file_uploader.default, {
+      selectButtonText: _message.default.format('dxDiagram-dialogEditShapeImageSelectButton'),
+      accept: 'image/*',
+      uploadMode: 'useForm',
+      onValueChanged(e) {
+        const window = (0, _window.getWindow)();
+        // @ts-expect-error ts-error
+        const reader = new window.FileReader();
+        reader.onload = () => {
+          args.component._commandParameter = e.target.result;
+        };
+        reader.readAsDataURL(e.value[0]);
+      }
+    });
+    return $uploader;
+  },
+  getDialogParameters(command) {
+    const commandIndex = this.getConfigurations()
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    .map(c => c.command).indexOf(command);
+    if (commandIndex >= 0) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return this.getConfigurations()[commandIndex];
+    }
+    return null;
+  }
+};
+var _default = exports["default"] = DiagramDialogManager;
+
+/***/ }),
+
+/***/ 53831:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _message = _interopRequireDefault(__webpack_require__(4671));
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _extend = __webpack_require__(52576);
+var _widget = _interopRequireDefault(__webpack_require__(89275));
+var _m_popup = _interopRequireDefault(__webpack_require__(43864));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+class DiagramDialog extends _widget.default {
+  _init() {
+    super._init();
+    this._command = undefined;
+    this._isShown = false;
+    this._createOnGetContentOption();
+    this._createOnHiddenOption();
+  }
+  _initMarkup() {
+    super._initMarkup();
+    const {
+      command,
+      title,
+      maxWidth,
+      height,
+      toolbarItems
+    } = this.option();
+    this._command = command;
+    this._$popupElement = (0, _renderer.default)('<div>').appendTo(this.$element());
+    this._popup = this._createComponent(this._$popupElement, _m_popup.default, {
+      title,
+      maxWidth,
+      height,
+      toolbarItems,
+      onHidden: this._onHiddenAction
+    });
+  }
+  _clean() {
+    var _this$_$popupElement;
+    delete this._popup;
+    (_this$_$popupElement = this._$popupElement) === null || _this$_$popupElement === void 0 || _this$_$popupElement.remove();
+  }
+  _getDefaultOptions() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return (0, _extend.extend)(super._getDefaultOptions(), {
+      title: '',
+      maxWidth: 500,
+      height: 'auto',
+      toolbarItems: this._getToolbarItems()
+    });
+  }
+  _getToolbarItems() {
+    return [this._getOkToolbarItem(), this._getCancelToolbarItem()];
+  }
+  _getOkToolbarItem() {
+    return {
+      widget: 'dxButton',
+      location: 'after',
+      toolbar: 'bottom',
+      options: {
+        text: _message.default.format('dxDiagram-dialogButtonOK'),
+        onClick: () => {
+          this._command.execute(this._commandParameter);
+          this._hide();
+        }
+      }
+    };
+  }
+  _getCancelToolbarItem() {
+    return {
+      widget: 'dxButton',
+      location: 'after',
+      toolbar: 'bottom',
+      options: {
+        text: _message.default.format('dxDiagram-dialogButtonCancel'),
+        onClick: this._hide.bind(this)
+      }
+    };
+  }
+  _optionChanged(args) {
+    var _this$_popup;
+    switch (args.name) {
+      case 'title':
+      case 'maxWidth':
+      case 'height':
+      case 'toolbarItems':
+        (_this$_popup = this._popup) === null || _this$_popup === void 0 || _this$_popup.option(args.name, args.value);
+        break;
+      case 'command':
+        this._command = args.value;
+        break;
+      case 'onGetContent':
+        this._createOnGetContentOption();
+        break;
+      case 'onHidden':
+        this._createOnHiddenOption();
+        break;
+      default:
+        super._optionChanged(args);
+    }
+  }
+  _createOnGetContentOption() {
+    this._onGetContentAction = this._createActionByOption('onGetContent');
+  }
+  _createOnHiddenOption() {
+    this._onHiddenAction = this._createActionByOption('onHidden');
+  }
+  _hide() {
+    var _this$_popup2;
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    (_this$_popup2 = this._popup) === null || _this$_popup2 === void 0 || _this$_popup2.hide();
+    this._isShown = false;
+  }
+  _show() {
+    var _this$_popup3, _this$_popup4;
+    (_this$_popup3 = this._popup) === null || _this$_popup3 === void 0 || _this$_popup3.$content().empty().append(this._onGetContentAction());
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    (_this$_popup4 = this._popup) === null || _this$_popup4 === void 0 || _this$_popup4.show();
+    this._isShown = true;
+  }
+  isVisible() {
+    return this._isShown;
+  }
+}
+var _default = exports["default"] = DiagramDialog;
+
+/***/ }),
+
+/***/ 34547:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _extend = __webpack_require__(52576);
+var _size = __webpack_require__(57653);
+var _window = __webpack_require__(3104);
+var _uiDiagram = _interopRequireDefault(__webpack_require__(88908));
+var _m_popup = _interopRequireDefault(__webpack_require__(43864));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+const DIAGRAM_MOBILE_POPUP_CLASS = 'dx-diagram-mobile-popup';
+class DiagramFloatingPanel extends _uiDiagram.default {
+  _init() {
+    super._init();
+    this._createOnVisibilityChangingAction();
+    this._createOnVisibilityChangedAction();
+  }
+  isVisible() {
+    // @ts-expect-error ts-error
+    const {
+      isVisible
+    } = this.option();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return isVisible;
+  }
+  isMobileView() {
+    // @ts-expect-error ts-error
+    const {
+      isMobileView
+    } = this.option();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return isMobileView;
+  }
+  _initMarkup() {
+    super._initMarkup();
+    const $parent = this.$element();
+    const $popupElement = (0, _renderer.default)('<div>').addClass(this._getPopupClass())
+    // @ts-expect-error ts-error
+    .addClass(this.isMobileView() && DIAGRAM_MOBILE_POPUP_CLASS).appendTo($parent);
+    this._popup = this._createComponent($popupElement, _m_popup.default, this._getPopupOptions());
+    this._updatePopupVisible();
+  }
+  show() {
+    this.option('isVisible', true);
+  }
+  hide() {
+    this.option('isVisible', false);
+  }
+  toggle() {
+    this.option('isVisible', !this.isVisible());
+  }
+  repaint() {
+    var _this$_popup;
+    (_this$_popup = this._popup) === null || _this$_popup === void 0 || _this$_popup.repaint();
+  }
+  _getPopupContent() {
+    var _this$_popup2;
+    return (_this$_popup2 = this._popup) === null || _this$_popup2 === void 0 ? void 0 : _this$_popup2.content();
+  }
+  _getPopupTitle() {
+    const $content = (0, _renderer.default)(this._getPopupContent());
+    return $content.parent().find('.dx-popup-title');
+  }
+  _getPointerUpElements() {
+    return [this._getPopupContent(), this._getPopupTitle()];
+  }
+  _getVerticalPaddingsAndBorders() {
+    const $content = (0, _renderer.default)(this._getPopupContent());
+    return (0, _size.getOuterHeight)($content) - (0, _size.getHeight)($content);
+  }
+  _getHorizontalPaddingsAndBorders() {
+    const $content = (0, _renderer.default)(this._getPopupContent());
+    return (0, _size.getOuterWidth)($content) - (0, _size.getWidth)($content);
+  }
+  _getPopupClass() {
+    return '';
+  }
+  _getPopupWidth() {
+    const {
+      width
+    } = this.option();
+    return width ?? 'auto';
+  }
+  _getPopupMaxWidth() {
+    const {
+      maxWidth
+    } = this.option();
+    // @ts-expect-error ts-error
+    return maxWidth;
+  }
+  _getPopupMinWidth() {
+    const {
+      minWidth
+    } = this.option();
+    // @ts-expect-error ts-error
+    return minWidth;
+  }
+  _getPopupHeight() {
+    const {
+      height
+    } = this.option();
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    return height || 'auto';
+  }
+  _getPopupMaxHeight() {
+    const {
+      maxHeight
+    } = this.option();
+    // @ts-expect-error ts-error
+    return maxHeight;
+  }
+  _getPopupMinHeight() {
+    const {
+      minHeight
+    } = this.option();
+    // @ts-expect-error ts-error
+    return minHeight;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getPopupPosition() {
+    return {};
+  }
+  _getPopupContainer() {
+    const {
+      container
+    } = this.option();
+    return container;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getPopupSlideAnimationObject(properties) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return (0, _extend.extend)({
+      type: 'slide',
+      start: () => {
+        (0, _renderer.default)('body').css('overflow', 'hidden');
+      },
+      complete: () => {
+        (0, _renderer.default)('body').css('overflow', '');
+      }
+    }, properties);
+  }
+  _getPopupAnimation() {
+    return {
+      hide: {
+        type: 'fadeOut'
+      },
+      show: {
+        type: 'fadeIn'
+      }
+    };
+  }
+  _getPopupOptions() {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const that = this;
+    let wrapperClass = this._getPopupClass();
+    if (this.isMobileView()) {
+      wrapperClass += ` ${DIAGRAM_MOBILE_POPUP_CLASS}`;
+    }
+    return {
+      // @ts-expect-error ts-error
+      animation: (0, _window.hasWindow)() ? this._getPopupAnimation() : null,
+      shading: false,
+      showTitle: false,
+      focusStateEnabled: false,
+      // @ts-expect-error ts-error
+      container: this._getPopupContainer(),
+      width: this._getPopupWidth(),
+      height: this._getPopupHeight(),
+      maxWidth: this._getPopupMaxWidth(),
+      maxHeight: this._getPopupMaxHeight(),
+      minWidth: this._getPopupMinWidth(),
+      minHeight: this._getPopupMinHeight(),
+      position: this._getPopupPosition(),
+      showCloseButton: true,
+      wrapperAttr: {
+        class: wrapperClass
+      },
+      onContentReady() {
+        var _that$_popup;
+        that._renderPopupContent((_that$_popup = that._popup) === null || _that$_popup === void 0 ? void 0 : _that$_popup.content());
+      },
+      onShowing: () => {
+        this._onVisibilityChangingAction({
+          visible: true,
+          component: this
+        });
+      },
+      onShown: () => {
+        this.option('isVisible', true);
+        this._onVisibilityChangedAction({
+          visible: true,
+          component: this
+        });
+      },
+      onHiding: () => {
+        this._onVisibilityChangingAction({
+          visible: false,
+          component: this
+        });
+      },
+      onHidden: () => {
+        this.option('isVisible', false);
+        this._onVisibilityChangedAction({
+          visible: false,
+          component: this
+        });
+      }
+    };
+  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _renderPopupContent($parent) {}
+  _updatePopupVisible() {
+    var _this$_popup3;
+    (_this$_popup3 = this._popup) === null || _this$_popup3 === void 0 || _this$_popup3.option('visible', this.isVisible());
+  }
+  _createOnVisibilityChangingAction() {
+    this._onVisibilityChangingAction = this._createActionByOption(
+    // @ts-expect-error ts-error
+    'onVisibilityChanging');
+  }
+  _createOnVisibilityChangedAction() {
+    this._onVisibilityChangedAction = this._createActionByOption(
+    // @ts-expect-error ts-error
+    'onVisibilityChanged');
+  }
+  _optionChanged(args) {
+    var _this$_popup4, _this$_popup5, _this$_popup6, _this$_popup7, _this$_popup8, _this$_popup9, _this$_popup10;
+    switch (args.name) {
+      case 'onVisibilityChanging':
+        this._createOnVisibilityChangingAction();
+        break;
+      case 'onVisibilityChanged':
+        this._createOnVisibilityChangedAction();
+        break;
+      case 'container':
+        (_this$_popup4 = this._popup) === null || _this$_popup4 === void 0 || _this$_popup4.option('container', this._getPopupContainer());
+        break;
+      case 'width':
+        (_this$_popup5 = this._popup) === null || _this$_popup5 === void 0 || _this$_popup5.option('width', this._getPopupWidth());
+        break;
+      case 'height':
+        (_this$_popup6 = this._popup) === null || _this$_popup6 === void 0 || _this$_popup6.option('height', this._getPopupHeight());
+        break;
+      case 'maxWidth':
+        (_this$_popup7 = this._popup) === null || _this$_popup7 === void 0 || _this$_popup7.option('maxWidth', this._getPopupMaxWidth());
+        break;
+      case 'maxHeight':
+        (_this$_popup8 = this._popup) === null || _this$_popup8 === void 0 || _this$_popup8.option('maxHeight', this._getPopupMaxHeight());
+        break;
+      case 'minWidth':
+        (_this$_popup9 = this._popup) === null || _this$_popup9 === void 0 || _this$_popup9.option('minWidth', this._getPopupMinWidth());
+        break;
+      case 'minHeight':
+        (_this$_popup10 = this._popup) === null || _this$_popup10 === void 0 || _this$_popup10.option('minHeight', this._getPopupMinHeight());
+        break;
+      case 'isMobileView':
+        this._invalidate();
+        break;
+      case 'isVisible':
+        this._updatePopupVisible();
+        break;
+      default:
+        super._optionChanged(args);
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getDefaultOptions() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return (0, _extend.extend)(super._getDefaultOptions(), {
+      isVisible: true,
+      isMobileView: false,
+      offsetX: 0,
+      offsetY: 0
+    });
+  }
+}
+var _default = exports["default"] = DiagramFloatingPanel;
+
+/***/ }),
+
+/***/ 76370:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _diagram = _interopRequireDefault(__webpack_require__(88618));
+var _uiDiagram = _interopRequireDefault(__webpack_require__(78753));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+class DiagramHistoryToolbar extends _uiDiagram.default {
+  _getCommands() {
+    return _diagram.default.getHistoryToolbarCommands(this.option('commands'), this._getExcludeCommands());
+  }
+  _getExcludeCommands() {
+    // @ts-expect-error ts-error
+    const {
+      excludeCommands
+    } = this.option();
+    const commands = [].concat(excludeCommands);
+    if (!this.option('isMobileView')) {
+      // @ts-expect-error ts-error
+      commands.push(_diagram.default.SHOW_TOOLBOX_COMMAND_NAME);
+    }
+    return commands;
+  }
+}
+var _default = exports["default"] = DiagramHistoryToolbar;
+
+/***/ }),
+
 /***/ 32392:
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -150657,25 +154926,25 @@ var _extend = __webpack_require__(52576);
 var _size = __webpack_require__(57653);
 var _type = __webpack_require__(11528);
 var _window = __webpack_require__(3104);
-var _diagram = _interopRequireDefault(__webpack_require__(43304));
-var _diagram2 = _interopRequireDefault(__webpack_require__(73360));
-var _diagram3 = __webpack_require__(11744);
-var _diagram4 = _interopRequireDefault(__webpack_require__(96221));
-var _diagram5 = _interopRequireDefault(__webpack_require__(79892));
-var _diagram6 = _interopRequireDefault(__webpack_require__(74611));
-var _uiDiagram = _interopRequireDefault(__webpack_require__(48941));
-var _uiDiagram2 = _interopRequireDefault(__webpack_require__(13815));
-var _uiDiagram3 = _interopRequireDefault(__webpack_require__(57846));
-var _uiDiagram4 = _interopRequireDefault(__webpack_require__(55485));
-var _uiDiagram5 = _interopRequireDefault(__webpack_require__(98580));
-var _uiDiagram6 = _interopRequireDefault(__webpack_require__(41499));
-var _uiDiagram7 = _interopRequireDefault(__webpack_require__(27574));
-var _uiDiagram8 = _interopRequireDefault(__webpack_require__(81567));
-var _uiDiagram9 = _interopRequireDefault(__webpack_require__(4559));
-var _uiDiagram10 = _interopRequireDefault(__webpack_require__(29339));
-var _uiDiagram11 = _interopRequireDefault(__webpack_require__(50427));
-var _uiDiagram12 = _interopRequireDefault(__webpack_require__(89771));
 var _widget = _interopRequireDefault(__webpack_require__(89275));
+var _diagram = _interopRequireDefault(__webpack_require__(88618));
+var _diagram2 = _interopRequireDefault(__webpack_require__(29898));
+var _diagram3 = __webpack_require__(49206);
+var _diagram4 = _interopRequireDefault(__webpack_require__(5955));
+var _diagram5 = _interopRequireDefault(__webpack_require__(82578));
+var _diagram6 = _interopRequireDefault(__webpack_require__(56017));
+var _uiDiagram = _interopRequireDefault(__webpack_require__(18811));
+var _uiDiagram2 = _interopRequireDefault(__webpack_require__(33533));
+var _uiDiagram3 = _interopRequireDefault(__webpack_require__(87672));
+var _uiDiagram4 = _interopRequireDefault(__webpack_require__(53831));
+var _uiDiagram5 = _interopRequireDefault(__webpack_require__(76370));
+var _uiDiagram6 = _interopRequireDefault(__webpack_require__(12197));
+var _uiDiagram7 = _interopRequireDefault(__webpack_require__(57552));
+var _uiDiagram8 = _interopRequireDefault(__webpack_require__(66061));
+var _uiDiagram9 = _interopRequireDefault(__webpack_require__(2425));
+var _uiDiagram10 = _interopRequireDefault(__webpack_require__(78753));
+var _uiDiagram11 = _interopRequireDefault(__webpack_require__(29849));
+var _uiDiagram12 = _interopRequireDefault(__webpack_require__(37433));
 var _load_indicator = _interopRequireDefault(__webpack_require__(32677));
 var _overlay = _interopRequireDefault(__webpack_require__(79384));
 var zIndexPool = _interopRequireWildcard(__webpack_require__(27869));
@@ -150775,9 +155044,12 @@ class Diagram extends _widget.default {
     }
     this._renderDialog($contentWrapper);
     if (!isServerSide) {
+      const {
+        useNativeScrolling
+      } = this.option();
       const $scrollViewWrapper = (0, _renderer.default)('<div>').addClass(DIAGRAM_SCROLL_VIEW_CLASS).appendTo(this._$content);
       this._createComponent($scrollViewWrapper, _uiDiagram9.default, {
-        useNativeScrolling: this.option('useNativeScrolling'),
+        useNativeScrolling,
         onCreateDiagram: e => {
           this._diagramInstance.createDocument(e.$parent[0], e.scrollView, $contentWrapper[0]);
         }
@@ -150954,6 +155226,7 @@ class Diagram extends _widget.default {
     return (toolbox === null || toolbox === void 0 ? void 0 : toolbox.visibility) === 'visible' || (toolbox === null || toolbox === void 0 ? void 0 : toolbox.visibility) === 'auto' && !this.isMobileScreenSize();
   }
   _renderToolbox($parent) {
+    var _this$_toolbox$_popup;
     const isServerSide = !(0, _window.hasWindow)();
     const $toolBox = (0, _renderer.default)('<div>').appendTo($parent);
     const bounds = this._getToolboxBounds($parent, isServerSide);
@@ -151019,12 +155292,13 @@ class Diagram extends _widget.default {
       },
       onPointerUp: this._onPanelPointerUp.bind(this)
     });
-    this._toolbox._popup.option('propagateOutsideClick', !this.option('fullScreen'));
+    (_this$_toolbox$_popup = this._toolbox._popup) === null || _this$_toolbox$_popup === void 0 || _this$_toolbox$_popup.option('propagateOutsideClick', !this.option('fullScreen'));
     this._toolboxResizeCallback = () => {
       var _this$_toolbox, _this$_toolbox2, _this$_toolbox4;
       const toolboxBounds = this._getToolboxBounds($parent, isServerSide);
       (_this$_toolbox = this._toolbox) === null || _this$_toolbox === void 0 || _this$_toolbox.option('height', toolboxBounds.height);
       const prevIsMobileView = (_this$_toolbox2 = this._toolbox) === null || _this$_toolbox2 === void 0 ? void 0 : _this$_toolbox2.option('isMobileView');
+      // @ts-expect-error ts-error
       if (prevIsMobileView !== this.isMobileScreenSize()) {
         var _this$_toolbox3;
         (_this$_toolbox3 = this._toolbox) === null || _this$_toolbox3 === void 0 || _this$_toolbox3.option({
@@ -151163,6 +155437,7 @@ class Diagram extends _widget.default {
     this._propertiesPanelResizeCallback = () => {
       var _this$_propertiesPane;
       const prevIsMobileView = (_this$_propertiesPane = this._propertiesPanel) === null || _this$_propertiesPane === void 0 ? void 0 : _this$_propertiesPane.option('isMobileView');
+      // @ts-expect-error ts-error
       if (prevIsMobileView !== this.isMobileScreenSize()) {
         var _this$_propertiesPane2;
         (_this$_propertiesPane2 = this._propertiesPanel) === null || _this$_propertiesPane2 === void 0 || _this$_propertiesPane2.option({
@@ -151174,7 +155449,8 @@ class Diagram extends _widget.default {
     };
   }
   _updatePropertiesPanelGroupBars(component) {
-    component.getActiveToolbars().forEach(toolbar => {
+    var _component$getActiveT;
+    (_component$getActiveT = component.getActiveToolbars()) === null || _component$getActiveT === void 0 || _component$getActiveT.forEach(toolbar => {
       this._diagramInstance.updateBarItemsState(toolbar.bar);
     });
   }
@@ -151185,6 +155461,7 @@ class Diagram extends _widget.default {
     const $contextMenu = (0, _renderer.default)('<div>').appendTo($parent);
     this._contextMenu = this._createComponent($contextMenu, _uiDiagram.default.DiagramContextMenuWrapper, {
       commands: this.option('contextMenu.commands'),
+      // @ts-expect-error ts-error
       onContentReady: _ref4 => {
         let {
           component
@@ -151198,8 +155475,10 @@ class Diagram extends _widget.default {
         } = _ref5;
         return this._diagramInstance.updateBarItemsState(component.bar);
       },
+      // @ts-expect-error ts-error
       onItemClick: itemData => this._onBeforeCommandExecuted(itemData.command),
       export: this.option('export'),
+      // @ts-expect-error ts-error
       excludeCommands: this._getExcludeCommands(),
       onInternalCommand: this._onInternalCommand.bind(this),
       onCustomCommand: this._onCustomCommand.bind(this)
@@ -151213,11 +155492,12 @@ class Diagram extends _widget.default {
     const {
       category,
       displayMode,
-      shapes
+      shapes,
+      width
     } = contextToolbox;
     const $contextToolbox = (0, _renderer.default)('<div>').appendTo($parent);
     this._contextToolbox = this._createComponent($contextToolbox, _uiDiagram2.default, {
-      toolboxWidth: this.option('contextToolbox.width'),
+      toolboxWidth: width,
       onShown: e => {
         if (isServerSide) return;
         const $toolboxContainer = (0, _renderer.default)(e.$element);
@@ -151828,6 +156108,7 @@ class Diagram extends _widget.default {
     const {
       toolbox
     } = this.option();
+    // @ts-expect-error ts-error
     return _diagram6.default.getGroups(toolbox === null || toolbox === void 0 ? void 0 : toolbox.groups);
   }
   _updateAllCustomShapes() {
@@ -151927,8 +156208,9 @@ class Diagram extends _widget.default {
     this.$element().toggleClass(DIAGRAM_FULLSCREEN_CLASS, fullScreen);
     this._processDiagramResize();
     if (this._toolbox) {
+      var _this$_toolbox$_popup2;
       this._toolbox.repaint();
-      this._toolbox._popup.option('propagateOutsideClick', !fullScreen);
+      (_this$_toolbox$_popup2 = this._toolbox._popup) === null || _this$_toolbox$_popup2 === void 0 || _this$_toolbox$_popup2.option('propagateOutsideClick', !fullScreen);
     }
     if (this._propertiesPanel) {
       this._propertiesPanel.repaint();
@@ -153043,6 +157325,1717 @@ class Diagram extends _widget.default {
 }
 (0, _component_registrator.default)('dxDiagram', Diagram);
 var _default = exports["default"] = Diagram;
+
+/***/ }),
+
+/***/ 12197:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _diagram = _interopRequireDefault(__webpack_require__(88618));
+var _uiDiagram = _interopRequireDefault(__webpack_require__(78753));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+class DiagramMainToolbar extends _uiDiagram.default {
+  _getCommands() {
+    // @ts-expect-error ts-error
+    const {
+      commands,
+      excludeCommands
+    } = this.option();
+    return _diagram.default.getMainToolbarCommands(commands, excludeCommands);
+  }
+}
+var _default = exports["default"] = DiagramMainToolbar;
+
+/***/ }),
+
+/***/ 35814:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _icon = __webpack_require__(69629);
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+
+const DIAGRAM_CONTEXT_MENU_CLASS = 'dx-diagram-contextmenu';
+const DiagramMenuHelper = {
+  getContextMenuItemTemplate(contextMenu, itemData, itemIndex, itemElement) {
+    const $itemElement = (0, _renderer.default)(itemElement);
+    $itemElement.empty();
+    const itemKey = itemData.rootCommand !== undefined ? itemData.rootCommand : -1;
+    if (itemData.icon && !itemData.checked) {
+      const $iconElement = (0, _icon.getImageContainer)(itemData.icon);
+      if ($iconElement) {
+        $itemElement.append($iconElement);
+      }
+    } else if (contextMenu._menuHasCheckedItems && contextMenu._menuHasCheckedItems[itemKey] === true) {
+      const $checkElement = (0, _icon.getImageContainer)('check');
+      if ($checkElement) {
+        $checkElement.css('visibility', !itemData.checked ? 'hidden' : 'visible');
+        $itemElement.append($checkElement);
+      }
+    }
+    $itemElement.append(
+    // @ts-expect-error ts-error
+    `<span class="dx-menu-item-text">${itemData.text}</span>`);
+    if (Array.isArray(itemData.items) && itemData.items.length > 0) {
+      $itemElement.append(
+      // @ts-expect-error ts-error
+      '<span class="dx-menu-item-popout-container"><div class="dx-menu-item-popout"></div></span>');
+    }
+  },
+  getContextMenuCssClass() {
+    return DIAGRAM_CONTEXT_MENU_CLASS;
+  },
+  onContextMenuItemClick(widget, itemData, actionHandler) {
+    if ((itemData.command !== undefined || itemData.name !== undefined) && (!Array.isArray(itemData.items) || !itemData.items.length)) {
+      // @ts-expect-error ts-error
+      const parameter = DiagramMenuHelper.getItemCommandParameter(widget, itemData);
+      actionHandler.call(this, itemData.command, itemData.name, parameter);
+    } else if (itemData.rootCommand !== undefined && itemData.value !== undefined) {
+      const parameter = DiagramMenuHelper.getItemCommandParameter(widget, itemData, itemData.value);
+      actionHandler.call(this, itemData.rootCommand, undefined, parameter);
+    }
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getItemValue(item) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return typeof item.value === 'object' ? JSON.stringify(item.value) : item.value;
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getItemOptionText(contextMenu, indexPath) {
+    if (contextMenu) {
+      var _contextMenu$_origina;
+      // eslint-disable-next-line no-param-reassign
+      indexPath = indexPath.slice();
+      const parentItemOptionText = this._getParentItemOptionText(indexPath);
+      if ((_contextMenu$_origina = contextMenu._originalItemsInfo) !== null && _contextMenu$_origina !== void 0 && _contextMenu$_origina[parentItemOptionText]) {
+        indexPath[indexPath.length - 1] += contextMenu._originalItemsInfo[parentItemOptionText].indexPathCorrection;
+      }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._getItemOptionTextCore(indexPath);
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getParentItemOptionText(indexPath) {
+    const parentIndexPath = indexPath.slice(0, indexPath.length - 1);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._getItemOptionTextCore(parentIndexPath);
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getItemOptionTextCore(indexPath) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return indexPath.reduce((r, i) => `${r}items[${i}].`, '');
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getItemCommandParameter(widget, item, value) {
+    if (item.getParameter) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return item.getParameter(widget);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return value;
+  },
+  updateContextMenuItems(contextMenu, itemOptionText, rootCommandKey, items) {
+    if (!contextMenu._originalItemsInfo) {
+      contextMenu._originalItemsInfo = {};
+    }
+    if (!contextMenu._originalItemsInfo[itemOptionText]) {
+      contextMenu._originalItemsInfo[itemOptionText] = {
+        items: contextMenu.option(`${itemOptionText}items`) || []
+      };
+    }
+    // eslint-disable-next-line no-param-reassign
+    items = items.map(item => ({
+      value: this.getItemValue(item),
+      text: item.text,
+      checked: item.checked,
+      widget: contextMenu,
+      rootCommand: rootCommandKey
+    }));
+    const originalItems = contextMenu._originalItemsInfo[itemOptionText].items;
+    contextMenu.option(`${itemOptionText}items`, items.concat(originalItems));
+    if (contextMenu._originalItemsInfo[itemOptionText] && originalItems.length) {
+      contextMenu._originalItemsInfo[itemOptionText].indexPathCorrection = items.length;
+    }
+  },
+  updateContextMenuItemVisible(contextMenu, itemOptionText, visible) {
+    contextMenu.option(`${itemOptionText}visible`, visible);
+  },
+  updateContextMenuItemValue(contextMenu, itemOptionText, rootCommandKey, value) {
+    const items = contextMenu.option(`${itemOptionText}items`);
+    if (typeof value === 'boolean' && !(items !== null && items !== void 0 && items.length)) {
+      this._setContextMenuHasCheckedItems(contextMenu, -1);
+      contextMenu.option(`${itemOptionText}checked`, value);
+    } else if (value !== undefined) {
+      this._setContextMenuHasCheckedItems(contextMenu, rootCommandKey);
+      if (Array.isArray(items)) {
+        items.forEach(item => {
+          item.checked = item.value === value;
+        });
+      }
+    }
+  },
+  _setContextMenuHasCheckedItems(contextMenu, key) {
+    if (!contextMenu._menuHasCheckedItems) {
+      contextMenu._menuHasCheckedItems = {};
+    }
+    contextMenu._menuHasCheckedItems[key] = true;
+  }
+};
+var _default = exports["default"] = DiagramMenuHelper;
+
+/***/ }),
+
+/***/ 88908:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _events_engine = _interopRequireDefault(__webpack_require__(92774));
+var _pointer = _interopRequireDefault(__webpack_require__(89797));
+var _utils = __webpack_require__(98834);
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _widget = _interopRequireDefault(__webpack_require__(89275));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+const POINTERUP_EVENT_NAME = (0, _utils.addNamespace)(_pointer.default.up, 'dxDiagramPanel');
+const PREVENT_REFOCUS_SELECTOR = '.dx-textbox';
+class DiagramPanel extends _widget.default {
+  _init() {
+    super._init();
+    this._createOnPointerUpAction();
+  }
+  _render() {
+    super._render();
+    this._attachPointerUpEvent();
+  }
+  _getPointerUpElements() {
+    return [this.$element()];
+  }
+  _attachPointerUpEvent() {
+    const elements = this._getPointerUpElements();
+    elements.forEach(element => {
+      _events_engine.default.off(element, POINTERUP_EVENT_NAME);
+      _events_engine.default.on(element, POINTERUP_EVENT_NAME, e => {
+        if (!(0, _renderer.default)(e.target).closest(PREVENT_REFOCUS_SELECTOR).length) {
+          this._onPointerUpAction();
+        }
+      });
+    });
+  }
+  _createOnPointerUpAction() {
+    this._onPointerUpAction = this._createActionByOption('onPointerUp');
+  }
+  _optionChanged(args) {
+    const {
+      name
+    } = args;
+    switch (name) {
+      case 'onPointerUp':
+        this._createOnPointerUpAction();
+        break;
+      default:
+        super._optionChanged(args);
+    }
+  }
+}
+var _default = exports["default"] = DiagramPanel;
+
+/***/ }),
+
+/***/ 57552:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _extend = __webpack_require__(52576);
+var _size = __webpack_require__(57653);
+var _diagram = _interopRequireDefault(__webpack_require__(88618));
+var _uiDiagram = _interopRequireDefault(__webpack_require__(34547));
+var _scroll_view = _interopRequireDefault(__webpack_require__(71100));
+var _tab_panel = _interopRequireDefault(__webpack_require__(98444));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+const DIAGRAM_PROPERTIES_POPUP_WIDTH = 420;
+const DIAGRAM_PROPERTIES_POPUP_HEIGHT = 340;
+const DIAGRAM_PROPERTIES_POPUP_CLASS = 'dx-diagram-properties-popup';
+const DIAGRAM_PROPERTIES_POPUP_NOTABS_CLASS = 'dx-diagram-properties-popup-notabs';
+const DIAGRAM_PROPERTIES_PANEL_CLASS = 'dx-diagram-properties-panel';
+const DIAGRAM_PROPERTIES_PANEL_GROUP_TITLE_CLASS = 'dx-diagram-properties-panel-group-title';
+const DIAGRAM_PROPERTIES_PANEL_GROUP_TOOLBAR_CLASS = 'dx-diagram-properties-panel-group-toolbar';
+class DiagramPropertiesPanel extends _uiDiagram.default {
+  _init() {
+    super._init();
+    this._commandTabs = _diagram.default.getPropertyPanelCommandTabs(this.option('propertyTabs'));
+    this._createOnCreateToolbar();
+    this._createOnSelectedGroupChanged();
+  }
+  _initMarkup() {
+    this._toolbars = [];
+    this._selectedToolbar = undefined;
+    super._initMarkup();
+  }
+  _getPopupClass() {
+    let className = DIAGRAM_PROPERTIES_POPUP_CLASS;
+    if (!this._hasTabPanel()) {
+      className += ` ${DIAGRAM_PROPERTIES_POPUP_NOTABS_CLASS}`;
+    }
+    return className;
+  }
+  _getPopupWidth() {
+    return this.isMobileView() ? '100%' : DIAGRAM_PROPERTIES_POPUP_WIDTH;
+  }
+  _getPopupHeight() {
+    return DIAGRAM_PROPERTIES_POPUP_HEIGHT;
+  }
+  _getPopupPosition() {
+    // @ts-expect-error ts-error
+    const {
+      offsetParent,
+      offsetX,
+      offsetY
+    } = this.option();
+    if (this.isMobileView()) {
+      return {
+        my: 'left bottom',
+        at: 'left bottom',
+        of: offsetParent
+      };
+    }
+    return {
+      my: 'right bottom',
+      at: 'right bottom',
+      of: offsetParent,
+      offset: `-${offsetX} -${offsetY}`
+    };
+  }
+  _getPopupAnimation() {
+    const $parent = this.option('offsetParent');
+    if (this.isMobileView()) {
+      return {
+        hide: this._getPopupSlideAnimationObject({
+          direction: 'bottom',
+          from: {
+            position: {
+              my: 'left bottom',
+              at: 'left bottom',
+              of: $parent
+            }
+          },
+          to: {
+            position: {
+              my: 'left top',
+              at: 'left bottom',
+              of: $parent
+            }
+          }
+        }),
+        show: this._getPopupSlideAnimationObject({
+          direction: 'top',
+          from: {
+            position: {
+              my: 'left top',
+              at: 'left bottom',
+              of: $parent
+            }
+          },
+          to: {
+            position: {
+              my: 'left bottom',
+              at: 'left bottom',
+              of: $parent
+            }
+          }
+        })
+      };
+    }
+    return super._getPopupAnimation();
+  }
+  _getPopupOptions() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return (0, _extend.extend)(super._getPopupOptions(), {
+      showTitle: this.isMobileView(),
+      showCloseButton: this.isMobileView()
+    });
+  }
+  _renderPopupContent($parent) {
+    if (!this._commandTabs.length) return;
+    const $panel = (0, _renderer.default)('<div>').addClass(DIAGRAM_PROPERTIES_PANEL_CLASS).appendTo($parent);
+    if (this._hasTabPanel()) {
+      this._renderTabPanel($panel);
+    } else {
+      this._renderTabContent($panel, this._commandTabs[0], 0, true);
+    }
+  }
+  _hasTabPanel() {
+    return this._commandTabs.length > 1;
+  }
+  _renderTabPanel($parent) {
+    const $tabPanel = (0, _renderer.default)('<div>').appendTo($parent);
+    this._tabPanel = this._createComponent($tabPanel, _tab_panel.default, {
+      focusStateEnabled: false,
+      dataSource: this._commandTabs,
+      itemTemplate: (data, index, $element) => {
+        // @ts-expect-error ts-error
+        this._renderTabContent($element, data, index);
+      },
+      onSelectionChanged: () => {
+        this._onSelectedGroupChangedAction();
+        this._onPointerUpAction();
+      },
+      onContentReady: e => {
+        var _this$_popup;
+        (_this$_popup = this._popup) === null || _this$_popup === void 0 || _this$_popup.option('height', (0, _size.getHeight)(e.component.$element()) + this._getVerticalPaddingsAndBorders());
+        if (this._firstScrollView) {
+          this._scrollViewHeight = (0, _size.getOuterHeight)(this._firstScrollView.$element());
+          this._firstScrollView.option('height', this._scrollViewHeight);
+        }
+      }
+    });
+  }
+  _renderTabContent($parent, tab, index, isSingleTab) {
+    const $scrollViewWrapper = (0, _renderer.default)('<div>').appendTo($parent);
+    const scrollView = this._createComponent($scrollViewWrapper, _scroll_view.default, {
+      height: this._scrollViewHeight
+    });
+    this._renderTabInnerContent(scrollView.content(), tab, index);
+    if (isSingleTab) {
+      var _this$_popup2;
+      (_this$_popup2 = this._popup) === null || _this$_popup2 === void 0 || _this$_popup2.option('height', (0, _size.getHeight)(scrollView.$element()) + this._getVerticalPaddingsAndBorders());
+    } else {
+      this._firstScrollView = this._firstScrollView || scrollView;
+    }
+  }
+  _renderTabInnerContent($parent, group, index) {
+    if (group.groups) {
+      group.groups.forEach(sg => {
+        this._renderTabGroupContent($parent, index, sg.title, sg.commands);
+      });
+    } else if (group.commands) {
+      this._renderTabGroupContent($parent, index, undefined, group.commands);
+    }
+  }
+  _renderTabGroupContent($parent, index, title, commands) {
+    if (title) {
+      (0, _renderer.default)('<div>').addClass(DIAGRAM_PROPERTIES_PANEL_GROUP_TITLE_CLASS).appendTo($parent).text(title);
+    }
+    const $toolbar = (0, _renderer.default)('<div>').addClass(DIAGRAM_PROPERTIES_PANEL_GROUP_TOOLBAR_CLASS).appendTo($parent);
+    const args = {
+      $parent: $toolbar,
+      commands
+    };
+    this._onCreateToolbarAction(args);
+    if (!this._toolbars[index]) {
+      this._toolbars[index] = [];
+    }
+    // @ts-expect-error ts-error
+    this._toolbars[index].push(args.toolbar);
+    // @ts-expect-error ts-error
+    this._selectedToolbar = args.toolbar;
+  }
+  getActiveToolbars() {
+    const index = this._tabPanel ? this._tabPanel.option('selectedIndex') : 0;
+    // @ts-expect-error ts-error
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._toolbars[index];
+  }
+  _createOnCreateToolbar() {
+    // @ts-expect-error ts-error
+    this._onCreateToolbarAction = this._createActionByOption('onCreateToolbar');
+  }
+  _createOnSelectedGroupChanged() {
+    this._onSelectedGroupChangedAction = this._createActionByOption(
+    // @ts-expect-error ts-error
+    'onSelectedGroupChanged');
+  }
+  _optionChanged(args) {
+    switch (args.name) {
+      case 'onCreateToolbar':
+        this._createOnCreateToolbar();
+        break;
+      case 'onSelectedGroupChanged':
+        this._createOnSelectedGroupChanged();
+        break;
+      case 'propertyTabs':
+        this._invalidate();
+        break;
+      default:
+        super._optionChanged(args);
+    }
+  }
+}
+var _default = exports["default"] = DiagramPropertiesPanel;
+
+/***/ }),
+
+/***/ 66061:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _diagram = _interopRequireDefault(__webpack_require__(88618));
+var _uiDiagram = _interopRequireDefault(__webpack_require__(78753));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+class DiagramPropertiesToolbar extends _uiDiagram.default {
+  _getCommands() {
+    // @ts-expect-error ts-error
+    return _diagram.default.getPropertiesToolbarCommands();
+  }
+}
+var _default = exports["default"] = DiagramPropertiesToolbar;
+
+/***/ }),
+
+/***/ 2425:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _m_widget_utils = __webpack_require__(12062);
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _size = __webpack_require__(57653);
+var _widget = _interopRequireDefault(__webpack_require__(89275));
+var _diagram = __webpack_require__(49206);
+var _scroll_view = _interopRequireDefault(__webpack_require__(71100));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+// TODO: Can we get rid of this dependency of the PivotGrid here?
+
+class DiagramScrollView extends _widget.default {
+  _init() {
+    super._init();
+    const {
+      EventDispatcher
+    } = (0, _diagram.getDiagram)();
+    this.onScroll = new EventDispatcher();
+    this._createOnCreateDiagramAction();
+  }
+  _initMarkup() {
+    super._initMarkup();
+    const $scrollViewWrapper = (0, _renderer.default)('<div>').appendTo(this.$element());
+    const options = {
+      direction: 'both',
+      bounceEnabled: false,
+      scrollByContent: false,
+      onScroll: _ref => {
+        let {
+          scrollOffset
+        } = _ref;
+        this._raiseOnScroll(scrollOffset.left, scrollOffset.top);
+      }
+    };
+    const {
+      useNativeScrolling
+    } = this.option();
+    if (useNativeScrolling !== undefined) {
+      // @ts-expect-error ts-error
+      options.useNative = useNativeScrolling;
+    }
+    this._scrollView = this._createComponent($scrollViewWrapper, _scroll_view.default,
+    // @ts-expect-error ts-error
+    options);
+    this._onCreateDiagramAction({
+      $parent: (0, _renderer.default)(this._scrollView.content()),
+      scrollView: this
+    });
+  }
+  setScroll(left, top) {
+    var _this$_scrollView;
+    (_this$_scrollView = this._scrollView) === null || _this$_scrollView === void 0 || _this$_scrollView.scrollTo({
+      left,
+      top
+    });
+    this._raiseOnScrollWithoutPoint();
+  }
+  offsetScroll(left, top) {
+    var _this$_scrollView2;
+    (_this$_scrollView2 = this._scrollView) === null || _this$_scrollView2 === void 0 || _this$_scrollView2.scrollBy({
+      left,
+      top
+    });
+    this._raiseOnScrollWithoutPoint();
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getSize() {
+    var _this$_scrollView3;
+    const {
+      Size
+    } = (0, _diagram.getDiagram)();
+    const $element = (_this$_scrollView3 = this._scrollView) === null || _this$_scrollView3 === void 0 ? void 0 : _this$_scrollView3.$element();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return new Size(Math.floor((0, _size.getWidth)($element)), Math.floor((0, _size.getHeight)($element)));
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getScrollContainer() {
+    var _this$_scrollView4;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return (_this$_scrollView4 = this._scrollView) === null || _this$_scrollView4 === void 0 ? void 0 : _this$_scrollView4.$element()[0];
+  }
+  getScrollBarWidth() {
+    const {
+      useNativeScrolling
+    } = this.option();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return useNativeScrolling ? (0, _m_widget_utils.calculateScrollbarWidth)() : 0;
+  }
+  detachEvents() {}
+  _raiseOnScroll(left, top) {
+    const {
+      Point
+    } = (0, _diagram.getDiagram)();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    this.onScroll.raise('notifyScrollChanged', () => new Point(left, top));
+  }
+  _raiseOnScrollWithoutPoint() {
+    const {
+      Point
+    } = (0, _diagram.getDiagram)();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    this.onScroll.raise('notifyScrollChanged', () => {
+      var _this$_scrollView5, _this$_scrollView6;
+      return new Point((_this$_scrollView5 = this._scrollView) === null || _this$_scrollView5 === void 0 ? void 0 : _this$_scrollView5.scrollLeft(), (_this$_scrollView6 = this._scrollView) === null || _this$_scrollView6 === void 0 ? void 0 : _this$_scrollView6.scrollTop());
+    });
+  }
+  _createOnCreateDiagramAction() {
+    this._onCreateDiagramAction = this._createActionByOption('onCreateDiagram');
+  }
+  _optionChanged(args) {
+    const {
+      name
+    } = args;
+    switch (name) {
+      case 'onCreateDiagram':
+        this._createOnCreateDiagramAction();
+        break;
+      case 'useNativeScrolling':
+        break;
+      default:
+        super._optionChanged(args);
+    }
+  }
+}
+var _default = exports["default"] = DiagramScrollView;
+
+/***/ }),
+
+/***/ 78753:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+__webpack_require__(60695);
+__webpack_require__(87928);
+__webpack_require__(94319);
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _extend = __webpack_require__(52576);
+var _size = __webpack_require__(57653);
+var _window = __webpack_require__(3104);
+var _context_menu = _interopRequireDefault(__webpack_require__(34378));
+var _toolbar = _interopRequireDefault(__webpack_require__(2850));
+var _diagram = _interopRequireDefault(__webpack_require__(26579));
+var _diagram2 = __webpack_require__(49206);
+var _uiDiagram = _interopRequireDefault(__webpack_require__(35814));
+var _uiDiagram2 = _interopRequireDefault(__webpack_require__(88908));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types,max-depth */
+// eslint-disable-next-line max-classes-per-file
+
+const ACTIVE_FORMAT_CLASS = 'dx-format-active';
+const DIAGRAM_TOOLBAR_CLASS = 'dx-diagram-toolbar';
+const DIAGRAM_TOOLBAR_SEPARATOR_CLASS = 'dx-diagram-toolbar-separator';
+const DIAGRAM_TOOLBAR_MENU_SEPARATOR_CLASS = 'dx-diagram-toolbar-menu-separator';
+const DIAGRAM_MOBILE_TOOLBAR_COLOR_BOX_OPENED_CLASS = 'dx-diagram-mobile-toolbar-color-box-opened';
+class DiagramToolbarItemHelper {
+  constructor(widget) {
+    this._widget = widget;
+  }
+  canUpdate(showingSubMenu) {
+    return showingSubMenu === undefined;
+  }
+  setEnabled(enabled) {
+    this._widget.option('disabled', !enabled);
+  }
+  setValue(value, displayValue, contextMenu, rootCommandKey) {
+    if ('value' in this._widget.option()) {
+      this._updateEditorValue(value, displayValue);
+    } else if (value !== undefined) {
+      this._updateButtonValue(value);
+    }
+    if (contextMenu) {
+      this._updateContextMenuItemValue(contextMenu, '', rootCommandKey, value);
+    }
+  }
+  setItems(items, contextMenu, rootCommandKey) {
+    if (contextMenu) {
+      this._updateContextMenuItems(contextMenu, '', rootCommandKey, items);
+    } else {
+      this._updateEditorItems(items);
+    }
+  }
+  _updateContextMenuItems(contextMenu, itemOptionText, rootCommandKey, items) {
+    _uiDiagram.default.updateContextMenuItems(contextMenu, itemOptionText, rootCommandKey, items);
+  }
+  _updateEditorItems(items) {
+    if ('items' in this._widget.option()) {
+      this._widget.option('items', items.map(item => ({
+        value: _uiDiagram.default.getItemValue(item),
+        text: item.text
+      })));
+    }
+  }
+  _updateEditorValue(value, displayValue) {
+    this._widget.option('value', value);
+    if (!this._widget.option('selectedItem') && displayValue) {
+      this._widget.option('value', displayValue);
+    }
+  }
+  _updateButtonValue(value) {
+    if (this._widget.option('iconChecked') && this._widget.option('iconUnchecked')) {
+      this._widget.option('icon', value ? this._widget.option('iconChecked') : this._widget.option('iconUnchecked'));
+    } else {
+      this._widget.$element().toggleClass(ACTIVE_FORMAT_CLASS, value);
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _updateContextMenuItemValue(contextMenu, itemOptionText, rootCommandKey, value) {
+    _uiDiagram.default.updateContextMenuItemValue(contextMenu, itemOptionText, rootCommandKey, value);
+  }
+}
+class DiagramToolbarSubItemHelper extends DiagramToolbarItemHelper {
+  constructor(widget, indexPath, rootCommandKey, rootWidget) {
+    super(widget);
+    this._indexPath = indexPath;
+    this._rootCommandKey = rootCommandKey;
+    this._rootWidget = rootWidget;
+  }
+  canUpdate(showingSubMenu) {
+    return super.canUpdate(showingSubMenu) || showingSubMenu === this._widget;
+  }
+  setEnabled(enabled) {
+    this._widget.option(`${this._getItemOptionText()}disabled`, !enabled);
+    const rootEnabled = this._hasEnabledCommandItems(this._widget.option('items'));
+    this._rootWidget.option('disabled', !rootEnabled);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _hasEnabledCommandItems(items) {
+    if (items) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return items.some(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      item => item.command !== undefined && !item.disabled || this._hasEnabledCommandItems(item.items));
+    }
+    return false;
+  }
+  setValue(value) {
+    this._updateContextMenuItemValue(this._widget, this._getItemOptionText(), this._rootCommandKey, value);
+  }
+  setItems(items) {
+    this._updateContextMenuItems(this._widget, this._getItemOptionText(), this._rootCommandKey, items);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getItemOptionText() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return _uiDiagram.default.getItemOptionText(this._widget, this._indexPath);
+  }
+}
+class DiagramToolbarBar extends _diagram.default {
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getCommandKeys() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._getKeys(this._owner._commands);
+  }
+  setItemValue(key, value) {
+    this._owner._setItemValue(key, value);
+  }
+  setItemEnabled(key, enabled) {
+    this._owner._setItemEnabled(key, enabled);
+  }
+  setEnabled(enabled) {
+    this._owner._setEnabled(enabled);
+  }
+  setItemSubItems(key, items) {
+    this._owner._setItemSubItems(key, items);
+  }
+}
+class DiagramToolbar extends _uiDiagram2.default {
+  _init() {
+    this._commands = [];
+    this._itemHelpers = {};
+    this._commandContextMenus = {};
+    this._contextMenuList = [];
+    this._valueConverters = {};
+    this.bar = new DiagramToolbarBar(this);
+    this._createOnInternalCommand();
+    this._createOnCustomCommand();
+    this._createOnSubMenuVisibilityChangingAction();
+    super._init();
+  }
+  _initMarkup() {
+    super._initMarkup();
+    const isServerSide = !(0, _window.hasWindow)();
+    if (!this.option('skipAdjustSize') && !isServerSide) {
+      (0, _size.setWidth)(this.$element(), '');
+    }
+    this._commands = this._getCommands();
+    this._itemHelpers = {};
+    this._commandContextMenus = {};
+    this._contextMenuList = [];
+    const $toolbar = this._createMainElement();
+    this._renderToolbar($toolbar);
+    if (!this.option('skipAdjustSize') && !isServerSide) {
+      const $toolbarContent = this.$element().find('.dx-toolbar-before');
+      (0, _size.setWidth)(this.$element(), (0, _size.getWidth)($toolbarContent));
+    }
+  }
+  _createMainElement() {
+    return (0, _renderer.default)('<div>').addClass(DIAGRAM_TOOLBAR_CLASS).appendTo(this.$element());
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getCommands() {
+    // @ts-expect-error ts-error
+    const {
+      commands
+    } = this.option();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return commands || [];
+  }
+  _renderToolbar($toolbar) {
+    var _this$_commands, _this$_commands2, _this$_commands3;
+    const beforeCommands = (_this$_commands = this._commands) === null || _this$_commands === void 0 ? void 0 : _this$_commands.filter(
+    // @ts-expect-error ts-error
+    command => !['after', 'center'].includes(command.location));
+    const centerCommands = (_this$_commands2 = this._commands) === null || _this$_commands2 === void 0 ? void 0 : _this$_commands2.filter(
+    // @ts-expect-error ts-error
+    command => command.location === 'center');
+    const afterCommands = (_this$_commands3 = this._commands) === null || _this$_commands3 === void 0 ? void 0 : _this$_commands3.filter(
+    // @ts-expect-error ts-error
+    command => command.location === 'after');
+    const dataSource = [].concat(this._prepareToolbarItems(beforeCommands, 'before', this._executeCommand)).concat(this._prepareToolbarItems(centerCommands, 'center', this._executeCommand)).concat(this._prepareToolbarItems(afterCommands, 'after', this._executeCommand));
+    this._toolbarInstance = this._createComponent($toolbar, _toolbar.default, {
+      dataSource
+    });
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _prepareToolbarItems(items, location, actionHandler) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return items.map(item => (0, _extend.extend)(true, {
+      location,
+      locateInMenu: this.option('locateInMenu')
+    }, this._createItem(item, location, actionHandler), this._createItemOptions(item), this._createItemActionOptions(item, actionHandler)));
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _createItem(item, location, actionHandler) {
+    if (item.getCommandValue || item.getEditorValue || item.getEditorDisplayValue) {
+      this._valueConverters[item.command] = {
+        getCommandValue: item.getCommandValue,
+        getEditorValue: item.getEditorValue,
+        getEditorDisplayValue: item.getEditorDisplayValue
+      };
+    }
+    if (item.widget === 'separator') {
+      return {
+        template: (data, index, element) => {
+          (0, _renderer.default)(element).addClass(DIAGRAM_TOOLBAR_SEPARATOR_CLASS);
+        },
+        menuItemTemplate: (data, index, element) => {
+          (0, _renderer.default)(element).addClass(DIAGRAM_TOOLBAR_MENU_SEPARATOR_CLASS);
+        }
+      };
+    }
+    return {
+      widget: item.widget || 'dxButton',
+      cssClass: item.cssClass,
+      options: {
+        stylingMode: this.option('buttonStylingMode'),
+        type: this.option('buttonType'),
+        text: item.text,
+        hint: item.hint,
+        icon: item.icon || item.iconUnchecked || item.iconChecked,
+        iconChecked: item.iconChecked,
+        iconUnchecked: item.iconUnchecked,
+        // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+        onInitialized: e => this._onItemInitialized(e.component, item),
+        // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+        onContentReady: e => this._onItemContentReady(e.component, item, actionHandler)
+      }
+    };
+  }
+  // @ts-expect-error ts-error
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type,consistent-return
+  _createItemOptions(_ref) {
+    let {
+      widget,
+      command,
+      items,
+      valueExpr,
+      displayExpr,
+      showText,
+      hint,
+      icon
+    } = _ref;
+    if (widget === 'dxSelectBox') {
+      return this._createSelectBoxItemOptions(command, hint, items, valueExpr, displayExpr);
+    }
+    if (widget === 'dxTextBox') {
+      return this._createTextBoxItemOptions(command, hint);
+    }
+    if (widget === 'dxColorBox') {
+      return this._createColorBoxItemOptions(command, hint, icon);
+    }
+    if (!widget || widget === 'dxButton') {
+      return {
+        showText: showText || 'inMenu'
+      };
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _createSelectBoxItemOptions(command, hint, items, valueExpr, displayExpr) {
+    let options = this._createTextEditorItemOptions(hint);
+    options = (0, _extend.extend)(true, options, {
+      options: {
+        dataSource: items,
+        displayExpr: displayExpr || 'text',
+        valueExpr: valueExpr || 'value'
+      }
+    });
+    const isSelectButton = items === null || items === void 0 ? void 0 : items.every(i => i.icon !== undefined);
+    const nullIconClass = 'dx-diagram-i-selectbox-null-icon dx-diagram-i';
+    if (isSelectButton) {
+      options = (0, _extend.extend)(true, options, {
+        options: {
+          fieldAddons: {
+            beforeTemplate: (data, container) => {
+              (0, _renderer.default)('<i>').addClass((data === null || data === void 0 ? void 0 : data.icon) || nullIconClass).appendTo(container);
+            }
+          },
+          itemTemplate: (data, _, container) => {
+            (0, _renderer.default)(container).attr('title', data.hint);
+            return `<i class="${data.icon}"></i>`;
+          }
+        }
+      });
+    }
+    return options;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _createTextBoxItemOptions(command, hint) {
+    let options = this._createTextEditorItemOptions(hint);
+    options = (0, _extend.extend)(true, options, {
+      options: {
+        readOnly: true,
+        focusStateEnabled: false,
+        hoverStateEnabled: false,
+        buttons: [{
+          name: 'dropDown',
+          location: 'after',
+          options: {
+            icon: 'spindown',
+            disabled: false,
+            stylingMode: 'text',
+            onClick: () => {
+              const contextMenu = this._commandContextMenus[command];
+              if (contextMenu) {
+                this._toggleContextMenu(contextMenu);
+              }
+            }
+          }
+        }]
+      }
+    });
+    return options;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _createColorBoxItemOptions(command, hint, icon) {
+    let options = this._createTextEditorItemOptions(hint);
+    if (icon) {
+      options = (0, _extend.extend)(true, options, {
+        options: {
+          openOnFieldClick: true,
+          fieldAddons: {
+            beforeTemplate: (data, container) => {
+              (0, _renderer.default)('<i>').addClass(icon).css('borderBottomColor', data).appendTo(container);
+            }
+          }
+        }
+      });
+    }
+    options = (0, _extend.extend)(true, options, {
+      options: {
+        onOpened: () => {
+          if (this.option('isMobileView')) {
+            (0, _renderer.default)('body').addClass(DIAGRAM_MOBILE_TOOLBAR_COLOR_BOX_OPENED_CLASS);
+          }
+        },
+        onClosed: () => {
+          (0, _renderer.default)('body').removeClass(DIAGRAM_MOBILE_TOOLBAR_COLOR_BOX_OPENED_CLASS);
+        }
+      }
+    });
+    return options;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _createTextEditorItemOptions(hint) {
+    return {
+      options: {
+        stylingMode: this.option('editorStylingMode'),
+        hint
+      }
+    };
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _createItemActionOptions(item, handler) {
+    switch (item.widget) {
+      case 'dxSelectBox':
+      case 'dxColorBox':
+      case 'dxCheckBox':
+        return {
+          options: {
+            onValueChanged: e => {
+              const parameter = _uiDiagram.default.getItemCommandParameter(this, item, e.component.option('value'));
+              handler.call(this, item.command, item.name, parameter);
+            }
+          }
+        };
+      case 'dxTextBox':
+        return {};
+      default:
+        return {
+          options: {
+            onClick: e => {
+              if (!item.items) {
+                // @ts-expect-error ts-error
+                const parameter = _uiDiagram.default.getItemCommandParameter(this, item);
+                handler.call(this, item.command, item.name, parameter);
+              } else {
+                const contextMenu = e.component._contextMenu;
+                if (contextMenu) {
+                  this._toggleContextMenu(contextMenu);
+                }
+              }
+            }
+          }
+        };
+    }
+  }
+  _toggleContextMenu(contextMenu) {
+    var _this$_contextMenuLis;
+    (_this$_contextMenuLis = this._contextMenuList) === null || _this$_contextMenuLis === void 0 || _this$_contextMenuLis.forEach(cm => {
+      if (contextMenu !== cm) {
+        cm.hide();
+      }
+    });
+    contextMenu.toggle();
+  }
+  _onItemInitialized(widget, item) {
+    this._addItemHelper(item.command, new DiagramToolbarItemHelper(widget));
+  }
+  _onItemContentReady(widget, item, actionHandler) {
+    if ((widget.NAME === 'dxButton' || widget.NAME === 'dxTextBox') && item.items) {
+      const isTouchMode = this._isTouchMode();
+      const $menuContainer = (0, _renderer.default)('<div>').appendTo(this.$element());
+      widget._contextMenu = this._createComponent($menuContainer, _context_menu.default, {
+        items: item.items,
+        target: widget.$element(),
+        cssClass: _uiDiagram.default.getContextMenuCssClass(),
+        showEvent: '',
+        hideOnOutsideClick: e => !isTouchMode && (0, _renderer.default)(e.target).closest(widget._contextMenu._dropDownButtonElement).length === 0,
+        focusStateEnabled: false,
+        position: {
+          at: 'left bottom'
+        },
+        itemTemplate(itemData, itemIndex, itemElement) {
+          _uiDiagram.default.getContextMenuItemTemplate(this, itemData, itemIndex, itemElement);
+        },
+        onItemClick: _ref2 => {
+          var _itemData$items;
+          let {
+            component,
+            itemData
+          } = _ref2;
+          _uiDiagram.default.onContextMenuItemClick(this, itemData, actionHandler.bind(this));
+          if (!(itemData !== null && itemData !== void 0 && (_itemData$items = itemData.items) !== null && _itemData$items !== void 0 && _itemData$items.length)) {
+            component.hide();
+          }
+        },
+        onShowing: e => {
+          if (this._showingSubMenu) return;
+          this._showingSubMenu = e.component;
+          this._onSubMenuVisibilityChangingAction({
+            visible: true,
+            component: this
+          });
+          e.component.option('items', e.component.option('items'));
+          delete this._showingSubMenu;
+        },
+        // eslint-disable-next-line @stylistic/max-len
+        onInitialized: _ref3 => {
+          let {
+            component
+          } = _ref3;
+          return this._onContextMenuInitialized(component, item, widget);
+        },
+        onDisposing: _ref4 => {
+          let {
+            component
+          } = _ref4;
+          return this._onContextMenuDisposing(component, item);
+        }
+      });
+      // prevent showing context menu by toggle "close" click
+      if (!isTouchMode) {
+        // i.e. widget.NAME === 'dxButton'
+        widget._contextMenu._dropDownButtonElement = widget.$element();
+        if (widget.NAME === 'dxTextBox') {
+          widget._contextMenu._dropDownButtonElement = widget.getButton('dropDown').element();
+        }
+      }
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _isTouchMode() {
+    const {
+      Browser
+    } = (0, _diagram2.getDiagram)();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return Browser.TouchUI;
+  }
+  _onContextMenuInitialized(widget, item, rootWidget) {
+    var _this$_contextMenuLis2;
+    (_this$_contextMenuLis2 = this._contextMenuList) === null || _this$_contextMenuLis2 === void 0 || _this$_contextMenuLis2.push(widget);
+    if (item.command) {
+      this._commandContextMenus[item.command] = widget;
+    }
+    this._addContextMenuHelper(item, widget, [], rootWidget);
+  }
+  _addItemHelper(command, helper) {
+    if (command !== undefined) {
+      if (this._itemHelpers[command]) {
+        throw new Error('Toolbar cannot contain duplicated commands.');
+      }
+      this._itemHelpers[command] = helper;
+    }
+  }
+  _addContextMenuHelper(item, widget, indexPath, rootWidget) {
+    if (item.items) {
+      item.items.forEach((subItem, index) => {
+        const itemIndexPath = indexPath.concat(index);
+        this._addItemHelper(subItem.command, new DiagramToolbarSubItemHelper(widget, itemIndexPath, subItem.command, rootWidget));
+        this._addContextMenuHelper(subItem, widget, itemIndexPath, rootWidget);
+      });
+    }
+  }
+  _onContextMenuDisposing(widget, item) {
+    var _this$_contextMenuLis3;
+    (_this$_contextMenuLis3 = this._contextMenuList) === null || _this$_contextMenuLis3 === void 0 || _this$_contextMenuLis3.splice(this._contextMenuList.indexOf(widget), 1);
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete this._commandContextMenus[item.command];
+  }
+  _executeCommand(command, name, value) {
+    if (this._updateLocked) return;
+    if (typeof command === 'number') {
+      var _this$bar;
+      const valueConverter = this._valueConverters[command];
+      if (valueConverter !== null && valueConverter !== void 0 && valueConverter.getCommandValue) {
+        // eslint-disable-next-line no-param-reassign
+        value = valueConverter.getCommandValue(value);
+      }
+      (_this$bar = this.bar) === null || _this$bar === void 0 || _this$bar.raiseBarCommandExecuted(command, value);
+    } else if (typeof command === 'string') {
+      this._onInternalCommandAction({
+        command
+      });
+    }
+    if (name !== undefined) {
+      this._onCustomCommandAction({
+        name
+      });
+    }
+  }
+  _createOnInternalCommand() {
+    // @ts-expect-error ts-error
+    this._onInternalCommandAction = this._createActionByOption('onInternalCommand');
+  }
+  _createOnCustomCommand() {
+    // @ts-expect-error ts-error
+    this._onCustomCommandAction = this._createActionByOption('onCustomCommand');
+  }
+  _setItemEnabled(command, enabled) {
+    if (command in this._itemHelpers) {
+      const helper = this._itemHelpers[command];
+      if (helper.canUpdate(this._showingSubMenu)) {
+        helper.setEnabled(enabled);
+      }
+    }
+  }
+  _setEnabled(enabled) {
+    var _this$_toolbarInstanc, _this$_contextMenuLis4;
+    (_this$_toolbarInstanc = this._toolbarInstance) === null || _this$_toolbarInstanc === void 0 || _this$_toolbarInstanc.option('disabled', !enabled);
+    (_this$_contextMenuLis4 = this._contextMenuList) === null || _this$_contextMenuLis4 === void 0 || _this$_contextMenuLis4.forEach(contextMenu => {
+      contextMenu.option('disabled', !enabled);
+    });
+  }
+  _setItemValue(command, value) {
+    try {
+      this._updateLocked = true;
+      if (command in this._itemHelpers) {
+        const helper = this._itemHelpers[command];
+        if (helper.canUpdate(this._showingSubMenu)) {
+          const valueConverter = this._valueConverters[command];
+          if (valueConverter !== null && valueConverter !== void 0 && valueConverter.getEditorValue) {
+            // eslint-disable-next-line no-param-reassign
+            value = valueConverter.getEditorValue(value);
+          }
+          // eslint-disable-next-line @typescript-eslint/init-declarations
+          let displayValue;
+          if (valueConverter !== null && valueConverter !== void 0 && valueConverter.getEditorDisplayValue) {
+            displayValue = valueConverter.getEditorDisplayValue(value);
+          }
+          const contextMenu = this._commandContextMenus[command];
+          helper.setValue(value, displayValue, contextMenu, contextMenu && command);
+        }
+      }
+    } finally {
+      this._updateLocked = false;
+    }
+  }
+  _setItemSubItems(command, items) {
+    this._updateLocked = true;
+    if (command in this._itemHelpers) {
+      const helper = this._itemHelpers[command];
+      if (helper.canUpdate(this._showingSubMenu)) {
+        const contextMenu = this._commandContextMenus[command];
+        helper.setItems(items, contextMenu, contextMenu && command);
+      }
+    }
+    this._updateLocked = false;
+  }
+  _createOnSubMenuVisibilityChangingAction() {
+    this._onSubMenuVisibilityChangingAction = this._createActionByOption(
+    // @ts-expect-error ts-error
+    'onSubMenuVisibilityChanging');
+  }
+  _optionChanged(args) {
+    switch (args.name) {
+      case 'isMobileView':
+        (0, _renderer.default)('body').removeClass(DIAGRAM_MOBILE_TOOLBAR_COLOR_BOX_OPENED_CLASS);
+        this._invalidate();
+        break;
+      case 'onSubMenuVisibilityChanging':
+        this._createOnSubMenuVisibilityChangingAction();
+        break;
+      case 'onInternalCommand':
+        this._createOnInternalCommand();
+        break;
+      case 'onCustomCommand':
+        this._createOnCustomCommand();
+        break;
+      case 'container':
+      case 'commands':
+        this._invalidate();
+        break;
+      case 'export':
+        break;
+      default:
+        super._optionChanged(args);
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getDefaultOptions() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return (0, _extend.extend)(super._getDefaultOptions(), {
+      isMobileView: false,
+      export: {
+        fileName: 'Diagram'
+      },
+      locateInMenu: 'auto',
+      buttonStylingMode: 'text',
+      buttonType: 'normal',
+      editorStylingMode: 'filled',
+      skipAdjustSize: false
+    });
+  }
+  setCommandChecked(command, checked) {
+    this._setItemValue(command, checked);
+  }
+  setCommandEnabled(command, enabled) {
+    this._setItemEnabled(command, enabled);
+  }
+}
+var _default = exports["default"] = DiagramToolbar;
+
+/***/ }),
+
+/***/ 29849:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _message = _interopRequireDefault(__webpack_require__(4671));
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _deferred = __webpack_require__(87739);
+var _extend = __webpack_require__(52576);
+var _size = __webpack_require__(57653);
+var _window = __webpack_require__(3104);
+var _accordion = _interopRequireDefault(__webpack_require__(30543));
+var _diagram = __webpack_require__(49206);
+var _uiDiagram = _interopRequireDefault(__webpack_require__(34547));
+var _m_tooltip = _interopRequireDefault(__webpack_require__(3504));
+var _scroll_view = _interopRequireDefault(__webpack_require__(71100));
+var _m_text_box = _interopRequireDefault(__webpack_require__(85968));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+
+const DIAGRAM_TOOLBOX_MIN_HEIGHT = 130;
+const DIAGRAM_TOOLBOX_POPUP_CLASS = 'dx-diagram-toolbox-popup';
+const DIAGRAM_TOOLBOX_PANEL_CLASS = 'dx-diagram-toolbox-panel';
+const DIAGRAM_TOOLBOX_INPUT_CONTAINER_CLASS = 'dx-diagram-toolbox-input-container';
+const DIAGRAM_TOOLBOX_INPUT_CLASS = 'dx-diagram-toolbox-input';
+const DIAGRAM_TOOLTIP_DATATOGGLE = 'shape-toolbox-tooltip';
+const DIAGRAM_TOOLBOX_START_DRAG_CLASS = '.dxdi-tb-start-drag-flag';
+class DiagramToolbox extends _uiDiagram.default {
+  _init() {
+    super._init();
+    this._toolboxes = [];
+    this._filterText = '';
+    this._createOnShapeCategoryRenderedAction();
+    this._createOnFilterChangedAction();
+  }
+  _getPopupClass() {
+    return DIAGRAM_TOOLBOX_POPUP_CLASS;
+  }
+  _getPopupHeight() {
+    return this.isMobileView() ? '100%' : super._getPopupHeight();
+  }
+  _getPopupMaxHeight() {
+    return this.isMobileView() ? '100%' : super._getPopupMaxHeight();
+  }
+  _getPopupMinHeight() {
+    return DIAGRAM_TOOLBOX_MIN_HEIGHT;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getPopupPosition() {
+    // @ts-expect-error ts-error
+    const {
+      offsetParent,
+      offsetX,
+      offsetY
+    } = this.option();
+    const position = {
+      my: 'left top',
+      at: 'left top',
+      of: offsetParent
+    };
+    if (!this.isMobileView()) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return (0, _extend.extend)(position, {
+        offset: `${offsetX} ${offsetY}`
+      });
+    }
+    return position;
+  }
+  _getPopupAnimation() {
+    const $parent = this.option('offsetParent');
+    if (this.isMobileView()) {
+      return {
+        hide: this._getPopupSlideAnimationObject({
+          direction: 'left',
+          from: {
+            position: {
+              my: 'left top',
+              at: 'left top',
+              of: $parent
+            }
+          },
+          to: {
+            position: {
+              my: 'right top',
+              at: 'left top',
+              of: $parent
+            }
+          }
+        }),
+        show: this._getPopupSlideAnimationObject({
+          direction: 'right',
+          from: {
+            position: {
+              my: 'right top',
+              at: 'left top',
+              of: $parent
+            }
+          },
+          to: {
+            position: {
+              my: 'left top',
+              at: 'left top',
+              of: $parent
+            }
+          }
+        })
+      };
+    }
+    return super._getPopupAnimation();
+  }
+  _getPopupOptions() {
+    const options = super._getPopupOptions();
+    if (!this.isMobileView()) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return (0, _extend.extend)(options, {
+        showTitle: true,
+        toolbarItems: [{
+          widget: 'dxButton',
+          location: 'center',
+          options: {
+            activeStateEnabled: false,
+            focusStateEnabled: false,
+            hoverStateEnabled: false,
+            icon: 'diagram-toolbox-drag',
+            stylingMode: 'outlined',
+            type: 'normal'
+          }
+        }]
+      });
+    }
+    return options;
+  }
+  _renderPopupContent($parent) {
+    let panelHeight = '100%';
+    if (this.option('showSearch')) {
+      const $inputContainer = (0, _renderer.default)('<div>').addClass(DIAGRAM_TOOLBOX_INPUT_CONTAINER_CLASS).appendTo($parent);
+      this._updateElementWidth($inputContainer);
+      this._renderSearchInput($inputContainer);
+      if ((0, _window.hasWindow)()) {
+        var _this$_searchInput;
+        panelHeight = `calc(100% - ${(0, _size.getHeight)((_this$_searchInput = this._searchInput) === null || _this$_searchInput === void 0 ? void 0 : _this$_searchInput.$element())}px)`;
+      }
+    }
+    const $panel = (0, _renderer.default)('<div>').addClass(DIAGRAM_TOOLBOX_PANEL_CLASS).appendTo($parent);
+    (0, _size.setHeight)($panel, panelHeight);
+    this._updateElementWidth($panel);
+    this._renderScrollView($panel);
+  }
+  _updateElementWidth($element) {
+    if (this.option('toolboxWidth') !== undefined) {
+      // @ts-expect-error ts-error
+      const {
+        toolboxWidth
+      } = this.option();
+      $element.css('width', toolboxWidth);
+    }
+  }
+  updateMaxHeight() {
+    if (this.isMobileView()) return;
+    let maxHeight = 6;
+    if (this._popup) {
+      const $title = this._getPopupTitle();
+      maxHeight += (0, _size.getOuterHeight)($title);
+    }
+    if (this._accordion) {
+      maxHeight += (0, _size.getOuterHeight)(this._accordion.$element());
+    }
+    if (this._searchInput) {
+      maxHeight += (0, _size.getOuterHeight)(this._searchInput.$element());
+    }
+    this.option('maxHeight', maxHeight);
+  }
+  _renderSearchInput($parent) {
+    const $input = (0, _renderer.default)('<div>').addClass(DIAGRAM_TOOLBOX_INPUT_CLASS).appendTo($parent);
+    this._searchInput = this._createComponent($input, _m_text_box.default, {
+      stylingMode: 'outlined',
+      placeholder: _message.default.format('dxDiagram-uiSearch'),
+      onValueChanged: data => {
+        this._onInputChanged(data.value);
+      },
+      valueChangeEvent: 'keyup',
+      buttons: [{
+        name: 'search',
+        location: 'after',
+        options: {
+          activeStateEnabled: false,
+          focusStateEnabled: false,
+          hoverStateEnabled: false,
+          icon: 'search',
+          stylingMode: 'outlined',
+          type: 'normal',
+          onClick: () => {
+            var _this$_searchInput2;
+            (_this$_searchInput2 = this._searchInput) === null || _this$_searchInput2 === void 0 || _this$_searchInput2.focus();
+          }
+        }
+      }]
+    });
+  }
+  _renderScrollView($parent) {
+    const $scrollViewWrapper = (0, _renderer.default)('<div>').appendTo($parent);
+    // @ts-expect-error ts-error
+    this._scrollView = this._createComponent($scrollViewWrapper, _scroll_view.default);
+    // Prevent scroll toolbox content for dragging vertically
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    const _moveIsAllowed = this._scrollView._moveIsAllowed.bind(this._scrollView);
+    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+    this._scrollView._moveIsAllowed = e => {
+      // @ts-expect-error ts-error
+      for (let i = 0; i < ((_this$_toolboxes = this._toolboxes) === null || _this$_toolboxes === void 0 ? void 0 : _this$_toolboxes.length); i += 1) {
+        var _this$_toolboxes, _this$_toolboxes2;
+        const $element = (_this$_toolboxes2 = this._toolboxes) === null || _this$_toolboxes2 === void 0 ? void 0 : _this$_toolboxes2[i];
+        if ((0, _renderer.default)($element).children(DIAGRAM_TOOLBOX_START_DRAG_CLASS).length) {
+          return false;
+        }
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return _moveIsAllowed(e);
+    };
+    const $accordion = (0, _renderer.default)('<div>').appendTo(this._scrollView.content());
+    this._updateElementWidth($accordion);
+    this._renderAccordion($accordion);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getAccordionDataSource() {
+    const result = [];
+    const toolboxGroups = this.option('toolboxGroups');
+    // @ts-expect-error ts-error
+    // eslint-disable-next-line @typescript-eslint/prefer-for-of
+    for (let i = 0; i < toolboxGroups.length; i += 1) {
+      const {
+        category
+      } = toolboxGroups[i];
+      const {
+        title
+      } = toolboxGroups[i];
+      const groupObj = {
+        category,
+        title: title || category,
+        expanded: toolboxGroups[i].expanded,
+        displayMode: toolboxGroups[i].displayMode,
+        shapes: toolboxGroups[i].shapes,
+        onTemplate: (widget, $element, data) => {
+          var _this$_toolboxes3;
+          const $toolboxElement = (0, _renderer.default)($element);
+          this._onShapeCategoryRenderedAction({
+            category: data.category,
+            displayMode: data.displayMode,
+            dataToggle: DIAGRAM_TOOLTIP_DATATOGGLE,
+            shapes: data.shapes,
+            $element: $toolboxElement
+          });
+          (_this$_toolboxes3 = this._toolboxes) === null || _this$_toolboxes3 === void 0 || _this$_toolboxes3.push($toolboxElement);
+          if (this._filterText !== '') {
+            var _this$_toolboxes4;
+            this._onFilterChangedAction({
+              text: this._filterText,
+              // @ts-expect-error ts-error
+              // eslint-disable-next-line no-unsafe-optional-chaining
+              filteringToolboxes: ((_this$_toolboxes4 = this._toolboxes) === null || _this$_toolboxes4 === void 0 ? void 0 : _this$_toolboxes4.length) - 1
+            });
+          }
+          this._createTooltips($toolboxElement);
+        }
+      };
+      // @ts-expect-error ts-error
+      result.push(groupObj);
+    }
+    return result;
+  }
+  _createTooltips($toolboxElement) {
+    if (this._isTouchMode()) return;
+    const targets = $toolboxElement.find(`[data-toggle="${DIAGRAM_TOOLTIP_DATATOGGLE}"]`);
+    const $container = this.$element();
+    // @ts-expect-error ts-error
+    targets.each((_, element) => {
+      const $target = (0, _renderer.default)(element);
+      const title = $target.attr('title');
+      if (title) {
+        const $tooltip = (0, _renderer.default)('<div>').text(title).appendTo($container);
+        this._createComponent($tooltip, _m_tooltip.default, {
+          target: $target.get(0),
+          showEvent: 'mouseenter',
+          hideEvent: 'mouseleave',
+          position: 'top',
+          animation: {
+            show: {
+              type: 'fade',
+              from: 0,
+              to: 1,
+              delay: 500
+            },
+            hide: {
+              type: 'fade',
+              from: 1,
+              to: 0,
+              delay: 100
+            }
+          }
+        });
+      }
+    });
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _isTouchMode() {
+    const {
+      Browser
+    } = (0, _diagram.getDiagram)();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return Browser.TouchUI;
+  }
+  _renderAccordion($container) {
+    const {
+      disabled
+    } = this.option();
+    this._accordion = this._createComponent($container, _accordion.default, {
+      multiple: true,
+      animationDuration: 0,
+      activeStateEnabled: false,
+      focusStateEnabled: false,
+      hoverStateEnabled: false,
+      collapsible: true,
+      displayExpr: 'title',
+      dataSource: this._getAccordionDataSource(),
+      disabled,
+      itemTemplate: (data, index, $element) => {
+        data.onTemplate(this, $element, data);
+      },
+      onSelectionChanged: e => {
+        this._updateScrollAnimateSubscription(e.component);
+      },
+      onContentReady: e => {
+        e.component.option('selectedItems', []);
+        const items = e.component.option('dataSource');
+        for (let i = 0; i < (items === null || items === void 0 ? void 0 : items.length); i += 1) {
+          if ((items === null || items === void 0 ? void 0 : items[i].expanded) === false) {
+            e.component.collapseItem(i);
+          } else if ((items === null || items === void 0 ? void 0 : items[i].expanded) === true) {
+            e.component.expandItem(i);
+          }
+        }
+        // expand first group
+        if (items !== null && items !== void 0 && items.length && items[0].expanded === undefined) {
+          e.component.expandItem(0);
+        }
+        this._updateScrollAnimateSubscription(e.component);
+      }
+    });
+  }
+  _updateScrollAnimateSubscription(component) {
+    // @ts-expect-error ts-error
+    component._deferredAnimate = new _deferred.Deferred();
+    component._deferredAnimate.done(() => {
+      this.updateMaxHeight();
+      this._scrollView.update();
+      this._updateScrollAnimateSubscription(component);
+    });
+  }
+  _onInputChanged(text) {
+    var _this$_toolboxes5;
+    this._filterText = text;
+    this._onFilterChangedAction({
+      text: this._filterText,
+      filteringToolboxes: (_this$_toolboxes5 = this._toolboxes) === null || _this$_toolboxes5 === void 0 ? void 0 : _this$_toolboxes5.map(($element, index) => index)
+    });
+    this.updateTooltips();
+    this.updateMaxHeight();
+    this._scrollView.update();
+  }
+  updateFilter() {
+    this._onInputChanged(this._filterText);
+  }
+  updateTooltips() {
+    var _this$_toolboxes6;
+    (_this$_toolboxes6 = this._toolboxes) === null || _this$_toolboxes6 === void 0 || _this$_toolboxes6.forEach($element => {
+      const $tooltipContainer = (0, _renderer.default)($element);
+      this._createTooltips($tooltipContainer);
+    });
+  }
+  _createOnShapeCategoryRenderedAction() {
+    this._onShapeCategoryRenderedAction = this._createActionByOption(
+    // @ts-expect-error ts-error
+    'onShapeCategoryRendered');
+  }
+  _createOnFilterChangedAction() {
+    // @ts-expect-error ts-error
+    this._onFilterChangedAction = this._createActionByOption('onFilterChanged');
+  }
+  _optionChanged(args) {
+    var _this$_accordion;
+    switch (args.name) {
+      case 'onShapeCategoryRendered':
+        this._createOnShapeCategoryRenderedAction();
+        break;
+      case 'onFilterChanged':
+        this._createOnFilterChangedAction();
+        break;
+      case 'showSearch':
+      case 'toolboxWidth':
+        this._invalidate();
+        break;
+      case 'toolboxGroups':
+        (_this$_accordion = this._accordion) === null || _this$_accordion === void 0 || _this$_accordion.option('dataSource', this._getAccordionDataSource());
+        break;
+      default:
+        super._optionChanged(args);
+    }
+  }
+}
+var _default = exports["default"] = DiagramToolbox;
+
+/***/ }),
+
+/***/ 37433:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _diagram = _interopRequireDefault(__webpack_require__(88618));
+var _uiDiagram = _interopRequireDefault(__webpack_require__(78753));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+class DiagramViewToolbar extends _uiDiagram.default {
+  _getCommands() {
+    // @ts-expect-error ts-error
+    const {
+      commands,
+      excludeCommands
+    } = this.option();
+    return _diagram.default.getViewToolbarCommands(commands, excludeCommands);
+  }
+}
+var _default = exports["default"] = DiagramViewToolbar;
 
 /***/ }),
 
@@ -157099,6 +163092,3135 @@ var _default = exports["default"] = DataExpressionMixin;
 
 /***/ }),
 
+/***/ 62492:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.OPERATIONS = exports.FileItemsController = void 0;
+var _guid = _interopRequireDefault(__webpack_require__(19427));
+var _common = __webpack_require__(17781);
+var _deferred = __webpack_require__(87739);
+var _extend = __webpack_require__(52576);
+var _type = __webpack_require__(11528);
+var _custom_provider = _interopRequireDefault(__webpack_require__(85096));
+var _error = _interopRequireDefault(__webpack_require__(46327));
+var _error_codes = _interopRequireDefault(__webpack_require__(54950));
+var _file_system_item = _interopRequireDefault(__webpack_require__(53093));
+var _object_provider = _interopRequireDefault(__webpack_require__(76856));
+var _provider_base = _interopRequireDefault(__webpack_require__(65266));
+var _remote_provider = _interopRequireDefault(__webpack_require__(80175));
+var _utils = __webpack_require__(56536);
+var _uiFile_manager = __webpack_require__(57011);
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+/* eslint-disable max-classes-per-file,@typescript-eslint/explicit-module-boundary-types */
+
+const DEFAULT_ROOT_FILE_SYSTEM_ITEM_NAME = 'Files';
+const OPERATIONS = exports.OPERATIONS = {
+  NAVIGATION: 'navigation',
+  REFRESH: 'refresh'
+};
+class FileSecurityController {
+  constructor(options) {
+    var _this$_allowedFileExt;
+    const defaultOptions = {
+      allowedFileExtensions: [],
+      maxFileSize: 0
+    };
+    this._options = (0, _extend.extend)(defaultOptions, options);
+    this._extensionsMap = {};
+    (_this$_allowedFileExt = this._allowedFileExtensions) === null || _this$_allowedFileExt === void 0 || _this$_allowedFileExt.forEach(extension => {
+      this._extensionsMap[extension.toUpperCase()] = true;
+    });
+  }
+  getAllowedItems(items) {
+    var _this$_allowedFileExt2;
+    if (((_this$_allowedFileExt2 = this._allowedFileExtensions) === null || _this$_allowedFileExt2 === void 0 ? void 0 : _this$_allowedFileExt2.length) === 0) {
+      return items;
+    }
+    return items.filter(item => item.isDirectory || this._isValidExtension(item.name));
+  }
+  validateExtension(name) {
+    if (!this._isValidExtension(name)) {
+      // @ts-expect-error ts-error
+      throw new _error.default(_error_codes.default.WrongFileExtension, null);
+    }
+  }
+  validateMaxFileSize(size) {
+    if (this._maxFileSize && size > this._maxFileSize) {
+      // @ts-expect-error ts-error
+      throw new _error.default(_error_codes.default.MaxFileSizeExceeded, null);
+    }
+  }
+  _isValidExtension(name) {
+    var _this$_allowedFileExt3;
+    if (((_this$_allowedFileExt3 = this._allowedFileExtensions) === null || _this$_allowedFileExt3 === void 0 ? void 0 : _this$_allowedFileExt3.length) === 0) {
+      return true;
+    }
+    const extension = (0, _utils.getFileExtension)(name).toUpperCase();
+    return this._extensionsMap[extension];
+  }
+  get _allowedFileExtensions() {
+    var _this$_options;
+    return (_this$_options = this._options) === null || _this$_options === void 0 ? void 0 : _this$_options.allowedFileExtensions;
+  }
+  get _maxFileSize() {
+    var _this$_options2;
+    return (_this$_options2 = this._options) === null || _this$_options2 === void 0 ? void 0 : _this$_options2.maxFileSize;
+  }
+}
+class FileItemsController {
+  constructor(options) {
+    // eslint-disable-next-line no-param-reassign
+    options = options || {};
+    this._options = (0, _extend.extend)({}, options);
+    this._isInitialized = false;
+    this._dataLoading = false;
+    this._dataLoadingDeferred = null;
+    this._rootDirectoryInfo = this._createRootDirectoryInfo(options.rootText);
+    this._currentDirectoryInfo = this._rootDirectoryInfo;
+    this._defaultIconMap = this._createDefaultIconMap();
+    this.startSingleLoad();
+    this._setSecurityController();
+    this._setProvider(options.fileProvider);
+    this._initialize();
+  }
+  _initialize() {
+    var _this$_options$curren;
+    const result = (_this$_options$curren = this._options.currentPathKeys) !== null && _this$_options$curren !== void 0 && _this$_options$curren.length ? this.setCurrentPathByKeys(this._options.currentPathKeys) : this.setCurrentPath(this._options.currentPath);
+    const completeInitialization = () => {
+      this._isInitialized = true;
+      this._raiseInitialized();
+    };
+    if (result) {
+      (0, _deferred.when)(result).always(completeInitialization);
+    } else {
+      completeInitialization();
+    }
+  }
+  _setSecurityController() {
+    this._securityController = new FileSecurityController({
+      allowedFileExtensions: this._options.allowedFileExtensions,
+      maxFileSize: this._options.uploadMaxFileSize
+    });
+    this._resetState();
+  }
+  setAllowedFileExtensions(allowedFileExtensions) {
+    if ((0, _type.isDefined)(allowedFileExtensions)) {
+      this._options.allowedFileExtensions = allowedFileExtensions;
+    }
+    this._setSecurityController();
+    this.refresh();
+  }
+  setUploadOptions(_ref) {
+    let {
+      maxFileSize,
+      chunkSize
+    } = _ref;
+    if ((0, _type.isDefined)(chunkSize)) {
+      this._options.uploadChunkSize = chunkSize;
+    }
+    if ((0, _type.isDefined)(maxFileSize)) {
+      this._options.uploadMaxFileSize = maxFileSize;
+      this._setSecurityController();
+      this.refresh();
+    }
+  }
+  _setProvider(fileProvider) {
+    this._fileProvider = this._createFileProvider(fileProvider);
+    this._resetState();
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  updateProvider(fileProvider, currentPathKeys) {
+    if (!(0, _type.isDefined)(currentPathKeys)) {
+      return this._updateProviderOnly(fileProvider);
+    }
+    return (0, _deferred.when)(this._getDirectoryByPathParts(this._rootDirectoryInfo, currentPathKeys, true)).then(newDirectory => {
+      if (newDirectory !== this._rootDirectoryInfo) {
+        this._resetCurrentDirectory();
+      }
+      this._setProvider(fileProvider);
+    })
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    .then(() => this.setCurrentPathByKeys(currentPathKeys));
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  _updateProviderOnly(fileProvider) {
+    this._resetCurrentDirectory();
+    this._setProvider(fileProvider);
+    return (0, _deferred.when)(this.refresh());
+  }
+  _createFileProvider(fileProvider) {
+    if (!fileProvider) {
+      // eslint-disable-next-line no-param-reassign
+      fileProvider = [];
+    }
+    if (Array.isArray(fileProvider)) {
+      return new _object_provider.default({
+        data: fileProvider
+      });
+    }
+    if (fileProvider instanceof _provider_base.default) {
+      return fileProvider;
+    }
+    switch (fileProvider.type) {
+      case 'remote':
+        return new _remote_provider.default(fileProvider);
+      case 'custom':
+        return new _custom_provider.default(fileProvider);
+      default:
+        break;
+    }
+    return new _object_provider.default(fileProvider);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  setCurrentPath(path) {
+    const pathParts = (0, _utils.getPathParts)(path);
+    const rawPath = (0, _utils.pathCombine)(...pathParts);
+    if (this.getCurrentDirectory().fileItem.relativeName === rawPath) {
+      // @ts-expect-error ts-error
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return new _deferred.Deferred().resolve().promise();
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._setCurrentDirectoryByPathParts(pathParts);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  setCurrentPathByKeys(pathKeys) {
+    if ((0, _common.equalByValue)(this.getCurrentDirectory().fileItem.pathKeys, pathKeys)) {
+      // @ts-expect-error ts-error
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return new _deferred.Deferred().resolve().promise();
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._setCurrentDirectoryByPathParts(pathKeys, true);
+  }
+  getCurrentPath() {
+    let currentPath = '';
+    let directory = this.getCurrentDirectory();
+    while (directory && !directory.fileItem.isRoot()) {
+      const escapedName = (0, _utils.getEscapedFileName)(directory.fileItem.name);
+      currentPath = (0, _utils.pathCombine)(escapedName, currentPath);
+      directory = directory.parentDirectory;
+    }
+    return currentPath;
+  }
+  getCurrentPathKeys() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this.getCurrentDirectory().fileItem.pathKeys;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getCurrentDirectory() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._currentDirectoryInfo;
+  }
+  setCurrentDirectory(directoryInfo, checkActuality) {
+    if (!directoryInfo) {
+      return;
+    }
+    if (checkActuality) {
+      // eslint-disable-next-line no-param-reassign
+      directoryInfo = this._getActualDirectoryInfo(directoryInfo);
+    }
+    if (this._currentDirectoryInfo && this._currentDirectoryInfo === directoryInfo) {
+      this._raisePathPotentiallyChanged();
+      return;
+    }
+    const requireRaiseSelectedDirectory = this._currentDirectoryInfo.fileItem.key !== directoryInfo.fileItem.key;
+    this._currentDirectoryInfo = directoryInfo;
+    if (requireRaiseSelectedDirectory && this._isInitialized) {
+      if (!this._dataLoading) {
+        this._raiseDataLoading(OPERATIONS.NAVIGATION);
+      }
+      this._raiseSelectedDirectoryChanged(directoryInfo);
+    }
+  }
+  _resetCurrentDirectory() {
+    this._currentDirectoryInfo = this._rootDirectoryInfo;
+  }
+  getCurrentItems(onlyFiles) {
+    return this._dataLoadingDeferred
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    ? this._dataLoadingDeferred.then(() => this._getCurrentItemsInternal(onlyFiles)) : this._getCurrentItemsInternal(onlyFiles);
+  }
+  _getCurrentItemsInternal(onlyFiles) {
+    const currentDirectory = this.getCurrentDirectory();
+    const getItemsPromise = this.getDirectoryContents(currentDirectory);
+    return getItemsPromise.then(items => {
+      const separatedItems = this._separateItemsByType(items);
+      currentDirectory.fileItem.hasSubDirectories = !!separatedItems.folders.length;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return onlyFiles ? separatedItems.files : items;
+    });
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getDirectories(parentDirectoryInfo, skipNavigationOnError) {
+    return this.getDirectoryContents(parentDirectoryInfo, skipNavigationOnError).then(itemInfos => itemInfos.filter(info => info.fileItem.isDirectory));
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _separateItemsByType(itemInfos) {
+    const folders = [];
+    const files = [];
+    itemInfos.forEach(info => info.fileItem.isDirectory
+    // @ts-expect-error ts-error
+    ? folders.push(info)
+    // @ts-expect-error ts-error
+    : files.push(info));
+    return {
+      folders,
+      files
+    };
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getDirectoryContents(parentDirectoryInfo, skipNavigationOnError) {
+    if (!parentDirectoryInfo) {
+      // @ts-expect-error ts-error
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return new _deferred.Deferred().resolve([this._rootDirectoryInfo]).promise();
+    }
+    if (parentDirectoryInfo.itemsLoaded) {
+      // @ts-expect-error ts-error
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return new _deferred.Deferred().resolve(parentDirectoryInfo.items).promise();
+    }
+    if (this._singleOperationLockId && parentDirectoryInfo.itemsSingleLoadErrorId === this._singleOperationLockId) {
+      this._changeDirectoryOnError(parentDirectoryInfo, skipNavigationOnError, true);
+      // @ts-expect-error ts-error
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return new _deferred.Deferred().reject().promise();
+    }
+    const dirKey = parentDirectoryInfo.getInternalKey();
+    let loadItemsDeferred = this._loadedItems[dirKey];
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    if (loadItemsDeferred) {
+      return loadItemsDeferred;
+    }
+    loadItemsDeferred = this._getFileItems(parentDirectoryInfo, skipNavigationOnError).then(fileItems => {
+      // eslint-disable-next-line no-param-reassign
+      fileItems = fileItems || [];
+      parentDirectoryInfo.items = fileItems.map(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      fileItem => fileItem.isDirectory && this._createDirectoryInfo(fileItem, parentDirectoryInfo) || this._createFileInfo(fileItem, parentDirectoryInfo));
+      parentDirectoryInfo.itemsLoaded = true;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return parentDirectoryInfo.items;
+    }, () => {
+      if (this._singleOperationLockId && parentDirectoryInfo.itemsSingleLoadErrorId !== this._singleOperationLockId) {
+        parentDirectoryInfo.itemsSingleLoadErrorId = this._singleOperationLockId;
+      }
+      return [];
+    });
+    this._loadedItems[dirKey] = loadItemsDeferred;
+    loadItemsDeferred.always(() => {
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete this._loadedItems[dirKey];
+    });
+    return loadItemsDeferred;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  _getFileItems(parentDirectoryInfo, skipNavigationOnError) {
+    // eslint-disable-next-line @typescript-eslint/init-declarations
+    let loadItemsDeferred;
+    try {
+      var _this$_fileProvider;
+      loadItemsDeferred = (_this$_fileProvider = this._fileProvider) === null || _this$_fileProvider === void 0 ? void 0 : _this$_fileProvider.getItems(parentDirectoryInfo.fileItem);
+    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return this._handleItemLoadError(parentDirectoryInfo, error, skipNavigationOnError);
+    }
+    return (0, _deferred.when)(loadItemsDeferred).then(fileItems => {
+      var _this$_securityContro;
+      return (_this$_securityContro = this._securityController) === null || _this$_securityContro === void 0 ? void 0 : _this$_securityContro.getAllowedItems(fileItems);
+    },
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    errorInfo => this._handleItemLoadError(parentDirectoryInfo, errorInfo, skipNavigationOnError));
+  }
+  createDirectory(parentDirectoryInfo, name) {
+    const parentDirItem = parentDirectoryInfo.fileItem;
+    const tempDirInfo = this._createDirInfoByName(name, parentDirectoryInfo);
+    const actionInfo = this._createEditActionInfo('create', tempDirInfo, parentDirectoryInfo);
+    return this._processEditAction(actionInfo, args => {
+      var _this$_editingEvents, _this$_editingEvents$;
+      args.parentDirectory = parentDirItem;
+      args.name = name;
+      (_this$_editingEvents = this._editingEvents) === null || _this$_editingEvents === void 0 || (_this$_editingEvents$ = _this$_editingEvents.onDirectoryCreating) === null || _this$_editingEvents$ === void 0 || _this$_editingEvents$.call(_this$_editingEvents, args);
+    },
+    // @ts-expect-error ts-error
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    () => {
+      var _this$_fileProvider2;
+      return (_this$_fileProvider2 = this._fileProvider) === null || _this$_fileProvider2 === void 0 ? void 0 : _this$_fileProvider2.createDirectory(parentDirItem, name).done(info => {
+        if (!parentDirItem.isRoot()) {
+          parentDirItem.hasSubDirectories = true;
+        }
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        return info;
+      });
+    }, () => {
+      var _this$_editingEvents2, _this$_editingEvents3;
+      const args = {
+        parentDirectory: parentDirItem,
+        name
+      };
+      (_this$_editingEvents2 = this._editingEvents) === null || _this$_editingEvents2 === void 0 || (_this$_editingEvents3 = _this$_editingEvents2.onDirectoryCreated) === null || _this$_editingEvents3 === void 0 || _this$_editingEvents3.call(_this$_editingEvents2, args);
+    }, () => this._resetDirectoryState(parentDirectoryInfo, true));
+  }
+  renameItem(fileItemInfo, name) {
+    const sourceItem = fileItemInfo.fileItem.createClone();
+    const actionInfo = this._createEditActionInfo('rename', fileItemInfo, fileItemInfo.parentDirectory, {
+      itemNewName: name
+    });
+    return this._processEditAction(actionInfo, (args, itemInfo) => {
+      var _this$_editingEvents4, _this$_editingEvents5;
+      if (!itemInfo.fileItem.isDirectory) {
+        var _this$_securityContro2;
+        (_this$_securityContro2 = this._securityController) === null || _this$_securityContro2 === void 0 || _this$_securityContro2.validateExtension(name);
+      }
+      args.item = sourceItem;
+      args.newName = name;
+      (_this$_editingEvents4 = this._editingEvents) === null || _this$_editingEvents4 === void 0 || (_this$_editingEvents5 = _this$_editingEvents4.onItemRenaming) === null || _this$_editingEvents5 === void 0 || _this$_editingEvents5.call(_this$_editingEvents4, args);
+    }, item => {
+      var _this$_fileProvider3;
+      return (_this$_fileProvider3 = this._fileProvider) === null || _this$_fileProvider3 === void 0 ? void 0 : _this$_fileProvider3.renameItem(item, name);
+    }, () => {
+      var _this$_editingEvents6, _this$_editingEvents7;
+      const args = {
+        sourceItem,
+        itemName: name
+      };
+      (_this$_editingEvents6 = this._editingEvents) === null || _this$_editingEvents6 === void 0 || (_this$_editingEvents7 = _this$_editingEvents6.onItemRenamed) === null || _this$_editingEvents7 === void 0 || _this$_editingEvents7.call(_this$_editingEvents6, args);
+    }, () => {
+      const parentDirectory = this._getActualDirectoryInfo(fileItemInfo.parentDirectory);
+      this._resetDirectoryState(parentDirectory);
+      this.setCurrentDirectory(parentDirectory);
+    });
+  }
+  moveItems(itemInfos, destinationDirectory) {
+    const actionInfo = this._createEditActionInfo('move', itemInfos, destinationDirectory);
+    return this._processEditAction(actionInfo, (args, itemInfo) => {
+      var _this$_editingEvents8, _this$_editingEvents9;
+      args.item = itemInfo.fileItem;
+      args.destinationDirectory = destinationDirectory.fileItem;
+      (_this$_editingEvents8 = this._editingEvents) === null || _this$_editingEvents8 === void 0 || (_this$_editingEvents9 = _this$_editingEvents8.onItemMoving) === null || _this$_editingEvents9 === void 0 || _this$_editingEvents9.call(_this$_editingEvents8, args);
+    }, item => {
+      var _this$_fileProvider4;
+      return (_this$_fileProvider4 = this._fileProvider) === null || _this$_fileProvider4 === void 0 ? void 0 : _this$_fileProvider4.moveItems([item], destinationDirectory.fileItem);
+    }, itemInfo => {
+      var _this$_editingEvents10, _this$_editingEvents11;
+      const args = {
+        sourceItem: itemInfo.fileItem,
+        parentDirectory: destinationDirectory.fileItem,
+        itemName: itemInfo.fileItem.name,
+        itemPath: (0, _utils.pathCombine)(destinationDirectory.fileItem.path, itemInfo.fileItem.name)
+      };
+      (_this$_editingEvents10 = this._editingEvents) === null || _this$_editingEvents10 === void 0 || (_this$_editingEvents11 = _this$_editingEvents10.onItemMoved) === null || _this$_editingEvents11 === void 0 || _this$_editingEvents11.call(_this$_editingEvents10, args);
+    }, needChangeCurrentDirectory => {
+      itemInfos.forEach(itemInfo => this._resetDirectoryState(itemInfo.parentDirectory, true));
+      if (needChangeCurrentDirectory) {
+        this._resetDirectoryState(destinationDirectory);
+        this.setCurrentPathByKeys(destinationDirectory.fileItem.pathKeys);
+        destinationDirectory.expanded = true;
+      }
+    });
+  }
+  copyItems(itemInfos, destinationDirectory) {
+    const actionInfo = this._createEditActionInfo('copy', itemInfos, destinationDirectory);
+    return this._processEditAction(actionInfo, (args, itemInfo) => {
+      var _this$_editingEvents12, _this$_editingEvents13;
+      args.item = itemInfo.fileItem;
+      args.destinationDirectory = destinationDirectory.fileItem;
+      (_this$_editingEvents12 = this._editingEvents) === null || _this$_editingEvents12 === void 0 || (_this$_editingEvents13 = _this$_editingEvents12.onItemCopying) === null || _this$_editingEvents13 === void 0 || _this$_editingEvents13.call(_this$_editingEvents12, args);
+    }, item => {
+      var _this$_fileProvider5;
+      return (_this$_fileProvider5 = this._fileProvider) === null || _this$_fileProvider5 === void 0 ? void 0 : _this$_fileProvider5.copyItems([item], destinationDirectory.fileItem);
+    }, itemInfo => {
+      var _this$_editingEvents14, _this$_editingEvents15;
+      const args = {
+        sourceItem: itemInfo.fileItem,
+        parentDirectory: destinationDirectory.fileItem,
+        itemName: itemInfo.fileItem.name,
+        itemPath: (0, _utils.pathCombine)(destinationDirectory.fileItem.path, itemInfo.fileItem.name)
+      };
+      (_this$_editingEvents14 = this._editingEvents) === null || _this$_editingEvents14 === void 0 || (_this$_editingEvents15 = _this$_editingEvents14.onItemCopied) === null || _this$_editingEvents15 === void 0 || _this$_editingEvents15.call(_this$_editingEvents14, args);
+    }, needChangeCurrentDirectory => {
+      if (needChangeCurrentDirectory) {
+        // eslint-disable-next-line no-param-reassign
+        destinationDirectory = this._getActualDirectoryInfo(destinationDirectory);
+        this._resetDirectoryState(destinationDirectory);
+        this.setCurrentDirectory(destinationDirectory);
+        destinationDirectory.expanded = true;
+      }
+    });
+  }
+  deleteItems(itemInfos) {
+    const directory = itemInfos.length > 0 ? itemInfos[0].parentDirectory : null;
+    const actionInfo = this._createEditActionInfo('delete', itemInfos, directory);
+    return this._processEditAction(actionInfo, (args, itemInfo) => {
+      var _this$_editingEvents16, _this$_editingEvents17;
+      args.item = itemInfo.fileItem;
+      (_this$_editingEvents16 = this._editingEvents) === null || _this$_editingEvents16 === void 0 || (_this$_editingEvents17 = _this$_editingEvents16.onItemDeleting) === null || _this$_editingEvents17 === void 0 || _this$_editingEvents17.call(_this$_editingEvents16, args);
+    }, item => {
+      var _this$_fileProvider6;
+      return (_this$_fileProvider6 = this._fileProvider) === null || _this$_fileProvider6 === void 0 ? void 0 : _this$_fileProvider6.deleteItems([item]);
+    }, itemInfo => {
+      var _this$_editingEvents18, _this$_editingEvents19;
+      return (_this$_editingEvents18 = this._editingEvents) === null || _this$_editingEvents18 === void 0 || (_this$_editingEvents19 = _this$_editingEvents18.onItemDeleted) === null || _this$_editingEvents19 === void 0 ? void 0 : _this$_editingEvents19.call(_this$_editingEvents18, {
+        item: itemInfo.fileItem
+      });
+    }, () => {
+      itemInfos.forEach(itemInfo => {
+        const parentDir = this._getActualDirectoryInfo(itemInfo.parentDirectory);
+        this._resetDirectoryState(parentDir);
+        this.setCurrentDirectory(parentDir);
+      });
+    });
+  }
+  processUploadSession(sessionInfo, uploadDirectoryInfo) {
+    const itemInfos = this._getItemInfosForUploaderFiles(sessionInfo.files, uploadDirectoryInfo);
+    const actionInfo = this._createEditActionInfo('upload', itemInfos, uploadDirectoryInfo, {
+      sessionInfo
+    });
+    return this._processEditAction(actionInfo, () => {},
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    (_, index) => sessionInfo.deferreds[index], () => {}, () => this._resetDirectoryState(uploadDirectoryInfo, true));
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  uploadFileChunk(fileData, chunksInfo, destinationDirectory) {
+    var _startDeferred;
+    // eslint-disable-next-line @typescript-eslint/init-declarations
+    let startDeferred;
+    if (chunksInfo.chunkIndex === 0) {
+      var _this$_securityContro3, _this$_securityContro4;
+      (_this$_securityContro3 = this._securityController) === null || _this$_securityContro3 === void 0 || _this$_securityContro3.validateMaxFileSize(fileData.size);
+      (_this$_securityContro4 = this._securityController) === null || _this$_securityContro4 === void 0 || _this$_securityContro4.validateExtension(fileData.name);
+      startDeferred = this._processBeforeItemEditAction(args => {
+        var _this$_editingEvents20, _this$_editingEvents21;
+        args.fileData = fileData;
+        args.destinationDirectory = destinationDirectory;
+        (_this$_editingEvents20 = this._editingEvents) === null || _this$_editingEvents20 === void 0 || (_this$_editingEvents21 = _this$_editingEvents20.onFileUploading) === null || _this$_editingEvents21 === void 0 || _this$_editingEvents21.call(_this$_editingEvents20, args);
+      });
+    } else {
+      // @ts-expect-error ts-error
+      startDeferred = new _deferred.Deferred().resolve().promise();
+    }
+    let result = (_startDeferred = startDeferred) === null || _startDeferred === void 0 ? void 0 : _startDeferred.then(() => {
+      var _this$_fileProvider7;
+      return (_this$_fileProvider7 = this._fileProvider) === null || _this$_fileProvider7 === void 0 ? void 0 : _this$_fileProvider7.uploadFileChunk(fileData, chunksInfo, destinationDirectory);
+    });
+    if (chunksInfo.chunkIndex === chunksInfo.chunkCount - 1) {
+      result = result.done(() => {
+        var _this$_editingEvents22, _this$_editingEvents23;
+        const args = {
+          fileData,
+          parentDirectory: destinationDirectory
+        };
+        (_this$_editingEvents22 = this._editingEvents) === null || _this$_editingEvents22 === void 0 || (_this$_editingEvents23 = _this$_editingEvents22.onFileUploaded) === null || _this$_editingEvents23 === void 0 || _this$_editingEvents23.call(_this$_editingEvents22, args);
+      });
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return result;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  abortFileUpload(fileData, chunksInfo, destinationDirectory) {
+    var _this$_fileProvider8;
+    return (0, _deferred.when)((_this$_fileProvider8 = this._fileProvider) === null || _this$_fileProvider8 === void 0 ? void 0 : _this$_fileProvider8.abortFileUpload(fileData, chunksInfo, destinationDirectory));
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getFileUploadChunkSize() {
+    var _this$_fileProvider9;
+    const chunkSize = this._options.uploadChunkSize;
+    if (chunkSize && chunkSize > 0) {
+      return chunkSize;
+    }
+    // @ts-expect-error ts-error
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return (_this$_fileProvider9 = this._fileProvider) === null || _this$_fileProvider9 === void 0 ? void 0 : _this$_fileProvider9.getFileUploadChunkSize();
+  }
+  downloadItems(itemInfos) {
+    const deferreds = itemInfos.map(itemInfo => this._processBeforeItemEditAction(args => {
+      var _this$_editingEvents24, _this$_editingEvents25;
+      args.item = itemInfo.fileItem;
+      (_this$_editingEvents24 = this._editingEvents) === null || _this$_editingEvents24 === void 0 || (_this$_editingEvents25 = _this$_editingEvents24.onItemDownloading) === null || _this$_editingEvents25 === void 0 || _this$_editingEvents25.call(_this$_editingEvents24, args);
+    }, itemInfo));
+    return (0, _deferred.when)(...deferreds).then(
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    () => {
+      var _this$_fileProvider10;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      const items = itemInfos.map(i => i.fileItem);
+      return (0, _deferred.when)(this._getItemActionResult((_this$_fileProvider10 = this._fileProvider) === null || _this$_fileProvider10 === void 0 ? void 0 : _this$_fileProvider10.downloadItems(items))).then(() => {}, errorInfo => {
+        this._raiseDownloadItemsError(itemInfos, itemInfos[0].parentDirectory, errorInfo);
+      });
+    }, errorInfo => {
+      this._raiseDownloadItemsError(itemInfos, itemInfos[0].parentDirectory, errorInfo);
+    });
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getItemContent(itemInfos) {
+    var _this$_fileProvider11;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    const items = itemInfos.map(i => i.fileItem);
+    return (0, _deferred.when)((_this$_fileProvider11 = this._fileProvider) === null || _this$_fileProvider11 === void 0 ? void 0 : _this$_fileProvider11.getItemsContent(items));
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _handleItemLoadError(parentDirectoryInfo, errorInfo, skipNavigationOnError) {
+    // eslint-disable-next-line no-param-reassign
+    parentDirectoryInfo = this._getActualDirectoryInfo(parentDirectoryInfo);
+    this._raiseGetItemsError(parentDirectoryInfo, errorInfo);
+    this._changeDirectoryOnError(parentDirectoryInfo, skipNavigationOnError);
+    // @ts-expect-error ts-error
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return new _deferred.Deferred().reject().promise();
+  }
+  _raiseGetItemsError(parentDirectoryInfo, errorInfo) {
+    const actionInfo = this._createEditActionInfo('getItems', parentDirectoryInfo, parentDirectoryInfo);
+    this._raiseEditActionStarting(actionInfo);
+    this._raiseEditActionResultAcquired(actionInfo);
+    this._raiseEditActionError(actionInfo, {
+      errorCode: errorInfo.errorCode,
+      errorText: errorInfo.errorText,
+      fileItem: parentDirectoryInfo.fileItem,
+      index: 0
+    });
+  }
+  _raiseDownloadItemsError(targetFileInfos, directory, errorInfo) {
+    const actionInfo = this._createEditActionInfo('download', targetFileInfos, directory);
+    const itemsLength = targetFileInfos.length;
+    actionInfo.singleRequest = itemsLength === 1;
+    this._raiseEditActionStarting(actionInfo);
+    this._raiseEditActionResultAcquired(actionInfo);
+    for (let index = 0; index < itemsLength - 1; index += 1) {
+      this._raiseEditActionItemError(actionInfo, {
+        errorCode: errorInfo.errorCode,
+        errorText: errorInfo.errorText,
+        fileItem: targetFileInfos[index].fileItem,
+        index
+      });
+    }
+    this._raiseEditActionError(actionInfo, {
+      errorCode: errorInfo.errorCode,
+      errorText: errorInfo.errorText,
+      fileItem: targetFileInfos[itemsLength - 1].fileItem,
+      index: itemsLength - 1
+    });
+  }
+  _changeDirectoryOnError(dirInfo, skipNavigationOnError, isActualDirectoryRequired) {
+    if (isActualDirectoryRequired) {
+      // eslint-disable-next-line no-param-reassign
+      dirInfo = this._getActualDirectoryInfo(dirInfo);
+    }
+    this._resetDirectoryState(dirInfo);
+    dirInfo.expanded = false;
+    if (!skipNavigationOnError) {
+      this.setCurrentDirectory(dirInfo.parentDirectory);
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getItemActionResult(actionResult) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return Array.isArray(actionResult) ? actionResult[0] : actionResult;
+  }
+  _processEditAction(actionInfo, beforeAction, action, afterAction, completeAction) {
+    let isAnyOperationSuccessful = false;
+    this._raiseEditActionStarting(actionInfo);
+    const actionResult = actionInfo.itemInfos.map((itemInfo, itemIndex) => this._processBeforeItemEditAction(beforeAction, itemInfo).then(() => {
+      const itemActionResult = this._getItemActionResult(action(itemInfo.fileItem, itemIndex));
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return itemActionResult.done(() => afterAction(itemInfo));
+    }));
+    actionInfo.singleRequest = actionResult.length === 1;
+    this._raiseEditActionResultAcquired(actionInfo);
+    return (0, _uiFile_manager.whenSome)(actionResult, info => {
+      isAnyOperationSuccessful = true;
+      this._raiseCompleteEditActionItem(actionInfo, info);
+    }, errorInfo => this._raiseEditActionItemError(actionInfo, errorInfo)).then(() => {
+      completeAction(isAnyOperationSuccessful);
+      this._raiseCompleteEditAction(actionInfo);
+    });
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _createEditActionInfo(name, targetItemInfos, directory, customData) {
+    // eslint-disable-next-line no-param-reassign
+    targetItemInfos = Array.isArray(targetItemInfos) ? targetItemInfos : [targetItemInfos];
+    // eslint-disable-next-line no-param-reassign
+    customData = customData || {};
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    const items = targetItemInfos.map(itemInfo => itemInfo.fileItem);
+    return {
+      name,
+      itemInfos: targetItemInfos,
+      items,
+      directory,
+      customData,
+      singleRequest: true
+    };
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  _processBeforeItemEditAction(action, itemInfo) {
+    // @ts-expect-error ts-error
+    const deferred = new _deferred.Deferred();
+    const args = this._createBeforeActionArgs();
+    try {
+      action(args, itemInfo);
+    } catch (errorInfo) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return deferred.reject(errorInfo).promise();
+    }
+    if (!args.cancel) {
+      deferred.resolve();
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-boolean-literal-compare
+    } else if (args.cancel === true) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return deferred.reject({
+        errorText: args.errorText,
+        errorCode: args.errorCode
+      });
+    } else if ((0, _type.isPromise)(args.cancel)) {
+      (0, _deferred.when)(args.cancel).then(res => {
+        if (res === true) {
+          deferred.reject();
+          // @ts-expect-error ts-error
+        } else if ((0, _type.isObject)(res) && res.cancel === true) {
+          deferred.reject({
+            // @ts-expect-error ts-error
+            errorText: res.errorText,
+            // @ts-expect-error ts-error
+            errorCode: res.errorCode
+          });
+        }
+        deferred.resolve();
+      }, deferred.resolve);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return deferred.promise();
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _createBeforeActionArgs() {
+    return {
+      errorCode: undefined,
+      errorText: '',
+      cancel: false
+    };
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getItemInfosForUploaderFiles(files, parentDirectoryInfo) {
+    const pathInfo = this._getPathInfo(parentDirectoryInfo);
+    const result = [];
+    // eslint-disable-next-line @typescript-eslint/prefer-for-of
+    for (let i = 0; i < files.length; i += 1) {
+      const file = files[i];
+      // @ts-expect-error ts-error
+      const item = new _file_system_item.default(pathInfo, file.name, false);
+      const itemInfo = this._createFileInfo(item, parentDirectoryInfo);
+      // @ts-expect-error ts-error
+      result.push(itemInfo);
+    }
+    return result;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  refresh() {
+    if (this._lockRefresh) {
+      return this._refreshDeferred;
+    }
+    this._lockRefresh = true;
+    // eslint-disable-next-line @stylistic/max-len
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return,no-return-assign,@stylistic/max-len
+    return this._executeDataLoad(() => this._refreshDeferred = this._refreshInternal(), OPERATIONS.REFRESH);
+  }
+  startSingleLoad() {
+    this._singleOperationLockId = new _guid.default().toString();
+  }
+  endSingleLoad() {
+    delete this._singleOperationLockId;
+  }
+  _refreshInternal() {
+    const cachedRootInfo = {
+      items: this._rootDirectoryInfo.items
+    };
+    const selectedKeyParts = this._getDirectoryPathKeyParts(this.getCurrentDirectory());
+    this._resetDirectoryState(this._rootDirectoryInfo);
+    return this._loadItemsRecursive(this._rootDirectoryInfo, cachedRootInfo).then(() => {
+      const dirInfo = this._findDirectoryByPathKeyParts(selectedKeyParts);
+      this.setCurrentDirectory(dirInfo);
+      delete this._lockRefresh;
+    });
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  _loadItemsRecursive(directoryInfo, cachedDirectoryInfo) {
+    return this.getDirectories(directoryInfo).then(
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    dirInfos => {
+      const itemDeferreds = [];
+      // eslint-disable-next-line @typescript-eslint/prefer-for-of
+      for (let i = 0; i < dirInfos.length; i += 1) {
+        const cachedItem = cachedDirectoryInfo.items.find(cache => dirInfos[i].fileItem.key === cache.fileItem.key);
+        // eslint-disable-next-line no-continue
+        if (!cachedItem) continue;
+        dirInfos[i].expanded = cachedItem.expanded;
+        if (dirInfos[i].expanded) {
+          itemDeferreds.push(
+          // @ts-expect-error ts-error
+          this._loadItemsRecursive(dirInfos[i], cachedItem));
+        }
+      }
+      return (0, _uiFile_manager.whenSome)(itemDeferreds);
+    }, () => null);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _setCurrentDirectoryByPathParts(pathParts, useKeys) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._executeDataLoad(
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    () => this._setCurrentDirectoryByPathPartsInternal(pathParts, useKeys), OPERATIONS.NAVIGATION);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _setCurrentDirectoryByPathPartsInternal(pathParts, useKeys) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._getDirectoryByPathParts(this._rootDirectoryInfo, pathParts, useKeys).then(directoryInfo => {
+      for (let info = directoryInfo.parentDirectory; info; info = info.parentDirectory) {
+        info.expanded = true;
+      }
+      this.setCurrentDirectory(directoryInfo);
+    }, () => {
+      this._raisePathPotentiallyChanged();
+    });
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _executeDataLoad(action, operation) {
+    if (this._dataLoadingDeferred) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return this._dataLoadingDeferred.then(() => this._executeDataLoad(action, operation));
+    }
+    this._dataLoading = true;
+    // @ts-expect-error ts-error
+    this._dataLoadingDeferred = new _deferred.Deferred();
+    if (this._isInitialized) {
+      this._raiseDataLoading(operation);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return action().always(() => {
+      const tempDeferred = this._dataLoadingDeferred;
+      this._dataLoadingDeferred = null;
+      this._dataLoading = false;
+      tempDeferred === null || tempDeferred === void 0 || tempDeferred.resolve();
+    });
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getDirectoryByPathParts(parentDirectoryInfo, pathParts, useKeys) {
+    if (pathParts.length < 1) {
+      // @ts-expect-error ts-error
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return new _deferred.Deferred().resolve(parentDirectoryInfo).promise();
+    }
+    const fieldName = useKeys ? 'key' : 'name';
+    return this.getDirectories(parentDirectoryInfo).then(dirInfos => {
+      const subDirInfo = dirInfos.find(d => d.fileItem[fieldName] === pathParts[0]);
+      if (!subDirInfo) {
+        // @ts-expect-error ts-error
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        return new _deferred.Deferred().reject().promise();
+      }
+      const restPathParts = [...pathParts].splice(1);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return this._getDirectoryByPathParts(subDirInfo, restPathParts, useKeys);
+    });
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getDirectoryPathKeyParts(directoryInfo) {
+    const pathParts = [];
+    while ((_directoryInfo = directoryInfo) !== null && _directoryInfo !== void 0 && _directoryInfo.parentDirectory) {
+      var _directoryInfo;
+      // @ts-expect-error ts-error
+      pathParts.unshift(directoryInfo.fileItem.key);
+      // eslint-disable-next-line no-param-reassign
+      directoryInfo = directoryInfo.parentDirectory;
+    }
+    return pathParts;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _findDirectoryByPathKeyParts(keyParts) {
+    let selectedDirInfo = this._rootDirectoryInfo;
+    if (keyParts.length === 0) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return selectedDirInfo;
+    }
+    let i = 0;
+    let newSelectedDir = selectedDirInfo;
+    while (newSelectedDir && i < keyParts.length) {
+      newSelectedDir = selectedDirInfo.items.find(
+      // eslint-disable-next-line @typescript-eslint/no-loop-func
+      info => info.fileItem.key === keyParts[i]);
+      if (newSelectedDir) {
+        selectedDirInfo = newSelectedDir;
+      }
+      i += 1;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return selectedDirInfo;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getActualDirectoryInfo(directoryInfo) {
+    const keys = this._getDirectoryPathKeyParts(directoryInfo);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._findDirectoryByPathKeyParts(keys);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _createDirInfoByName(name, parentDirectoryInfo) {
+    const dirPathInfo = this._getPathInfo(parentDirectoryInfo);
+    // @ts-expect-error ts-error
+    const fileItem = new _file_system_item.default(dirPathInfo, name, true);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._createDirectoryInfo(fileItem, parentDirectoryInfo);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _createDirectoryInfo(fileItem, parentDirectoryInfo) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return (0, _extend.extend)(this._createFileInfo(fileItem, parentDirectoryInfo), {
+      icon: 'folder',
+      expanded: fileItem.isRoot(),
+      items: []
+    });
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _createFileInfo(fileItem, parentDirectoryInfo) {
+    return {
+      fileItem,
+      parentDirectory: parentDirectoryInfo,
+      icon: this._getFileItemDefaultIcon(fileItem),
+      getInternalKey() {
+        return `FIK_${this.fileItem.key}`;
+      },
+      // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+      getDisplayName() {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        return this.displayName || this.fileItem.name;
+      }
+    };
+  }
+  _resetDirectoryState(directoryInfo, isActualDirectoryRequired) {
+    if (isActualDirectoryRequired) {
+      // eslint-disable-next-line no-param-reassign
+      directoryInfo = this._getActualDirectoryInfo(directoryInfo);
+    }
+    directoryInfo.itemsLoaded = false;
+    directoryInfo.items = [];
+  }
+  _getFileItemDefaultIcon(fileItem) {
+    if (fileItem.isDirectory) {
+      return 'folder';
+    }
+    const extension = fileItem.getFileExtension();
+    const icon = this._defaultIconMap[extension];
+    return icon || 'doc';
+  }
+  _createDefaultIconMap() {
+    const result = {
+      '.txt': 'txtfile',
+      '.rtf': 'rtffile',
+      '.doc': 'docfile',
+      '.docx': 'docxfile',
+      '.xls': 'xlsfile',
+      '.xlsx': 'xlsxfile',
+      '.ppt': 'pptfile',
+      '.pptx': 'pptxfile',
+      '.pdf': 'pdffile'
+    };
+    ['.png', '.gif', '.jpg', '.jpeg', '.ico', '.bmp'].forEach(extension => {
+      result[extension] = 'image';
+    });
+    return result;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _createRootDirectoryInfo(text) {
+    // @ts-expect-error ts-error
+    const rootDirectory = new _file_system_item.default(null, '', true);
+    const result = this._createDirectoryInfo(rootDirectory, null);
+    result.displayName = text || DEFAULT_ROOT_FILE_SYSTEM_ITEM_NAME;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return result;
+  }
+  setRootText(rootText) {
+    this._rootDirectoryInfo.displayName = rootText || DEFAULT_ROOT_FILE_SYSTEM_ITEM_NAME;
+  }
+  _raiseInitialized() {
+    this._tryCallAction('onInitialized', {
+      controller: this
+    });
+  }
+  _raiseDataLoading(operation) {
+    this._tryCallAction('onDataLoading', {
+      operation
+    });
+  }
+  _raiseSelectedDirectoryChanged(directoryInfo) {
+    this._tryCallAction('onSelectedDirectoryChanged', {
+      selectedDirectoryInfo: directoryInfo
+    });
+  }
+  _raiseEditActionStarting(actionInfo) {
+    this._tryCallAction('onEditActionStarting', actionInfo);
+  }
+  _raiseEditActionResultAcquired(actionInfo) {
+    this._tryCallAction('onEditActionResultAcquired', actionInfo);
+  }
+  _raiseEditActionError(actionInfo, errorInfo) {
+    this._tryCallAction('onEditActionError', actionInfo, errorInfo);
+  }
+  _raiseEditActionItemError(actionInfo, errorInfo) {
+    this._tryCallAction('onEditActionItemError', actionInfo, errorInfo);
+  }
+  _raiseCompleteEditActionItem(actionInfo, info) {
+    this._tryCallAction('onCompleteEditActionItem', actionInfo, info);
+  }
+  _raiseCompleteEditAction(actionInfo) {
+    this._tryCallAction('onCompleteEditAction', actionInfo);
+  }
+  _raisePathPotentiallyChanged() {
+    this._tryCallAction('onPathPotentiallyChanged');
+  }
+  _tryCallAction(actionName) {
+    if (this._isInitialized && this._options[actionName]) {
+      for (var _len = arguments.length, rest = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+        rest[_key - 1] = arguments[_key];
+      }
+      this._options[actionName](...rest);
+    }
+  }
+  _resetState() {
+    this._selectedDirectory = null;
+    this._rootDirectoryInfo.items = [];
+    this._rootDirectoryInfo.itemsLoaded = false;
+    this._loadedItems = {};
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getPathInfo(directoryInfo) {
+    const pathInfo = [];
+    for (let dirInfo = directoryInfo; dirInfo && !dirInfo.fileItem.isRoot(); dirInfo = dirInfo.parentDirectory) {
+      // @ts-expect-error ts-error
+      pathInfo.unshift({
+        key: dirInfo.fileItem.key,
+        name: dirInfo.fileItem.name
+      });
+    }
+    return pathInfo;
+  }
+  on(eventName, eventHandler) {
+    const finalEventName = `on${eventName}`;
+    this._options[finalEventName] = eventHandler;
+  }
+  get _editingEvents() {
+    return this._options.editingEvents;
+  }
+}
+exports.FileItemsController = FileItemsController;
+
+/***/ }),
+
+/***/ 12757:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _size = __webpack_require__(57653);
+var _type = __webpack_require__(11528);
+var _window = __webpack_require__(3104);
+var _splitter_control = _interopRequireDefault(__webpack_require__(47744));
+var _widget = _interopRequireDefault(__webpack_require__(89275));
+var _drawer = _interopRequireDefault(__webpack_require__(30580));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
+const window = (0, _window.getWindow)();
+const ADAPTIVE_STATE_SCREEN_WIDTH = 573;
+const FILE_MANAGER_ADAPTIVITY_DRAWER_PANEL_CLASS = 'dx-filemanager-adaptivity-drawer-panel';
+const DRAWER_PANEL_CONTENT_INITIAL = 'dx-drawer-panel-content-initial';
+const DRAWER_PANEL_CONTENT_ADAPTIVE = 'dx-drawer-panel-content-adaptive';
+class FileManagerAdaptivityControl extends _widget.default {
+  _initMarkup() {
+    super._initMarkup();
+    this._initActions();
+    this._isInAdaptiveState = false;
+    const $drawer = (0, _renderer.default)('<div>').appendTo(this.$element());
+    (0, _renderer.default)('<div>').addClass(FILE_MANAGER_ADAPTIVITY_DRAWER_PANEL_CLASS).appendTo($drawer);
+    // @ts-expect-error ts-error
+    this._drawer = this._createComponent($drawer, _drawer.default);
+    this._drawer.option({
+      opened: true,
+      template: this._createDrawerTemplate.bind(this)
+    });
+    (0, _renderer.default)(this._drawer.content()).addClass(DRAWER_PANEL_CONTENT_INITIAL);
+    const $drawerContent = $drawer.find(`.${FILE_MANAGER_ADAPTIVITY_DRAWER_PANEL_CLASS}`).first();
+    const {
+      contentTemplate: contentRenderer
+    } = this.option();
+    if ((0, _type.isFunction)(contentRenderer)) {
+      contentRenderer($drawerContent);
+    }
+    this._updateDrawerMaxSize();
+  }
+  _createDrawerTemplate(container) {
+    var _this$_drawer, _this$_drawer2;
+    const {
+      drawerTemplate
+    } = this.option();
+    drawerTemplate === null || drawerTemplate === void 0 || drawerTemplate(container);
+    this._splitter = this._createComponent('<div>', _splitter_control.default, {
+      container: this.$element(),
+      leftElement: (0, _renderer.default)((_this$_drawer = this._drawer) === null || _this$_drawer === void 0 ? void 0 : _this$_drawer.content()),
+      rightElement: (0, _renderer.default)((_this$_drawer2 = this._drawer) === null || _this$_drawer2 === void 0 ? void 0 : _this$_drawer2.viewContent()),
+      onApplyPanelSize: this._onApplyPanelSize.bind(this),
+      onActiveStateChanged: this._onActiveStateChanged.bind(this)
+    });
+    this._splitter.$element().appendTo(container);
+    this._splitter.disableSplitterCalculation(true);
+  }
+  _render() {
+    super._render();
+    this._checkAdaptiveState();
+  }
+  _onApplyPanelSize(e) {
+    var _this$_splitter, _this$_drawer3;
+    if (!(0, _window.hasWindow)()) {
+      return;
+    }
+    if (!((_this$_splitter = this._splitter) !== null && _this$_splitter !== void 0 && _this$_splitter.isSplitterMoved())) {
+      this._setDrawerWidth('');
+      return;
+    }
+    (0, _renderer.default)((_this$_drawer3 = this._drawer) === null || _this$_drawer3 === void 0 ? void 0 : _this$_drawer3.content()).removeClass(DRAWER_PANEL_CONTENT_INITIAL);
+    this._setDrawerWidth(e.leftPanelWidth);
+  }
+  _onActiveStateChanged(_ref) {
+    var _this$_splitter2;
+    let {
+      isActive
+    } = _ref;
+    (_this$_splitter2 = this._splitter) === null || _this$_splitter2 === void 0 || _this$_splitter2.disableSplitterCalculation(!isActive);
+    if (!isActive) {
+      var _this$_splitter3;
+      (_this$_splitter3 = this._splitter) === null || _this$_splitter3 === void 0 || _this$_splitter3.$element().css('left', 'auto');
+    }
+  }
+  _setDrawerWidth(width) {
+    var _this$_drawer4, _this$_drawer5;
+    (0, _renderer.default)((_this$_drawer4 = this._drawer) === null || _this$_drawer4 === void 0 ? void 0 : _this$_drawer4.content()).css('width', width);
+    this._updateDrawerMaxSize();
+    (_this$_drawer5 = this._drawer) === null || _this$_drawer5 === void 0 || _this$_drawer5.resizeViewContent();
+  }
+  _updateDrawerMaxSize() {
+    var _this$_drawer6;
+    (_this$_drawer6 = this._drawer) === null || _this$_drawer6 === void 0 || _this$_drawer6.option('maxSize', this._drawer.getRealPanelWidth());
+  }
+  // @ts-expect-error ts-error
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+  _dimensionChanged(dimension) {
+    if (!dimension || dimension !== 'height') {
+      this._checkAdaptiveState();
+    }
+  }
+  _checkAdaptiveState() {
+    const oldState = this._isInAdaptiveState;
+    this._isInAdaptiveState = this._isSmallScreen();
+    if (oldState !== this._isInAdaptiveState) {
+      var _this$_drawer7;
+      this.toggleDrawer(!this._isInAdaptiveState, true);
+      (0, _renderer.default)((_this$_drawer7 = this._drawer) === null || _this$_drawer7 === void 0 ? void 0 : _this$_drawer7.content()).toggleClass(DRAWER_PANEL_CONTENT_ADAPTIVE, this._isInAdaptiveState);
+      this._raiseAdaptiveStateChanged(this._isInAdaptiveState);
+    }
+    if (this._isInAdaptiveState && this._isDrawerOpened()) {
+      this._updateDrawerMaxSize();
+    }
+  }
+  _isSmallScreen() {
+    return (0, _size.getWidth)(window) <= ADAPTIVE_STATE_SCREEN_WIDTH;
+  }
+  _isDrawerOpened() {
+    var _this$_drawer8;
+    const {
+      opened
+    } = ((_this$_drawer8 = this._drawer) === null || _this$_drawer8 === void 0 ? void 0 : _this$_drawer8.option()) ?? {};
+    return opened;
+  }
+  _initActions() {
+    this._actions = {
+      onAdaptiveStateChanged: this._createActionByOption('onAdaptiveStateChanged')
+    };
+  }
+  _raiseAdaptiveStateChanged(enabled) {
+    var _this$_actions, _this$_actions$onAdap;
+    (_this$_actions = this._actions) === null || _this$_actions === void 0 || (_this$_actions$onAdap = _this$_actions.onAdaptiveStateChanged) === null || _this$_actions$onAdap === void 0 || _this$_actions$onAdap.call(_this$_actions, {
+      enabled
+    });
+  }
+  _getDefaultOptions() {
+    return _extends({}, super._getDefaultOptions(), {
+      drawerTemplate: undefined,
+      contentTemplate: undefined,
+      onAdaptiveStateChanged: undefined
+    });
+  }
+  _optionChanged(args) {
+    const {
+      name
+    } = args;
+    switch (name) {
+      case 'drawerTemplate':
+      case 'contentTemplate':
+        this.repaint();
+        break;
+      case 'onAdaptiveStateChanged':
+        this._actions[name] = this._createActionByOption(name);
+        break;
+      default:
+        super._optionChanged(args);
+    }
+  }
+  isInAdaptiveState() {
+    return this._isInAdaptiveState;
+  }
+  toggleDrawer(showing, skipAnimation) {
+    var _this$_drawer9, _this$_drawer10, _this$_splitter4;
+    this._updateDrawerMaxSize();
+    (_this$_drawer9 = this._drawer) === null || _this$_drawer9 === void 0 || _this$_drawer9.option('animationEnabled', !skipAnimation);
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    (_this$_drawer10 = this._drawer) === null || _this$_drawer10 === void 0 || _this$_drawer10.toggle(showing);
+    const isSplitterActive = this._isDrawerOpened() && !this.isInAdaptiveState();
+    (_this$_splitter4 = this._splitter) === null || _this$_splitter4 === void 0 || _this$_splitter4.toggleDisabled(!isSplitterActive);
+  }
+  getSplitterElement() {
+    var _this$_splitter5;
+    return (_this$_splitter5 = this._splitter) === null || _this$_splitter5 === void 0 || (_this$_splitter5 = _this$_splitter5.getSplitterBorderElement()) === null || _this$_splitter5 === void 0 ? void 0 : _this$_splitter5.get(0);
+  }
+}
+var _default = exports["default"] = FileManagerAdaptivityControl;
+
+/***/ }),
+
+/***/ 45788:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _widget = _interopRequireDefault(__webpack_require__(89275));
+var _menu = _interopRequireDefault(__webpack_require__(81172));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
+const FILE_MANAGER_BREADCRUMBS_CLASS = 'dx-filemanager-breadcrumbs';
+const FILE_MANAGER_BREADCRUMBS_PARENT_FOLDER_ITEM_CLASS = `${FILE_MANAGER_BREADCRUMBS_CLASS}-parent-folder-item`;
+const FILE_MANAGER_BREADCRUMBS_SEPARATOR_ITEM_CLASS = `${FILE_MANAGER_BREADCRUMBS_CLASS}-separator-item`;
+const FILE_MANAGER_BREADCRUMBS_PATH_SEPARATOR_ITEM_CLASS = `${FILE_MANAGER_BREADCRUMBS_CLASS}-path-separator-item`;
+class FileManagerBreadcrumbs extends _widget.default {
+  _init() {
+    super._init();
+    this._currentDirectory = null;
+  }
+  _initMarkup() {
+    super._initMarkup();
+    this._initActions();
+    if (this._currentDirectory) {
+      this._renderMenu();
+    }
+    this.$element().addClass(FILE_MANAGER_BREADCRUMBS_CLASS);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+  setCurrentDirectory(directory) {
+    if (!this._areDirsEqual(this._currentDirectory, directory)) {
+      this._currentDirectory = directory;
+      this.repaint();
+    }
+  }
+  _renderMenu() {
+    const $menu = (0, _renderer.default)('<div>').appendTo(this.$element());
+    this._menu = this._createComponent($menu, _menu.default, {
+      dataSource: this._getMenuItems(),
+      // @ts-expect-error ts-error
+      onItemClick: this._onItemClick.bind(this),
+      // @ts-expect-error ts-error
+      onItemRendered: this._onItemRendered.bind(this)
+    });
+  }
+  // eslint-disable-next-line @stylistic/max-len
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type,@typescript-eslint/explicit-module-boundary-types
+  _getMenuItems() {
+    const dirLine = this._getParentDirsLine();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = [{
+      icon: 'arrowup',
+      directory: this._currentDirectory.parentDirectory,
+      isPathItem: true,
+      cssClass: FILE_MANAGER_BREADCRUMBS_PARENT_FOLDER_ITEM_CLASS
+    }, {
+      text: ' ',
+      cssClass: FILE_MANAGER_BREADCRUMBS_SEPARATOR_ITEM_CLASS
+    }];
+    dirLine.forEach((dir, index) => {
+      result.push({
+        text: dir.getDisplayName(),
+        directory: dir,
+        isPathItem: true
+      });
+      if (index !== dirLine.length - 1) {
+        result.push({
+          icon: 'spinnext',
+          cssClass: FILE_MANAGER_BREADCRUMBS_PATH_SEPARATOR_ITEM_CLASS
+        });
+      }
+    });
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return result;
+  }
+  _onItemClick(e) {
+    if (!e.itemData.isPathItem) {
+      return;
+    }
+    const newDir = e.itemData.directory;
+    if (!this._areDirsEqual(newDir, this._currentDirectory)) {
+      this._raiseCurrentDirectoryChanged(newDir);
+    }
+  }
+  _onItemRendered(e) {
+    if (e.itemData.cssClass) {
+      (0, _renderer.default)(e.itemElement).addClass(e.itemData.cssClass);
+    }
+  }
+  // eslint-disable-next-line @stylistic/max-len
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type,@typescript-eslint/explicit-module-boundary-types
+  _getParentDirsLine() {
+    let currentDirectory = this._currentDirectory;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = [];
+    while (currentDirectory) {
+      result.unshift(currentDirectory);
+      currentDirectory = currentDirectory.parentDirectory;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return result;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+  _areDirsEqual(dir1, dir2) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return dir1 && dir2 && dir1 === dir2 && dir1.fileItem.key === dir2.fileItem.key;
+  }
+  _initActions() {
+    this._actions = {
+      onCurrentDirectoryChanging: this._createActionByOption('onCurrentDirectoryChanging')
+    };
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+  _raiseCurrentDirectoryChanged(currentDirectory) {
+    var _this$_actions$onCurr, _this$_actions;
+    (_this$_actions$onCurr = (_this$_actions = this._actions).onCurrentDirectoryChanging) === null || _this$_actions$onCurr === void 0 || _this$_actions$onCurr.call(_this$_actions, {
+      currentDirectory
+    });
+  }
+  _getDefaultOptions() {
+    return _extends({}, super._getDefaultOptions(), {
+      rootFolderDisplayName: 'Files',
+      onCurrentDirectoryChanging: undefined
+    });
+  }
+  _optionChanged(args) {
+    const {
+      name
+    } = args;
+    switch (name) {
+      case 'rootFolderDisplayName':
+        this.repaint();
+        break;
+      case 'onCurrentDirectoryChanging':
+        this._actions[name] = this._createActionByOption(name);
+        break;
+      default:
+        super._optionChanged(args);
+    }
+  }
+}
+var _default = exports["default"] = FileManagerBreadcrumbs;
+
+/***/ }),
+
+/***/ 40683:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.defaultPermissions = exports.FileManagerCommandManager = void 0;
+var _message = _interopRequireDefault(__webpack_require__(4671));
+var _extend = __webpack_require__(52576);
+var _iterator = __webpack_require__(21274);
+var _type = __webpack_require__(11528);
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
+const defaultPermissions = exports.defaultPermissions = {
+  create: false,
+  copy: false,
+  move: false,
+  delete: false,
+  rename: false,
+  upload: false,
+  download: false
+};
+class FileManagerCommandManager {
+  constructor(permissions) {
+    this._actions = {};
+    this._permissions = permissions ?? {};
+    this._initCommands();
+  }
+  _initCommands() {
+    var _this$_permissions, _this$_permissions2, _this$_permissions3, _this$_permissions4, _this$_permissions5, _this$_permissions6, _this$_permissions7;
+    this._commands = [{
+      name: 'create',
+      text: _message.default.format('dxFileManager-commandCreate'),
+      icon: 'newfolder',
+      enabled: (_this$_permissions = this._permissions) === null || _this$_permissions === void 0 ? void 0 : _this$_permissions.create,
+      noFileItemRequired: true
+    }, {
+      name: 'rename',
+      text: _message.default.format('dxFileManager-commandRename'),
+      icon: 'rename',
+      enabled: (_this$_permissions2 = this._permissions) === null || _this$_permissions2 === void 0 ? void 0 : _this$_permissions2.rename,
+      isSingleFileItemCommand: true
+    }, {
+      name: 'move',
+      text: _message.default.format('dxFileManager-commandMove'),
+      icon: 'movetofolder',
+      enabled: (_this$_permissions3 = this._permissions) === null || _this$_permissions3 === void 0 ? void 0 : _this$_permissions3.move
+    }, {
+      name: 'copy',
+      text: _message.default.format('dxFileManager-commandCopy'),
+      icon: 'copy',
+      enabled: (_this$_permissions4 = this._permissions) === null || _this$_permissions4 === void 0 ? void 0 : _this$_permissions4.copy
+    }, {
+      name: 'delete',
+      text: _message.default.format('dxFileManager-commandDelete'),
+      icon: 'trash',
+      enabled: (_this$_permissions5 = this._permissions) === null || _this$_permissions5 === void 0 ? void 0 : _this$_permissions5.delete
+    }, {
+      name: 'download',
+      text: _message.default.format('dxFileManager-commandDownload'),
+      icon: 'download',
+      enabled: (_this$_permissions6 = this._permissions) === null || _this$_permissions6 === void 0 ? void 0 : _this$_permissions6.download
+    }, {
+      name: 'upload',
+      text: _message.default.format('dxFileManager-commandUpload'),
+      icon: 'upload',
+      enabled: (_this$_permissions7 = this._permissions) === null || _this$_permissions7 === void 0 ? void 0 : _this$_permissions7.upload,
+      noFileItemRequired: true
+    }, {
+      name: 'refresh',
+      text: _message.default.format('dxFileManager-commandRefresh'),
+      icon: 'dx-filemanager-i dx-filemanager-i-refresh',
+      enabled: true,
+      noFileItemRequired: true
+    }, {
+      name: 'thumbnails',
+      text: _message.default.format('dxFileManager-commandThumbnails'),
+      icon: 'mediumiconslayout',
+      enabled: true,
+      noFileItemRequired: true
+    }, {
+      name: 'details',
+      text: _message.default.format('dxFileManager-commandDetails'),
+      icon: 'detailslayout',
+      enabled: true,
+      noFileItemRequired: true
+    }, {
+      name: 'clearSelection',
+      text: _message.default.format('dxFileManager-commandClearSelection'),
+      icon: 'remove',
+      enabled: true
+    }, {
+      name: 'showNavPane',
+      hint: _message.default.format('dxFileManager-commandShowNavPane'),
+      icon: 'menu',
+      enabled: false,
+      noFileItemRequired: true
+    }];
+    this._commandMap = {};
+    this._commands.forEach(command => {
+      this._commandMap[command.name] = command;
+    });
+  }
+  registerActions(actions) {
+    this._actions = (0, _extend.extend)(this._actions, actions);
+  }
+  // eslint-disable-next-line @stylistic/max-len
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any,@typescript-eslint/explicit-module-boundary-types,consistent-return
+  executeCommand(command, arg) {
+    const commandName = (0, _type.isString)(command) ? command : command.name;
+    const action = this._actions[commandName];
+    if (action) {
+      return action(arg);
+    }
+  }
+  updatePermissions(permissions) {
+    this._permissions = _extends({}, defaultPermissions, permissions);
+    (0, _iterator.each)(this._permissions, permission => {
+      var _this$_permissions8;
+      this._commandMap[permission].enabled = (_this$_permissions8 = this._permissions) === null || _this$_permissions8 === void 0 ? void 0 : _this$_permissions8[permission];
+    });
+  }
+  setCommandEnabled(commandName, enabled) {
+    const command = this.getCommandByName(commandName);
+    if (command) {
+      command.enabled = enabled;
+    }
+  }
+  getCommandByName(name) {
+    return this._commandMap[name];
+  }
+  // eslint-disable-next-line @stylistic/max-len
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any,@typescript-eslint/explicit-module-boundary-types
+  isCommandAvailable(commandName, itemInfos) {
+    const command = this.getCommandByName(commandName);
+    if (!(command !== null && command !== void 0 && command.enabled)) {
+      return false;
+    }
+    if (command.noFileItemRequired) {
+      return true;
+    }
+    const itemsLength = (itemInfos === null || itemInfos === void 0 ? void 0 : itemInfos.length) || 0;
+    if (itemsLength === 0 || itemInfos.some(
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    item => item.fileItem.isRoot() || item.fileItem.isParentFolder)) {
+      return false;
+    }
+    if (commandName === 'download') {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return itemInfos.every(itemInfo => !itemInfo.fileItem.isDirectory);
+    }
+    return !command.isSingleFileItemCommand || itemsLength === 1;
+  }
+}
+exports.FileManagerCommandManager = FileManagerCommandManager;
+
+/***/ }),
+
+/***/ 8324:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _message = _interopRequireDefault(__webpack_require__(4671));
+var _component_registrator = _interopRequireDefault(__webpack_require__(92848));
+var _utils = __webpack_require__(53904);
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _common = __webpack_require__(17781);
+var _comparator = __webpack_require__(60648);
+var _deferred = __webpack_require__(87739);
+var _extend = __webpack_require__(52576);
+var _type = __webpack_require__(11528);
+var _uiFile_manager = __webpack_require__(57011);
+var _uiFile_manager2 = _interopRequireDefault(__webpack_require__(40729));
+var _uiFile_manager3 = _interopRequireDefault(__webpack_require__(9516));
+var _uiFile_manager4 = _interopRequireDefault(__webpack_require__(82724));
+var _uiFile_managerItem_list = _interopRequireDefault(__webpack_require__(17772));
+var _uiFile_managerItem_list2 = _interopRequireDefault(__webpack_require__(65485));
+var _uiFile_manager5 = _interopRequireDefault(__webpack_require__(44313));
+var _widget = _interopRequireDefault(__webpack_require__(89275));
+var _file_items_controller = __webpack_require__(62492);
+var _uiFile_manager6 = _interopRequireDefault(__webpack_require__(12757));
+var _uiFile_manager7 = _interopRequireDefault(__webpack_require__(45788));
+var _uiFile_manager8 = __webpack_require__(40683);
+var _uiFile_manager9 = _interopRequireDefault(__webpack_require__(32293));
+var _notify = _interopRequireDefault(__webpack_require__(36810));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); } /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+const FILE_MANAGER_CLASS = 'dx-filemanager';
+const FILE_MANAGER_WRAPPER_CLASS = `${FILE_MANAGER_CLASS}-wrapper`;
+const FILE_MANAGER_CONTAINER_CLASS = `${FILE_MANAGER_CLASS}-container`;
+const FILE_MANAGER_DIRS_PANEL_CLASS = `${FILE_MANAGER_CLASS}-dirs-panel`;
+const FILE_MANAGER_EDITING_CONTAINER_CLASS = `${FILE_MANAGER_CLASS}-editing-container`;
+const FILE_MANAGER_ITEMS_PANEL_CLASS = `${FILE_MANAGER_CLASS}-items-panel`;
+const FILE_MANAGER_ITEM_CUSTOM_THUMBNAIL_CLASS = `${FILE_MANAGER_CLASS}-item-custom-thumbnail`;
+const PARENT_DIRECTORY_KEY_PREFIX = '[*DXPDK*]$40F96F03-FBD8-43DF-91BE-F55F4B8BA871$';
+const VIEW_AREAS = {
+  folders: 'navPane',
+  items: 'itemView'
+};
+class FileManager extends _widget.default {
+  _initTemplates() {}
+  _init() {
+    super._init();
+    this._initActions();
+    this._providerUpdateDeferred = null;
+    this._lockCurrentPathProcessing = false;
+    this._wasRendered = false;
+    const {
+      currentPath,
+      currentPathKeys,
+      rootFolderName,
+      fileSystemProvider,
+      allowedFileExtensions,
+      upload
+    } = this.option();
+    this._controller = new _file_items_controller.FileItemsController({
+      currentPath,
+      currentPathKeys,
+      rootText: rootFolderName,
+      fileProvider: fileSystemProvider,
+      allowedFileExtensions,
+      uploadMaxFileSize: upload === null || upload === void 0 ? void 0 : upload.maxFileSize,
+      uploadChunkSize: upload === null || upload === void 0 ? void 0 : upload.chunkSize,
+      onInitialized: this._onControllerInitialized.bind(this),
+      onDataLoading: this._onDataLoading.bind(this),
+      onSelectedDirectoryChanged: this._onSelectedDirectoryChanged.bind(this),
+      onPathPotentiallyChanged: this._checkPathActuality.bind(this),
+      editingEvents: this._actions.editing
+    });
+  }
+  _initMarkup() {
+    super._initMarkup();
+    this._firstItemViewLoad = true;
+    this._lockSelectionProcessing = false;
+    this._lockFocusedItemProcessing = false;
+    this._itemKeyToFocus = undefined;
+    this._loadedWidgets = [];
+    const {
+      permissions
+    } = this.option();
+    this._commandManager = new _uiFile_manager8.FileManagerCommandManager(permissions);
+    this.$element().addClass(FILE_MANAGER_CLASS);
+    if (this._wasRendered) {
+      this._prepareToLoad();
+    } else {
+      this._wasRendered = true;
+    }
+    this._createNotificationControl();
+    this._initCommandManager();
+  }
+  _createNotificationControl() {
+    const $notificationControl = (0, _renderer.default)('<div>').addClass('dx-filemanager-notification-container').appendTo(this.$element());
+    const {
+      notifications
+    } = this.option();
+    this._notificationControl = this._createComponent($notificationControl, _uiFile_manager5.default, {
+      progressPanelContainer: this.$element(),
+      // eslint-disable-next-line @stylistic/max-len
+      contentTemplate: (container, notificationControl) => this._createWrapper(container, notificationControl),
+      onActionProgress: e => this._onActionProgress(e),
+      positionTargetSelector: `.${FILE_MANAGER_CONTAINER_CLASS}`,
+      showProgressPanel: notifications === null || notifications === void 0 ? void 0 : notifications.showPanel,
+      showNotificationPopup: notifications === null || notifications === void 0 ? void 0 : notifications.showPopup
+    });
+  }
+  _createWrapper(container, notificationControl) {
+    this._$wrapper = (0, _renderer.default)('<div>').addClass(FILE_MANAGER_WRAPPER_CLASS).appendTo(container);
+    this._createEditing(notificationControl);
+    const {
+      toolbar,
+      itemView
+    } = this.option();
+    const $toolbar = (0, _renderer.default)('<div>').appendTo(this._$wrapper);
+    this._toolbar = this._createComponent($toolbar, _uiFile_manager9.default, {
+      commandManager: this._commandManager,
+      generalItems: toolbar === null || toolbar === void 0 ? void 0 : toolbar.items,
+      fileItems: toolbar === null || toolbar === void 0 ? void 0 : toolbar.fileSelectionItems,
+      itemViewMode: itemView === null || itemView === void 0 ? void 0 : itemView.mode,
+      onItemClick: args => {
+        var _this$_actions$onTool, _this$_actions;
+        return (_this$_actions$onTool = (_this$_actions = this._actions).onToolbarItemClick) === null || _this$_actions$onTool === void 0 ? void 0 : _this$_actions$onTool.call(_this$_actions, args);
+      }
+    });
+    this._createAdaptivityControl();
+  }
+  _createAdaptivityControl() {
+    var _this$_editing;
+    const $container = (0, _renderer.default)('<div>').addClass(FILE_MANAGER_CONTAINER_CLASS).appendTo(this._$wrapper);
+    this._adaptivityControl = this._createComponent($container, _uiFile_manager6.default, {
+      drawerTemplate: container => this._createFilesTreeView(container),
+      contentTemplate: container => this._createItemsPanel(container),
+      onAdaptiveStateChanged: e => this._onAdaptiveStateChanged(e)
+    });
+    (_this$_editing = this._editing) === null || _this$_editing === void 0 || _this$_editing.setUploaderSplitterElement(this._adaptivityControl.getSplitterElement());
+  }
+  _createEditing(notificationControl) {
+    const $editingContainer = (0, _renderer.default)('<div>').addClass(FILE_MANAGER_EDITING_CONTAINER_CLASS).appendTo(this.$element());
+    const {
+      rtlEnabled
+    } = this.option();
+    this._editing = this._createComponent($editingContainer, _uiFile_manager3.default, {
+      controller: this._controller,
+      model: {
+        getMultipleSelectedItems: this._getSelectedItemInfos.bind(this)
+      },
+      getItemThumbnail: this._getItemThumbnailInfo.bind(this),
+      notificationControl,
+      uploadDropZonePlaceholderContainer: this.$element(),
+      rtlEnabled,
+      onSuccess: _ref => {
+        let {
+          updatedOnlyFiles
+        } = _ref;
+        return this._redrawComponent(updatedOnlyFiles);
+      },
+      onError: e => this._onEditingError(e)
+    });
+  }
+  _createItemsPanel($container) {
+    this._$itemsPanel = (0, _renderer.default)('<div>').addClass(FILE_MANAGER_ITEMS_PANEL_CLASS).appendTo($container);
+    this._createBreadcrumbs(this._$itemsPanel);
+    this._createItemView(this._$itemsPanel);
+    this._updateUploadDropZone();
+  }
+  _updateUploadDropZone() {
+    var _this$_commandManager, _this$_editing2;
+    const dropZone = (_this$_commandManager = this._commandManager) !== null && _this$_commandManager !== void 0 && _this$_commandManager.isCommandAvailable('upload') ? this._$itemsPanel : (0, _renderer.default)();
+    (_this$_editing2 = this._editing) === null || _this$_editing2 === void 0 || _this$_editing2.setUploaderDropZone(dropZone);
+  }
+  _createFilesTreeView(container) {
+    this._filesTreeViewContextMenu = this._createContextMenu(false, VIEW_AREAS.folders);
+    const $filesTreeView = (0, _renderer.default)('<div>').addClass(FILE_MANAGER_DIRS_PANEL_CLASS).appendTo(container);
+    this._filesTreeView = this._createComponent($filesTreeView, _uiFile_manager4.default, {
+      storeExpandedState: true,
+      contextMenu: this._filesTreeViewContextMenu,
+      getDirectories: this.getDirectories.bind(this),
+      getCurrentDirectory: this._getCurrentDirectory.bind(this),
+      onDirectoryClick: _ref2 => {
+        let {
+          itemData
+        } = _ref2;
+        return this._setCurrentDirectory(itemData);
+      },
+      onItemListDataLoaded: () => this._tryEndLoading(VIEW_AREAS.folders)
+    });
+    this._filesTreeView.updateCurrentDirectory();
+  }
+  _createItemView($container, viewMode) {
+    var _itemView$details;
+    this._itemViewContextMenu = this._createContextMenu(true, VIEW_AREAS.items);
+    const {
+      itemView,
+      selectionMode,
+      selectedItemKeys,
+      focusedItemKey,
+      customizeDetailColumns
+    } = this.option();
+    const options = {
+      selectionMode,
+      selectedItemKeys,
+      focusedItemKey,
+      contextMenu: this._itemViewContextMenu,
+      getItems: this._getItemViewItems.bind(this),
+      onError: _ref3 => {
+        let {
+          error
+        } = _ref3;
+        return this._showError(error);
+      },
+      onSelectionChanged: this._onItemViewSelectionChanged.bind(this),
+      onFocusedItemChanged: this._onItemViewFocusedItemChanged.bind(this),
+      onSelectedItemOpened: this._onSelectedItemOpened.bind(this),
+      onContextMenuShowing: e => this._onContextMenuShowing(VIEW_AREAS.items, e),
+      onItemListItemsLoaded: () => this._tryEndLoading(VIEW_AREAS.items),
+      getItemThumbnail: this._getItemThumbnailInfo.bind(this),
+      customizeDetailColumns,
+      detailColumns: itemView === null || itemView === void 0 || (_itemView$details = itemView.details) === null || _itemView$details === void 0 ? void 0 : _itemView$details.columns
+    };
+    const $itemView = (0, _renderer.default)('<div>').appendTo($container);
+    // eslint-disable-next-line no-param-reassign
+    viewMode = viewMode || (itemView === null || itemView === void 0 ? void 0 : itemView.mode);
+    const widgetClass = viewMode === 'thumbnails' ? _uiFile_managerItem_list2.default : _uiFile_managerItem_list.default;
+    // @ts-expect-error ts-error
+    this._itemView = this._createComponent($itemView, widgetClass, options);
+  }
+  _createBreadcrumbs($container) {
+    const $breadcrumbs = (0, _renderer.default)('<div>').appendTo($container);
+    const {
+      rootFolderName
+    } = this.option();
+    this._breadcrumbs = this._createComponent($breadcrumbs, _uiFile_manager7.default, {
+      rootFolderDisplayName: rootFolderName,
+      // eslint-disable-next-line @stylistic/max-len
+      onCurrentDirectoryChanging: _ref4 => {
+        let {
+          currentDirectory
+        } = _ref4;
+        return this._setCurrentDirectory(currentDirectory, true);
+      }
+    });
+    this._breadcrumbs.setCurrentDirectory(this._getCurrentDirectory());
+  }
+  _createContextMenu(isolateCreationItemCommands, viewArea) {
+    const $contextMenu = (0, _renderer.default)('<div>').appendTo(this._$wrapper);
+    const {
+      contextMenu
+    } = this.option();
+    return this._createComponent($contextMenu, _uiFile_manager2.default, {
+      commandManager: this._commandManager,
+      items: contextMenu === null || contextMenu === void 0 ? void 0 : contextMenu.items,
+      onItemClick: args => {
+        var _this$_actions$onCont, _this$_actions2;
+        return (_this$_actions$onCont = (_this$_actions2 = this._actions).onContextMenuItemClick) === null || _this$_actions$onCont === void 0 ? void 0 : _this$_actions$onCont.call(_this$_actions2, args);
+      },
+      onContextMenuShowing: e => this._onContextMenuShowing(viewArea, e),
+      isolateCreationItemCommands,
+      viewArea
+    });
+  }
+  _initCommandManager() {
+    var _this$_editing3, _this$_commandManager2;
+    const actions = (0, _extend.extend)((_this$_editing3 = this._editing) === null || _this$_editing3 === void 0 ? void 0 : _this$_editing3.getCommandActions(), {
+      refresh: () => this._refreshAndShowProgress(),
+      thumbnails: () => this.option('itemView.mode', 'thumbnails'),
+      details: () => this.option('itemView.mode', 'details'),
+      clearSelection: () => this._clearSelection(),
+      showNavPane: () => {
+        var _this$_adaptivityCont;
+        return (_this$_adaptivityCont = this._adaptivityControl) === null || _this$_adaptivityCont === void 0 ? void 0 : _this$_adaptivityCont.toggleDrawer();
+      }
+    });
+    (_this$_commandManager2 = this._commandManager) === null || _this$_commandManager2 === void 0 || _this$_commandManager2.registerActions(actions);
+  }
+  _onItemViewSelectionChanged(_ref5) {
+    var _this$_actions$onSele, _this$_actions3;
+    let {
+      selectedItemInfos,
+      selectedItems,
+      selectedItemKeys,
+      currentSelectedItemKeys,
+      currentDeselectedItemKeys
+    } = _ref5;
+    this._lockSelectionProcessing = true;
+    this.option('selectedItemKeys', selectedItemKeys);
+    this._lockSelectionProcessing = false;
+    (_this$_actions$onSele = (_this$_actions3 = this._actions).onSelectionChanged) === null || _this$_actions$onSele === void 0 || _this$_actions$onSele.call(_this$_actions3, {
+      selectedItems,
+      selectedItemKeys,
+      currentSelectedItemKeys,
+      currentDeselectedItemKeys
+    });
+    this._updateToolbar(selectedItemInfos);
+  }
+  _onItemViewFocusedItemChanged(e) {
+    var _this$_actions$onFocu, _this$_actions4;
+    this._lockFocusedItemProcessing = true;
+    this.option('focusedItemKey', e.itemKey);
+    this._lockFocusedItemProcessing = false;
+    (_this$_actions$onFocu = (_this$_actions4 = this._actions).onFocusedItemChanged) === null || _this$_actions$onFocu === void 0 || _this$_actions$onFocu.call(_this$_actions4, {
+      item: e.item,
+      itemElement: e.itemElement
+    });
+  }
+  _onAdaptiveStateChanged(_ref6) {
+    var _this$_commandManager3;
+    let {
+      enabled
+    } = _ref6;
+    (_this$_commandManager3 = this._commandManager) === null || _this$_commandManager3 === void 0 || _this$_commandManager3.setCommandEnabled('showNavPane', enabled);
+    this._updateToolbar();
+  }
+  _onActionProgress(_ref7) {
+    var _this$_toolbar;
+    let {
+      message,
+      status
+    } = _ref7;
+    (_this$_toolbar = this._toolbar) === null || _this$_toolbar === void 0 || _this$_toolbar.updateRefreshItem(message, status);
+    this._updateToolbar();
+  }
+  _onEditingError(e) {
+    var _this$_actions$onErro, _this$_actions5;
+    const args = (0, _uiFile_manager.extendAttributes)({}, e, ['errorCode', 'errorText', 'fileSystemItem']);
+    (_this$_actions$onErro = (_this$_actions5 = this._actions).onErrorOccurred) === null || _this$_actions$onErro === void 0 || _this$_actions$onErro.call(_this$_actions5, args);
+    e.errorText = args.errorText;
+  }
+  _refreshAndShowProgress() {
+    var _this$_notificationCo, _this$_controller;
+    this._prepareToLoad();
+    return (0, _deferred.when)((_this$_notificationCo = this._notificationControl) === null || _this$_notificationCo === void 0 ? void 0 : _this$_notificationCo.tryShowProgressPanel(), (_this$_controller = this._controller) === null || _this$_controller === void 0 ? void 0 : _this$_controller.refresh()).then(() => {
+      var _this$_filesTreeView;
+      return (_this$_filesTreeView = this._filesTreeView) === null || _this$_filesTreeView === void 0 ? void 0 : _this$_filesTreeView.refresh();
+    });
+  }
+  _isAllWidgetsLoaded() {
+    var _this$_loadedWidgets, _this$_loadedWidgets2, _this$_loadedWidgets3;
+    return ((_this$_loadedWidgets = this._loadedWidgets) === null || _this$_loadedWidgets === void 0 ? void 0 : _this$_loadedWidgets.length) === 2 && ((_this$_loadedWidgets2 = this._loadedWidgets) === null || _this$_loadedWidgets2 === void 0 ? void 0 : _this$_loadedWidgets2.includes(VIEW_AREAS.folders)) && ((_this$_loadedWidgets3 = this._loadedWidgets) === null || _this$_loadedWidgets3 === void 0 ? void 0 : _this$_loadedWidgets3.includes(VIEW_AREAS.items));
+  }
+  _tryEndLoading(area) {
+    var _this$_loadedWidgets4;
+    (_this$_loadedWidgets4 = this._loadedWidgets) === null || _this$_loadedWidgets4 === void 0 || _this$_loadedWidgets4.push(area);
+    if (this._isAllWidgetsLoaded()) {
+      var _this$_controller2;
+      (_this$_controller2 = this._controller) === null || _this$_controller2 === void 0 || _this$_controller2.endSingleLoad();
+    }
+  }
+  _prepareToLoad() {
+    var _this$_controller3;
+    this._loadedWidgets = [];
+    (_this$_controller3 = this._controller) === null || _this$_controller3 === void 0 || _this$_controller3.startSingleLoad();
+  }
+  _updateToolbar(selectedItems) {
+    var _this$_toolbar2;
+    const items = selectedItems || this._getSelectedItemInfos();
+    (_this$_toolbar2 = this._toolbar) === null || _this$_toolbar2 === void 0 || _this$_toolbar2.option('contextItems', (0, _common.ensureDefined)(items, []));
+  }
+  _switchView(viewMode) {
+    var _this$_itemView, _this$_toolbar3;
+    this._disposeWidget((_this$_itemView = this._itemView) === null || _this$_itemView === void 0 ? void 0 : _this$_itemView.option('contextMenu'));
+    this._disposeWidget(this._itemView);
+    this._createItemView(this._$itemsPanel, viewMode);
+    (_this$_toolbar3 = this._toolbar) === null || _this$_toolbar3 === void 0 || _this$_toolbar3.option({
+      itemViewMode: viewMode
+    });
+  }
+  _disposeWidget(widget) {
+    widget.dispose();
+    widget.$element().remove();
+  }
+  _clearSelection() {
+    var _this$_itemView2;
+    (_this$_itemView2 = this._itemView) === null || _this$_itemView2 === void 0 || _this$_itemView2.clearSelection();
+  }
+  _showError(message) {
+    this._showNotification(message, false);
+  }
+  _showNotification(message, isSuccess) {
+    (0, _notify.default)({
+      message,
+      width: 450
+    }, isSuccess ? 'success' : 'error', 5000);
+  }
+  _redrawComponent(onlyFileItemsView) {
+    var _this$_itemView3;
+    (_this$_itemView3 = this._itemView) === null || _this$_itemView3 === void 0 || _this$_itemView3.refresh().then(() => {
+      var _this$_filesTreeView2;
+      return !onlyFileItemsView && ((_this$_filesTreeView2 = this._filesTreeView) === null || _this$_filesTreeView2 === void 0 ? void 0 : _this$_filesTreeView2.refresh());
+    });
+  }
+  _getItemViewItems() {
+    var _this$_controller4;
+    const {
+      itemView
+    } = this.option();
+    let result = (_this$_controller4 = this._controller) === null || _this$_controller4 === void 0 ? void 0 : _this$_controller4.getCurrentItems(!(itemView !== null && itemView !== void 0 && itemView.showFolders));
+    this._updateToolbarWithSelectionOnFirstLoad(result);
+    if (itemView !== null && itemView !== void 0 && itemView.showParentFolder) {
+      result = (0, _deferred.when)(result)
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      .then(items => this._getPreparedItemViewItems(items));
+    }
+    // @ts-expect-error ts-error
+    return result;
+  }
+  _updateToolbarWithSelectionOnFirstLoad(itemsResult) {
+    if (!this._firstItemViewLoad) {
+      return;
+    }
+    this._firstItemViewLoad = false;
+    const {
+      selectedItemKeys
+    } = this.option();
+    if (selectedItemKeys !== null && selectedItemKeys !== void 0 && selectedItemKeys.length && selectedItemKeys.length > 0) {
+      (0, _deferred.when)(itemsResult).done(items => {
+        const selectedItems = (0, _uiFile_manager.findItemsByKeys)(items, selectedItemKeys);
+        if (selectedItems.length > 0) {
+          this._updateToolbar(selectedItems);
+        }
+      });
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getPreparedItemViewItems(items) {
+    const selectedDir = this._getCurrentDirectory();
+    if (selectedDir.fileItem.isRoot()) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return items;
+    }
+    const parentDirItem = selectedDir.fileItem.createClone();
+    parentDirItem.isParentFolder = true;
+    parentDirItem.name = '..';
+    parentDirItem.relativeName = '..';
+    parentDirItem.key = `${PARENT_DIRECTORY_KEY_PREFIX}${selectedDir.fileItem.key}`;
+    const itemsCopy = [...items];
+    itemsCopy.unshift({
+      fileItem: parentDirItem,
+      icon: 'parentfolder'
+    });
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return itemsCopy;
+  }
+  _onContextMenuShowing(viewArea, e) {
+    var _e$itemData, _this$_actions$onCont2, _this$_actions6;
+    let eventArgs = (0, _uiFile_manager.extendAttributes)({}, e, ['targetElement', 'cancel', 'event']);
+    eventArgs = (0, _extend.extend)(eventArgs, {
+      viewArea,
+      fileSystemItem: (_e$itemData = e.itemData) === null || _e$itemData === void 0 ? void 0 : _e$itemData.fileItem,
+      _isActionButton: e.isActionButton
+    });
+    (_this$_actions$onCont2 = (_this$_actions6 = this._actions).onContextMenuShowing) === null || _this$_actions$onCont2 === void 0 || _this$_actions$onCont2.call(_this$_actions6, eventArgs);
+    e.cancel = (0, _common.ensureDefined)(eventArgs.cancel, false);
+  }
+  _getItemThumbnailInfo(fileInfo) {
+    const {
+      customizeThumbnail
+    } = this.option();
+    const thumbnail = (0, _type.isFunction)(customizeThumbnail) ? customizeThumbnail(fileInfo.fileItem) : fileInfo.fileItem.thumbnail;
+    if (thumbnail) {
+      return {
+        thumbnail,
+        cssClass: FILE_MANAGER_ITEM_CUSTOM_THUMBNAIL_CLASS
+      };
+    }
+    return {
+      thumbnail: fileInfo.icon
+    };
+  }
+  _getDefaultOptions() {
+    return _extends({}, super._getDefaultOptions(), {
+      fileSystemProvider: null,
+      currentPath: '',
+      currentPathKeys: [],
+      rootFolderName: _message.default.format('dxFileManager-rootDirectoryName'),
+      selectionMode: 'multiple',
+      selectedItemKeys: [],
+      focusedItemKey: undefined,
+      toolbar: {
+        items: ['showNavPane', 'create', 'upload', 'switchView', {
+          name: 'separator',
+          location: 'after'
+        }, 'refresh'],
+        fileSelectionItems: ['download', 'separator', 'move', 'copy', 'rename', 'separator', 'delete', 'clearSelection', {
+          name: 'separator',
+          location: 'after'
+        }, 'refresh']
+      },
+      contextMenu: {
+        items: ['create', 'upload', 'rename', 'move', 'copy', 'delete', 'refresh', 'download']
+      },
+      itemView: {
+        details: {
+          columns: ['thumbnail', 'name', 'dateModified', 'size']
+        },
+        mode: 'details',
+        showFolders: true,
+        showParentFolder: true
+      },
+      customizeThumbnail: undefined,
+      customizeDetailColumns: undefined,
+      onContextMenuItemClick: undefined,
+      onContextMenuShowing: undefined,
+      onCurrentDirectoryChanged: undefined,
+      onSelectedFileOpened: undefined,
+      onSelectionChanged: undefined,
+      onFocusedItemChanged: undefined,
+      onToolbarItemClick: undefined,
+      onErrorOccurred: undefined,
+      onDirectoryCreating: undefined,
+      onDirectoryCreated: undefined,
+      onItemRenaming: undefined,
+      onItemRenamed: undefined,
+      onItemDeleting: undefined,
+      onItemDeleted: undefined,
+      onItemCopying: undefined,
+      onItemCopied: undefined,
+      onItemMoving: undefined,
+      onItemMoved: undefined,
+      onFileUploading: undefined,
+      onFileUploaded: undefined,
+      onItemDownloading: undefined,
+      allowedFileExtensions: [],
+      upload: {
+        maxFileSize: 0,
+        chunkSize: 200000
+      },
+      permissions: (0, _extend.extend)({}, _uiFile_manager8.defaultPermissions),
+      notifications: {
+        showPanel: true,
+        showPopup: true
+      }
+    });
+  }
+  option(options, value) {
+    const optionsToCheck = (0, _utils.normalizeOptions)(options, value);
+    const isGetter = arguments.length < 2 && (0, _type.type)(options) !== 'object';
+    const isOptionDefined = name => (0, _type.isDefined)(optionsToCheck[name]);
+    const isOptionValueDiffers = name => {
+      if (!isOptionDefined(name)) {
+        return false;
+      }
+      const previousValue = this.option(name);
+      // eslint-disable-next-line @typescript-eslint/no-shadow
+      const value = optionsToCheck[name];
+      return !(0, _comparator.equals)(previousValue, value);
+    };
+    if (!isGetter && isOptionDefined('fileSystemProvider')) {
+      // @ts-expect-error ts-error
+      this._providerUpdateDeferred = new _deferred.Deferred();
+      if (isOptionValueDiffers('currentPath') || isOptionValueDiffers('currentPathKeys')) {
+        this._lockCurrentPathProcessing = true;
+      }
+    }
+    // eslint-disable-next-line prefer-rest-params
+    return super.option(...arguments);
+  }
+  _optionChanged(args) {
+    var _this$_controller7, _this$_controller9, _this$_notificationCo2, _this$_notificationCo3, _this$_editing4;
+    const {
+      name,
+      fullName,
+      value
+    } = args;
+    switch (name) {
+      case 'currentPath':
+        {
+          // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+          const updateFunc = () => {
+            var _this$_controller5;
+            this._lockCurrentPathProcessing = false;
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+            return (_this$_controller5 = this._controller) === null || _this$_controller5 === void 0 ? void 0 : _this$_controller5.setCurrentPath(value);
+          };
+          this._lockCurrentPathProcessing = true;
+          if (this._providerUpdateDeferred) {
+            this._providerUpdateDeferred.then(updateFunc);
+          } else {
+            updateFunc();
+          }
+          break;
+        }
+      case 'currentPathKeys':
+        {
+          // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+          const updateFunc = () => {
+            var _this$_controller6;
+            this._lockCurrentPathProcessing = false;
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+            return (_this$_controller6 = this._controller) === null || _this$_controller6 === void 0 ? void 0 : _this$_controller6.setCurrentPathByKeys(value);
+          };
+          this._lockCurrentPathProcessing = true;
+          if (this._providerUpdateDeferred) {
+            this._providerUpdateDeferred.then(updateFunc);
+          } else {
+            updateFunc();
+          }
+          break;
+        }
+      case 'selectedItemKeys':
+        if (!this._lockSelectionProcessing && this._itemView) {
+          this._itemView.option('selectedItemKeys', value);
+        }
+        break;
+      case 'focusedItemKey':
+        if (!this._lockFocusedItemProcessing && this._itemView) {
+          this._itemView.option('focusedItemKey', value);
+        }
+        break;
+      case 'rootFolderName':
+        (_this$_controller7 = this._controller) === null || _this$_controller7 === void 0 || _this$_controller7.setRootText(value);
+        this._invalidate();
+        break;
+      case 'fileSystemProvider':
+        {
+          var _this$_controller8;
+          if (!this._lockCurrentPathProcessing) {
+            // @ts-expect-error ts-error
+            this._providerUpdateDeferred = new _deferred.Deferred();
+          }
+          const {
+            currentPathKeys
+          } = this.option();
+          const pathKeys = this._lockCurrentPathProcessing ? undefined : currentPathKeys;
+          (_this$_controller8 = this._controller) === null || _this$_controller8 === void 0 || _this$_controller8.updateProvider(value, pathKeys)
+          // eslint-disable-next-line @stylistic/max-len,@typescript-eslint/no-misused-promises
+          .then(() => {
+            var _this$_providerUpdate;
+            return (_this$_providerUpdate = this._providerUpdateDeferred) === null || _this$_providerUpdate === void 0 ? void 0 : _this$_providerUpdate.resolve();
+          }).always(() => {
+            this._providerUpdateDeferred = null;
+            this.repaint();
+          });
+          break;
+        }
+      case 'allowedFileExtensions':
+        (_this$_controller9 = this._controller) === null || _this$_controller9 === void 0 || _this$_controller9.setAllowedFileExtensions(value);
+        this._invalidate();
+        break;
+      case 'upload':
+        {
+          var _this$_controller10;
+          const {
+            upload
+          } = this.option();
+          // @ts-expect-error ts-error
+          (_this$_controller10 = this._controller) === null || _this$_controller10 === void 0 || _this$_controller10.setUploadOptions(upload);
+          this._invalidate();
+          break;
+        }
+      case 'permissions':
+        {
+          var _this$_commandManager4, _this$_filesTreeViewC, _this$_itemViewContex, _this$_toolbar4;
+          const {
+            permissions
+          } = this.option();
+          (_this$_commandManager4 = this._commandManager) === null || _this$_commandManager4 === void 0 || _this$_commandManager4.updatePermissions(permissions);
+          (_this$_filesTreeViewC = this._filesTreeViewContextMenu) === null || _this$_filesTreeViewC === void 0 || _this$_filesTreeViewC.tryUpdateVisibleContextMenu();
+          (_this$_itemViewContex = this._itemViewContextMenu) === null || _this$_itemViewContex === void 0 || _this$_itemViewContex.tryUpdateVisibleContextMenu();
+          (_this$_toolbar4 = this._toolbar) === null || _this$_toolbar4 === void 0 || _this$_toolbar4.updateItemPermissions();
+          this._updateUploadDropZone();
+          break;
+        }
+      case 'selectionMode':
+      case 'customizeThumbnail':
+      case 'customizeDetailColumns':
+        this._invalidate();
+        break;
+      case 'itemView':
+        if (fullName === 'itemView.mode') {
+          this._switchView(value);
+        } else {
+          this._invalidate();
+        }
+        break;
+      case 'toolbar':
+        {
+          var _this$_toolbar5;
+          const toolbarOptions = {};
+          if (fullName === 'toolbar') {
+            if (value !== null && value !== void 0 && value.items) {
+              toolbarOptions.generalItems = value === null || value === void 0 ? void 0 : value.items;
+            }
+            if (value !== null && value !== void 0 && value.fileSelectionItems) {
+              toolbarOptions.fileItems = value === null || value === void 0 ? void 0 : value.fileSelectionItems;
+            }
+          }
+          const {
+            toolbar
+          } = this.option();
+          if (fullName.startsWith('toolbar.items')) {
+            toolbarOptions.generalItems = toolbar === null || toolbar === void 0 ? void 0 : toolbar.items;
+          }
+          if (fullName.startsWith('toolbar.fileSelectionItems')) {
+            toolbarOptions.fileItems = toolbar === null || toolbar === void 0 ? void 0 : toolbar.fileSelectionItems;
+          }
+          (_this$_toolbar5 = this._toolbar) === null || _this$_toolbar5 === void 0 || _this$_toolbar5.option(toolbarOptions);
+          break;
+        }
+      case 'contextMenu':
+        // eslint-disable-next-line @stylistic/no-mixed-operators
+        if (fullName === 'contextMenu' && value !== null && value !== void 0 && value.items || fullName.startsWith('contextMenu.items')) {
+          var _this$_filesTreeViewC2, _this$_itemViewContex2;
+          const {
+            contextMenu
+          } = this.option();
+          (_this$_filesTreeViewC2 = this._filesTreeViewContextMenu) === null || _this$_filesTreeViewC2 === void 0 || _this$_filesTreeViewC2.option('items', contextMenu === null || contextMenu === void 0 ? void 0 : contextMenu.items);
+          (_this$_itemViewContex2 = this._itemViewContextMenu) === null || _this$_itemViewContex2 === void 0 || _this$_itemViewContex2.option('items', contextMenu === null || contextMenu === void 0 ? void 0 : contextMenu.items);
+        }
+        break;
+      case 'notifications':
+        (_this$_notificationCo2 = this._notificationControl) === null || _this$_notificationCo2 === void 0 || _this$_notificationCo2.option('showProgressPanel', this.option('notifications.showPanel'));
+        (_this$_notificationCo3 = this._notificationControl) === null || _this$_notificationCo3 === void 0 || _this$_notificationCo3.option('showNotificationPopup', this.option('notifications.showPopup'));
+        break;
+      case 'onContextMenuItemClick':
+      case 'onContextMenuShowing':
+      case 'onCurrentDirectoryChanged':
+      case 'onSelectedFileOpened':
+      case 'onSelectionChanged':
+      case 'onFocusedItemChanged':
+      case 'onToolbarItemClick':
+      case 'onErrorOccurred':
+        this._actions[name] = this._createActionByOption(name);
+        break;
+      case 'onDirectoryCreating':
+      case 'onDirectoryCreated':
+      case 'onItemRenaming':
+      case 'onItemRenamed':
+      case 'onItemDeleting':
+      case 'onItemDeleted':
+      case 'onItemCopying':
+      case 'onItemCopied':
+      case 'onItemMoving':
+      case 'onItemMoved':
+      case 'onFileUploading':
+      case 'onFileUploaded':
+      case 'onItemDownloading':
+        this._actions.editing[name] = this._createActionByOption(name);
+        break;
+      case 'rtlEnabled':
+        (_this$_editing4 = this._editing) === null || _this$_editing4 === void 0 || _this$_editing4.updateDialogRtl(value);
+        super._optionChanged(args);
+        break;
+      default:
+        super._optionChanged(args);
+    }
+  }
+  _initActions() {
+    this._actions = {
+      onContextMenuItemClick: this._createActionByOption('onContextMenuItemClick'),
+      onContextMenuShowing: this._createActionByOption('onContextMenuShowing'),
+      onCurrentDirectoryChanged: this._createActionByOption('onCurrentDirectoryChanged'),
+      onSelectedFileOpened: this._createActionByOption('onSelectedFileOpened'),
+      onSelectionChanged: this._createActionByOption('onSelectionChanged'),
+      onFocusedItemChanged: this._createActionByOption('onFocusedItemChanged'),
+      onToolbarItemClick: this._createActionByOption('onToolbarItemClick'),
+      onErrorOccurred: this._createActionByOption('onErrorOccurred'),
+      editing: {
+        onDirectoryCreating: this._createActionByOption('onDirectoryCreating'),
+        onDirectoryCreated: this._createActionByOption('onDirectoryCreated'),
+        onItemRenaming: this._createActionByOption('onItemRenaming'),
+        onItemRenamed: this._createActionByOption('onItemRenamed'),
+        onItemDeleting: this._createActionByOption('onItemDeleting'),
+        onItemDeleted: this._createActionByOption('onItemDeleted'),
+        onItemCopying: this._createActionByOption('onItemCopying'),
+        onItemCopied: this._createActionByOption('onItemCopied'),
+        onItemMoving: this._createActionByOption('onItemMoving'),
+        onItemMoved: this._createActionByOption('onItemMoved'),
+        onFileUploading: this._createActionByOption('onFileUploading'),
+        onFileUploaded: this._createActionByOption('onFileUploaded'),
+        onItemDownloading: this._createActionByOption('onItemDownloading')
+      }
+    };
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  executeCommand(commandName) {
+    var _this$_commandManager5;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return (_this$_commandManager5 = this._commandManager) === null || _this$_commandManager5 === void 0 ? void 0 : _this$_commandManager5.executeCommand(commandName);
+  }
+  _setCurrentDirectory(directoryInfo, checkActuality) {
+    var _this$_controller11;
+    (_this$_controller11 = this._controller) === null || _this$_controller11 === void 0 || _this$_controller11.setCurrentDirectory(directoryInfo, checkActuality);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getCurrentDirectory() {
+    var _this$_controller12;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return (_this$_controller12 = this._controller) === null || _this$_controller12 === void 0 ? void 0 : _this$_controller12.getCurrentDirectory();
+  }
+  _onControllerInitialized(_ref8) {
+    let {
+      controller
+    } = _ref8;
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    this._controller = this._controller || controller;
+    this._syncToCurrentDirectory();
+  }
+  _onDataLoading(_ref9) {
+    var _this$_itemView4;
+    let {
+      operation
+    } = _ref9;
+    let options = null;
+    const {
+      selectedItemKeys
+    } = this.option();
+    if (operation === _file_items_controller.OPERATIONS.NAVIGATION) {
+      options = {
+        focusedItemKey: this._itemKeyToFocus,
+        selectedItemKeys
+      };
+      this._itemKeyToFocus = undefined;
+    }
+    (_this$_itemView4 = this._itemView) === null || _this$_itemView4 === void 0 || _this$_itemView4.refresh(options, operation);
+  }
+  _onSelectedDirectoryChanged() {
+    var _this$_actions$onCurr, _this$_actions7;
+    const currentDirectory = this._getCurrentDirectory();
+    this._syncToCurrentDirectory();
+    (_this$_actions$onCurr = (_this$_actions7 = this._actions).onCurrentDirectoryChanged) === null || _this$_actions$onCurr === void 0 || _this$_actions$onCurr.call(_this$_actions7, {
+      directory: currentDirectory.fileItem
+    });
+  }
+  _syncToCurrentDirectory() {
+    const currentDirectory = this._getCurrentDirectory();
+    if (this._filesTreeView) {
+      this._filesTreeView.updateCurrentDirectory();
+    }
+    if (this._breadcrumbs) {
+      this._breadcrumbs.setCurrentDirectory(currentDirectory);
+    }
+    this._checkPathActuality();
+  }
+  _checkPathActuality() {
+    var _this$_controller13, _this$_controller14;
+    if (this._lockCurrentPathProcessing) {
+      return;
+    }
+    const currentPath = (_this$_controller13 = this._controller) === null || _this$_controller13 === void 0 ? void 0 : _this$_controller13.getCurrentPath();
+    const currentPathKeys = (_this$_controller14 = this._controller) === null || _this$_controller14 === void 0 ? void 0 : _this$_controller14.getCurrentPathKeys();
+    const options = {};
+    const {
+      currentPath: currentPathOption,
+      currentPathKeys: currentPathKeysOption
+    } = this.option();
+    if (currentPathOption !== currentPath) {
+      options.currentPath = currentPath;
+    }
+    if (!(0, _common.equalByValue)(currentPathKeysOption, currentPathKeys)) {
+      options.currentPathKeys = currentPathKeys;
+    }
+    if (!(0, _type.isEmptyObject)(options)) {
+      this.option(options);
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getDirectories(parentDirectoryInfo, skipNavigationOnError) {
+    var _this$_controller15;
+    return (_this$_controller15 = this._controller) === null || _this$_controller15 === void 0 ? void 0 : _this$_controller15.getDirectories(parentDirectoryInfo, skipNavigationOnError);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getSelectedItemInfos() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._itemView ? this._itemView.getSelectedItems() : [];
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  refresh() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this.executeCommand('refresh');
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getCurrentDirectory() {
+    const directoryInfo = this._getCurrentDirectory();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return (directoryInfo === null || directoryInfo === void 0 ? void 0 : directoryInfo.fileItem) || null;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getSelectedItems() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._getSelectedItemInfos().map(itemInfo => itemInfo.fileItem);
+  }
+  _onSelectedItemOpened(_ref10) {
+    let {
+      fileItemInfo
+    } = _ref10;
+    const {
+      fileItem
+    } = fileItemInfo;
+    if (!fileItem.isDirectory) {
+      var _this$_actions$onSele2, _this$_actions8;
+      (_this$_actions$onSele2 = (_this$_actions8 = this._actions).onSelectedFileOpened) === null || _this$_actions$onSele2 === void 0 || _this$_actions$onSele2.call(_this$_actions8, {
+        file: fileItem
+      });
+      return;
+    }
+    if (fileItem.isParentFolder) {
+      this._itemKeyToFocus = this._getCurrentDirectory().fileItem.key;
+    }
+    const newCurrentDirectory = fileItem.isParentFolder ? this._getCurrentDirectory().parentDirectory : fileItemInfo;
+    this._setCurrentDirectory(newCurrentDirectory);
+    if (newCurrentDirectory) {
+      var _this$_filesTreeView3;
+      (_this$_filesTreeView3 = this._filesTreeView) === null || _this$_filesTreeView3 === void 0 || _this$_filesTreeView3.toggleDirectoryExpandedState(newCurrentDirectory.parentDirectory, true);
+    }
+  }
+}
+(0, _component_registrator.default)('dxFileManager', FileManager);
+var _default = exports["default"] = FileManager;
+
+/***/ }),
+
+/***/ 32293:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+__webpack_require__(56582);
+var _message = _interopRequireDefault(__webpack_require__(4671));
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _common = __webpack_require__(17781);
+var _extend = __webpack_require__(52576);
+var _size = __webpack_require__(57653);
+var _type = __webpack_require__(11528);
+var _uiFile_manager = __webpack_require__(57011);
+var _themes = __webpack_require__(52071);
+var _toolbar = _interopRequireDefault(__webpack_require__(2850));
+var _widget = _interopRequireDefault(__webpack_require__(89275));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); } /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+const FILE_MANAGER_TOOLBAR_CLASS = 'dx-filemanager-toolbar';
+const FILE_MANAGER_GENERAL_TOOLBAR_CLASS = 'dx-filemanager-general-toolbar';
+const FILE_MANAGER_FILE_TOOLBAR_CLASS = 'dx-filemanager-file-toolbar';
+const FILE_MANAGER_TOOLBAR_SEPARATOR_ITEM_CLASS = `${FILE_MANAGER_TOOLBAR_CLASS}-separator-item`;
+const FILE_MANAGER_TOOLBAR_VIEWMODE_ITEM_CLASS = `${FILE_MANAGER_TOOLBAR_CLASS}-viewmode-item`;
+const FILE_MANAGER_TOOLBAR_HAS_LARGE_ICON_CLASS = `${FILE_MANAGER_TOOLBAR_CLASS}-has-large-icon`;
+const FILE_MANAGER_VIEW_SWITCHER_POPUP_CLASS = 'dx-filemanager-view-switcher-popup';
+const DEFAULT_ITEM_CONFIGS = {
+  showNavPane: {
+    location: 'before'
+  },
+  create: {
+    location: 'before',
+    compactMode: {
+      showText: 'inMenu',
+      locateInMenu: 'auto'
+    }
+  },
+  upload: {
+    location: 'before',
+    compactMode: {
+      showText: 'inMenu',
+      locateInMenu: 'auto'
+    }
+  },
+  refresh: {
+    location: 'after',
+    showText: 'inMenu',
+    cssClass: FILE_MANAGER_TOOLBAR_HAS_LARGE_ICON_CLASS,
+    compactMode: {
+      showText: 'inMenu',
+      locateInMenu: 'auto'
+    }
+  },
+  switchView: {
+    location: 'after'
+  },
+  download: {
+    location: 'before',
+    compactMode: {
+      showText: 'inMenu',
+      locateInMenu: 'auto'
+    }
+  },
+  move: {
+    location: 'before',
+    compactMode: {
+      showText: 'inMenu',
+      locateInMenu: 'auto'
+    }
+  },
+  copy: {
+    location: 'before',
+    compactMode: {
+      showText: 'inMenu',
+      locateInMenu: 'auto'
+    }
+  },
+  rename: {
+    location: 'before',
+    compactMode: {
+      showText: 'inMenu',
+      locateInMenu: 'auto'
+    }
+  },
+  delete: {
+    location: 'before',
+    compactMode: {
+      showText: 'inMenu'
+    }
+  },
+  clearSelection: {
+    location: 'after',
+    locateInMenu: 'never',
+    compactMode: {
+      showText: 'inMenu'
+    }
+  },
+  separator: {
+    location: 'before'
+  }
+};
+const DEFAULT_ITEM_ALLOWED_PROPERTIES = ['visible', 'location', 'locateInMenu', 'disabled', 'showText'];
+const DEFAULT_ITEM_ALLOWED_OPTION_PROPERTIES = ['accessKey', 'elementAttr', 'height', 'hint', 'icon', 'stylingMode', 'tabIndex', 'text', 'width'];
+const ALWAYS_VISIBLE_TOOLBAR_ITEMS = ['separator', 'switchView'];
+const REFRESH_ICON_MAP = {
+  default: 'dx-filemanager-i dx-filemanager-i-refresh',
+  progress: 'dx-filemanager-i dx-filemanager-i-progress',
+  success: 'dx-filemanager-i dx-filemanager-i-done',
+  error: 'dx-filemanager-i dx-filemanager-i-danger'
+};
+const REFRESH_ITEM_PROGRESS_MESSAGE_DELAY = 500;
+class FileManagerToolbar extends _widget.default {
+  _init() {
+    super._init();
+    this._generalToolbarVisible = true;
+    this._refreshItemState = {
+      message: '',
+      status: 'default'
+    };
+  }
+  _initMarkup() {
+    this._createItemClickedAction();
+    const {
+      generalItems,
+      fileItems
+    } = this.option();
+    this._$viewSwitcherPopup = (0, _renderer.default)('<div>').addClass(FILE_MANAGER_VIEW_SWITCHER_POPUP_CLASS);
+    this._generalToolbar = this._createToolbar(generalItems, !this._generalToolbarVisible);
+    this._fileToolbar = this._createToolbar(fileItems, this._generalToolbarVisible);
+    this._$viewSwitcherPopup.appendTo(this.$element());
+    this.$element().addClass(`${FILE_MANAGER_TOOLBAR_CLASS} ${FILE_MANAGER_GENERAL_TOOLBAR_CLASS}`);
+  }
+  _render() {
+    super._render();
+    const toolbar = this._getVisibleToolbar();
+    this._checkCompactMode(toolbar);
+  }
+  _clean() {
+    // @ts-expect-error ts-error
+    delete this._commandManager;
+    delete this._itemClickedAction;
+    delete this._$viewSwitcherPopup;
+    delete this._generalToolbar;
+    delete this._fileToolbar;
+    super._clean();
+  }
+  // @ts-expect-error ts-error
+  _dimensionChanged(dimension) {
+    if (!dimension || dimension !== 'height') {
+      const toolbar = this._getVisibleToolbar();
+      this._checkCompactMode(toolbar);
+    }
+  }
+  _getVisibleToolbar() {
+    return this._generalToolbarVisible ? this._generalToolbar : this._fileToolbar;
+  }
+  _createToolbar(items, hidden) {
+    const toolbarItems = this._getPreparedItems(items);
+    const $toolbar = (0, _renderer.default)('<div>').appendTo(this.$element());
+    const toolbar = this._createComponent($toolbar, _toolbar.default, {
+      items: toolbarItems,
+      visible: !hidden,
+      onItemClick: args => this._raiseItemClicked(args)
+    });
+    toolbar.compactMode = false;
+    return toolbar;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getPreparedItems(items) {
+    // eslint-disable-next-line no-param-reassign
+    items = items.map(item => {
+      let extendedItem = item;
+      if ((0, _type.isString)(item)) {
+        extendedItem = {
+          name: item
+        };
+      }
+      const commandName = extendedItem.name;
+      const preparedItem = this._configureItemByCommandName(commandName, extendedItem);
+      preparedItem.originalItemData = item;
+      if (commandName !== 'separator') {
+        this._setItemVisibleAvailable(preparedItem);
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return preparedItem;
+    });
+    this._updateSeparatorsVisibility(items);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return items;
+  }
+  _updateSeparatorsVisibility(items, toolbar) {
+    let hasModifications = false;
+    const menuItems = this._getMenuItems(toolbar);
+    const hasItemsBefore = {
+      before: false,
+      center: false,
+      after: false
+    };
+    const itemGroups = {
+      before: this._getItemsInGroup(items, menuItems, 'before'),
+      center: this._getItemsInGroup(items, menuItems, 'center'),
+      after: this._getItemsInGroup(items, menuItems, 'after')
+    };
+    items.forEach(item => {
+      const itemLocation = item.location;
+      if (item.name === 'separator') {
+        const isSeparatorVisible = hasItemsBefore[itemLocation] && this._groupHasItemsAfter(itemGroups[itemLocation]);
+        if (item.visible !== isSeparatorVisible) {
+          hasModifications = true;
+          item.visible = isSeparatorVisible;
+        }
+        hasItemsBefore[itemLocation] = false;
+      } else {
+        if (!this._isItemInMenu(menuItems, item)) {
+          hasItemsBefore[itemLocation] = hasItemsBefore[itemLocation] || item.visible;
+        }
+        itemGroups[itemLocation].shift();
+      }
+    });
+    if (toolbar && hasModifications) {
+      toolbar.repaint();
+    }
+    return hasModifications;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getMenuItems(toolbar) {
+    const result = toolbar ? toolbar._getMenuItems() : [];
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return result.map(menuItem => menuItem.originalItemData);
+  }
+  _isItemInMenu(menuItems, item) {
+    return !!menuItems.length && (0, _common.ensureDefined)(item.locateInMenu, 'never') !== 'never' && menuItems.indexOf(item.originalItemData) !== -1;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getItemsInGroup(items, menuItems, groupName) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return items.filter(item => item.location === groupName && !this._isItemInMenu(menuItems, item));
+  }
+  _groupHasItemsAfter(items) {
+    // eslint-disable-next-line @typescript-eslint/prefer-for-of
+    for (let i = 0; i < items.length; i += 1) {
+      if (items[i].name !== 'separator' && items[i].visible) {
+        return true;
+      }
+    }
+    return false;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _configureItemByCommandName(commandName, item) {
+    var _this$_commandManager, _result$options2;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let result = {};
+    const command = (_this$_commandManager = this._commandManager) === null || _this$_commandManager === void 0 ? void 0 : _this$_commandManager.getCommandByName(commandName);
+    if (command) {
+      result = this._createCommandItem(command);
+    }
+    switch (commandName) {
+      case 'separator':
+        result = this._createSeparatorItem();
+        break;
+      case 'switchView':
+        result = this._createViewModeItem();
+        break;
+      default:
+        break;
+    }
+    if (this._isDefaultItem(commandName)) {
+      const defaultConfig = DEFAULT_ITEM_CONFIGS[commandName];
+      (0, _extend.extend)(true, result, defaultConfig);
+      let resultCssClass = result.cssClass || '';
+      (0, _uiFile_manager.extendAttributes)(result, item, DEFAULT_ITEM_ALLOWED_PROPERTIES);
+      if ((0, _type.isDefined)(item.options)) {
+        (0, _uiFile_manager.extendAttributes)(result.options, item.options, DEFAULT_ITEM_ALLOWED_OPTION_PROPERTIES);
+      }
+      (0, _uiFile_manager.extendAttributes)(result.options, item, ['text', 'icon']);
+      if (item.cssClass) {
+        resultCssClass = `${resultCssClass} ${item.cssClass}`;
+      }
+      if (resultCssClass) {
+        result.cssClass = resultCssClass;
+      }
+      if (!(0, _type.isDefined)(item.visible)) {
+        result._autoHide = true;
+      }
+      if (result.widget === 'dxButton') {
+        if (result.showText === 'inMenu' && !(0, _type.isDefined)(result.options.hint)) {
+          result.options.hint = result.options.text;
+        }
+        if (result.compactMode && !(0, _type.isDefined)(result.options.hint)) {
+          this._configureHintForCompactMode(result);
+        }
+      }
+    } else {
+      var _result$options;
+      (0, _extend.extend)(true, result, item);
+      if (!result.widget) {
+        result.widget = 'dxButton';
+      }
+      if (result.widget === 'dxButton' && !result.compactMode && !result.showText && (_result$options = result.options) !== null && _result$options !== void 0 && _result$options.icon && result.options.text) {
+        result.compactMode = {
+          showText: 'inMenu'
+        };
+      }
+    }
+    if (commandName && !result.name) {
+      (0, _extend.extend)(result, {
+        name: commandName
+      });
+    }
+    result.location = (0, _common.ensureDefined)(result.location, 'before');
+    if (!(0, _type.isDefined)((_result$options2 = result.options) === null || _result$options2 === void 0 ? void 0 : _result$options2.stylingMode)) {
+      if (result.widget === 'dxButton') {
+        (0, _extend.extend)(true, result, {
+          options: {
+            stylingMode: 'text'
+          }
+        });
+      }
+      if (result.widget === 'dxSelectBox') {
+        (0, _extend.extend)(true, result, {
+          options: {
+            stylingMode: 'filled'
+          }
+        });
+      }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return result;
+  }
+  _isDefaultItem(commandName) {
+    return !!DEFAULT_ITEM_CONFIGS[commandName];
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _createCommandItem(command) {
+    return {
+      widget: 'dxButton',
+      options: {
+        text: command.text,
+        hint: command.hint,
+        commandText: command.text,
+        icon: command.icon,
+        stylingMode: 'text',
+        onClick: () => this._executeCommand(command)
+      }
+    };
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _createSeparatorItem() {
+    return {
+      template: (_, __, element) => {
+        (0, _renderer.default)(element).addClass(FILE_MANAGER_TOOLBAR_SEPARATOR_ITEM_CLASS);
+      }
+    };
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _createViewModeItem() {
+    const commandItems = ['details', 'thumbnails'].map(name => {
+      var _this$_commandManager2;
+      const {
+        text,
+        icon
+      } = ((_this$_commandManager2 = this._commandManager) === null || _this$_commandManager2 === void 0 ? void 0 : _this$_commandManager2.getCommandByName(name)) ?? {};
+      return {
+        name,
+        text,
+        icon
+      };
+    });
+    const {
+      itemViewMode
+    } = this.option();
+    const selectedIndex = itemViewMode === 'thumbnails' ? 1 : 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dropDownOptions = {
+      container: this._$viewSwitcherPopup
+    };
+    if ((0, _themes.isMaterial)((0, _themes.current)())) {
+      dropDownOptions.width = (0, _themes.isCompact)((0, _themes.current)()) ? 28 : 36;
+    } else if ((0, _themes.isFluent)((0, _themes.current)())) {
+      dropDownOptions.width = (0, _themes.isCompact)((0, _themes.current)()) ? 34 : 40;
+    }
+    return {
+      cssClass: FILE_MANAGER_TOOLBAR_VIEWMODE_ITEM_CLASS,
+      widget: 'dxDropDownButton',
+      options: {
+        items: commandItems,
+        keyExpr: 'name',
+        selectedItemKey: itemViewMode,
+        displayExpr: ' ',
+        hint: commandItems[selectedIndex].text,
+        stylingMode: 'text',
+        showArrowIcon: false,
+        useSelectMode: true,
+        dropDownOptions,
+        onItemClick: e => this._executeCommand(e.itemData.name)
+      }
+    };
+  }
+  _configureHintForCompactMode(item) {
+    item.options.hint = '';
+    item.compactMode.options = item.compactMode.options || {};
+    item.compactMode.options.hint = item.options.text;
+  }
+  _checkCompactMode(toolbar) {
+    if (toolbar.compactMode) {
+      this._toggleCompactMode(toolbar, false);
+    }
+    const useCompactMode = this._toolbarHasItemsOverflow(toolbar);
+    if (toolbar.compactMode !== useCompactMode) {
+      if (!toolbar.compactMode) {
+        this._toggleCompactMode(toolbar, useCompactMode);
+      }
+      toolbar.compactMode = useCompactMode;
+    } else if (toolbar.compactMode) {
+      this._toggleCompactMode(toolbar, true);
+    }
+  }
+  _toolbarHasItemsOverflow(toolbar) {
+    const toolbarWidth = (0, _size.getWidth)(toolbar.$element());
+    const itemsWidth = toolbar._getItemsWidth();
+    return toolbarWidth < itemsWidth;
+  }
+  _toggleCompactMode(toolbar, useCompactMode) {
+    let hasModifications = false;
+    const {
+      items
+    } = toolbar.option();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    items === null || items === void 0 || items.forEach(item => {
+      if (item.compactMode) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let optionsSource = null;
+        if (useCompactMode) {
+          item.saved = this._getCompactModeOptions(item, item._available);
+          optionsSource = item.compactMode;
+        } else {
+          optionsSource = item.saved;
+        }
+        const options = this._getCompactModeOptions(optionsSource, item._available);
+        (0, _extend.extend)(true, item, options);
+        hasModifications = true;
+      }
+    });
+    hasModifications = this._updateSeparatorsVisibility(items) || hasModifications;
+    if (hasModifications) {
+      toolbar.repaint();
+    }
+    this._updateSeparatorsVisibility(items, toolbar);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getCompactModeOptions(optionsSource, available) {
+    const {
+      showText,
+      locateInMenu,
+      options
+    } = optionsSource || {};
+    return {
+      visible: available,
+      showText: (0, _common.ensureDefined)(showText, 'always'),
+      locateInMenu: (0, _common.ensureDefined)(locateInMenu, 'never'),
+      options: {
+        hint: options === null || options === void 0 ? void 0 : options.hint
+      }
+    };
+  }
+  _ensureAvailableCommandsVisible(toolbar) {
+    let hasModifications = false;
+    const items = toolbar.option('items');
+    items.forEach(item => {
+      if (item.name !== 'separator') {
+        const itemVisible = item._available;
+        this._setItemVisibleAvailable(item);
+        if (item._available !== itemVisible) {
+          hasModifications = true;
+        }
+      }
+    });
+    hasModifications = this._updateSeparatorsVisibility(items) || hasModifications;
+    if (hasModifications) {
+      toolbar.repaint();
+    }
+    this._updateSeparatorsVisibility(items, toolbar);
+  }
+  _setItemVisibleAvailable(item) {
+    var _item$originalItemDat;
+    const originalVisible = (_item$originalItemDat = item.originalItemData) === null || _item$originalItemDat === void 0 ? void 0 : _item$originalItemDat.visible;
+    item._available = this._isToolbarItemAvailable(item);
+    item.visible = (0, _type.isDefined)(originalVisible) ? originalVisible : item._available;
+  }
+  _fileToolbarHasEffectiveItems() {
+    var _this$_fileToolbar;
+    const {
+      items
+    } = ((_this$_fileToolbar = this._fileToolbar) === null || _this$_fileToolbar === void 0 ? void 0 : _this$_fileToolbar.option()) ?? {};
+    return items === null || items === void 0 ? void 0 : items.some(item => this._isFileToolbarItemAvailable(item));
+  }
+  _executeCommand(command) {
+    var _this$_commandManager3;
+    (_this$_commandManager3 = this._commandManager) === null || _this$_commandManager3 === void 0 || _this$_commandManager3.executeCommand(command);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _isToolbarItemAvailable(toolbarItem) {
+    if (!this._isDefaultItem(toolbarItem.name) || !toolbarItem._autoHide) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return (0, _common.ensureDefined)(toolbarItem.visible, true);
+    }
+    if (toolbarItem.name === 'refresh') {
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+      return this._generalToolbarVisible || !!this._isRefreshVisibleInFileToolbar;
+    }
+    if (ALWAYS_VISIBLE_TOOLBAR_ITEMS.includes(toolbarItem.name)) {
+      return true;
+    }
+    return this._isCommandAvailable(toolbarItem.name);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _isFileToolbarItemAvailable(_ref) {
+    let {
+      name,
+      visible
+    } = _ref;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return !this._isDefaultItem(name)
+    // eslint-disable-next-line @stylistic/no-mixed-operators
+    && (0, _common.ensureDefined)(visible, true)
+    // eslint-disable-next-line @stylistic/no-mixed-operators
+    || name !== 'clearSelection' && name !== 'refresh'
+    // eslint-disable-next-line @stylistic/no-mixed-operators
+    && this._isCommandAvailable(name);
+  }
+  _isCommandAvailable(name) {
+    var _this$_commandManager4;
+    const {
+      contextItems
+    } = this.option();
+    return !!((_this$_commandManager4 = this._commandManager) !== null && _this$_commandManager4 !== void 0 && _this$_commandManager4.isCommandAvailable(name, contextItems));
+  }
+  _updateItemInToolbar(toolbar, commandName, options) {
+    toolbar.beginUpdate();
+    const {
+      items
+    } = toolbar.option();
+    if (items !== null && items !== void 0 && items.length) {
+      for (let i = 0; i < (items === null || items === void 0 ? void 0 : items.length); i += 1) {
+        const item = items === null || items === void 0 ? void 0 : items[i];
+        if (item.name === commandName) {
+          toolbar.option(`items[${i}]`, options);
+          break;
+        }
+      }
+    }
+    toolbar.endUpdate();
+  }
+  _raiseItemClicked(args) {
+    var _this$_itemClickedAct;
+    const changedArgs = (0, _extend.extend)(true, {}, args);
+    changedArgs.itemData = args.itemData.originalItemData;
+    (_this$_itemClickedAct = this._itemClickedAction) === null || _this$_itemClickedAct === void 0 || _this$_itemClickedAct.call(this, changedArgs);
+  }
+  _createItemClickedAction() {
+    this._itemClickedAction = this._createActionByOption('onItemClick');
+  }
+  _getDefaultOptions() {
+    return _extends({}, super._getDefaultOptions(), {
+      commandManager: undefined,
+      generalItems: [],
+      fileItems: [],
+      contextItems: [],
+      itemViewMode: 'details',
+      onItemClick: undefined
+    });
+  }
+  _optionChanged(args) {
+    const {
+      name
+    } = args;
+    switch (name) {
+      case 'commandManager':
+      case 'itemViewMode':
+      case 'generalItems':
+      case 'fileItems':
+        this.repaint();
+        break;
+      case 'contextItems':
+        this._update();
+        break;
+      case 'onItemClick':
+        this._itemClickedAction = this._createActionByOption(name);
+        break;
+      default:
+        super._optionChanged(args);
+    }
+  }
+  updateItemPermissions() {
+    this.repaint();
+    this._restoreRefreshItemState();
+  }
+  _restoreRefreshItemState() {
+    var _this$_refreshItemSta, _this$_refreshItemSta2;
+    this.updateRefreshItem((_this$_refreshItemSta = this._refreshItemState) === null || _this$_refreshItemSta === void 0 ? void 0 : _this$_refreshItemSta.message, (_this$_refreshItemSta2 = this._refreshItemState) === null || _this$_refreshItemSta2 === void 0 ? void 0 : _this$_refreshItemSta2.status);
+  }
+  updateRefreshItem(message, status) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let generalToolbarOptions = null;
+    let text = _message.default.format('dxFileManager-commandRefresh');
+    let showText = 'inMenu';
+    this._isRefreshVisibleInFileToolbar = false;
+    this._refreshItemState = {
+      message,
+      status
+    };
+    if (status === 'default') {
+      generalToolbarOptions = {
+        options: {
+          icon: REFRESH_ICON_MAP.default
+        }
+      };
+    } else {
+      generalToolbarOptions = {
+        options: {
+          icon: REFRESH_ICON_MAP[status]
+        }
+      };
+      this._isRefreshVisibleInFileToolbar = true;
+      text = message;
+      showText = 'always';
+    }
+    const fileToolbarOptions = (0, _extend.extend)({}, generalToolbarOptions, {
+      visible: this._isRefreshVisibleInFileToolbar
+    });
+    this._applyRefreshItemOptions(generalToolbarOptions, fileToolbarOptions);
+    this._refreshItemTextTimeout = this._updateRefreshItemText(status === 'progress', text, showText);
+  }
+  _updateRefreshItemText(isDeferredUpdate, text, showText) {
+    const options = {
+      showText,
+      options: {
+        text
+      }
+    };
+    if (isDeferredUpdate) {
+      return setTimeout(() => {
+        this._applyRefreshItemOptions(options);
+        this._refreshItemTextTimeout = undefined;
+      }, REFRESH_ITEM_PROGRESS_MESSAGE_DELAY);
+    }
+    if (this._refreshItemTextTimeout) {
+      clearTimeout(this._refreshItemTextTimeout);
+    }
+    this._applyRefreshItemOptions(options);
+    return undefined;
+  }
+  _applyRefreshItemOptions(generalToolbarOptions, fileToolbarOptions) {
+    if (!fileToolbarOptions) {
+      // eslint-disable-next-line no-param-reassign
+      fileToolbarOptions = (0, _extend.extend)({}, generalToolbarOptions);
+    }
+    // @ts-expect-error ts-error
+    this._updateItemInToolbar(this._generalToolbar, 'refresh', generalToolbarOptions);
+    // @ts-expect-error ts-error
+    this._updateItemInToolbar(this._fileToolbar, 'refresh', fileToolbarOptions);
+  }
+  _update() {
+    const {
+      contextItems
+    } = this.option();
+    const showGeneralToolbar = contextItems.length === 0 || !this._fileToolbarHasEffectiveItems();
+    if (this._generalToolbarVisible !== showGeneralToolbar) {
+      var _this$_generalToolbar, _this$_fileToolbar2;
+      (_this$_generalToolbar = this._generalToolbar) === null || _this$_generalToolbar === void 0 || _this$_generalToolbar.option('visible', showGeneralToolbar);
+      (_this$_fileToolbar2 = this._fileToolbar) === null || _this$_fileToolbar2 === void 0 || _this$_fileToolbar2.option('visible', !showGeneralToolbar);
+      this._generalToolbarVisible = showGeneralToolbar;
+      this.$element().toggleClass(FILE_MANAGER_GENERAL_TOOLBAR_CLASS, showGeneralToolbar);
+      this.$element().toggleClass(FILE_MANAGER_FILE_TOOLBAR_CLASS, !showGeneralToolbar);
+    }
+    const toolbar = this._getVisibleToolbar();
+    this._ensureAvailableCommandsVisible(toolbar);
+    this._checkCompactMode(toolbar);
+  }
+  get _commandManager() {
+    const {
+      commandManager
+    } = this.option();
+    return commandManager;
+  }
+}
+var _default = exports["default"] = FileManagerToolbar;
+
+/***/ }),
+
 /***/ 6355:
 /***/ (function(__unused_webpack_module, exports) {
 
@@ -157700,7 +166822,7 @@ exports.DefaultWholeFileUploadStrategy = DefaultWholeFileUploadStrategy;
 Object.defineProperty(exports, "__esModule", ({
   value: true
 }));
-exports["default"] = exports.FILEUPLOADER_CLASS = exports.FILEUPLOADER_CANCEL_BUTTON_CLASS = void 0;
+exports["default"] = exports.FILEUPLOADER_CLASS = exports.FILEUPLOADER_CANCEL_BUTTON_POSITION_END_CLASS = exports.FILEUPLOADER_CANCEL_BUTTON_CLASS = void 0;
 var _events_engine = _interopRequireDefault(__webpack_require__(92774));
 var _index = __webpack_require__(98834);
 var _message = _interopRequireDefault(__webpack_require__(4671));
@@ -157749,12 +166871,11 @@ const FILEUPLOADER_FILE_ICON_CLASS = 'dx-fileuploader-file-icon';
 const FILEUPLOADER_BUTTON_CLASS = 'dx-fileuploader-button';
 const FILEUPLOADER_BUTTON_CONTAINER_CLASS = 'dx-fileuploader-button-container';
 const FILEUPLOADER_CANCEL_BUTTON_CLASS = exports.FILEUPLOADER_CANCEL_BUTTON_CLASS = 'dx-fileuploader-cancel-button';
+const FILEUPLOADER_CANCEL_BUTTON_POSITION_END_CLASS = exports.FILEUPLOADER_CANCEL_BUTTON_POSITION_END_CLASS = 'dx-fileuploader-cancel-button-position-end';
 const FILEUPLOADER_UPLOAD_BUTTON_CLASS = 'dx-fileuploader-upload-button';
 const FILEUPLOADER_INVALID_CLASS = 'dx-fileuploader-invalid';
 const FILEUPLOADER_AFTER_LOAD_DELAY = 400;
 const DRAG_EVENT_DELTA = 1;
-const GAP = 10;
-const REFERENCE_TEXT = '1023 bytes';
 const DIALOG_TRIGGER_EVENT_NAMESPACE = 'dxFileUploaderDialogTrigger';
 const keyUpEventName = 'keyup';
 const nativeClickEvent = 'click';
@@ -158305,7 +167426,7 @@ class FileUploader extends _editor.default {
     file.$file = (0, _renderer.default)('<div>').addClass(FILEUPLOADER_FILE_CLASS).appendTo($fileContainer);
     const $fileInfo = (0, _renderer.default)('<div>').addClass(FILEUPLOADER_FILE_INFO_CLASS).appendTo(file.$file);
     file.$statusMessage = (0, _renderer.default)('<div>').addClass(FILEUPLOADER_FILE_STATUS_MESSAGE_CLASS).appendTo(file.$file);
-    (0, _renderer.default)('<div>').addClass(FILEUPLOADER_FILE_NAME_CLASS).text(value.name).appendTo($fileInfo);
+    (0, _renderer.default)('<div>').addClass(FILEUPLOADER_FILE_NAME_CLASS).text(value.name).attr('title', value.name).appendTo($fileInfo);
     if ((0, _type.isDefined)(value.size)) {
       (0, _renderer.default)('<div>').addClass(FILEUPLOADER_FILE_SIZE_CLASS).text((0, _file_uploader.getFileSize)(value.size)).appendTo($fileInfo);
     }
@@ -158352,10 +167473,10 @@ class FileUploader extends _editor.default {
     const $icon = (_this$_$filesContaine5 = this._$filesContainer) === null || _this$_$filesContaine5 === void 0 ? void 0 : _this$_$filesContaine5.find(`.${FILEUPLOADER_FILE_ICON_CLASS}`).eq(0);
     const iconWidth = _showFileIcon ? (0, _size.getOuterWidth)($icon) : 0;
     const prevFileSize = $fileSize === null || $fileSize === void 0 ? void 0 : $fileSize.text();
-    $fileSize === null || $fileSize === void 0 || $fileSize.text(REFERENCE_TEXT);
+    $fileSize === null || $fileSize === void 0 || $fileSize.text('1000 Mb');
     const fileSizeWidth = (0, _size.getWidth)($fileSize);
     $fileSize === null || $fileSize === void 0 || $fileSize.text(prevFileSize ?? '');
-    const maxWidth = filesContainerWidth - buttonsWidth - fileSizeWidth - iconWidth - GAP;
+    const maxWidth = filesContainerWidth - buttonsWidth - fileSizeWidth - iconWidth;
     (_this$_$filesContaine6 = this._$filesContainer) === null || _this$_$filesContaine6 === void 0 || _this$_$filesContaine6.find(`.${FILEUPLOADER_FILE_NAME_CLASS}`).css('maxWidth', maxWidth);
   }
   _renderFileButtons(file, $container) {
@@ -158388,8 +167509,10 @@ class FileUploader extends _editor.default {
   }
   _getCancelButton(file) {
     var _file$value;
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     const {
-      uploadMode
+      uploadMode,
+      _cancelButtonPosition
     } = this.option();
     if (uploadMode === 'useForm') {
       return null;
@@ -158420,6 +167543,9 @@ class FileUploader extends _editor.default {
         'aria-label': _message.default.format('dxFileUploader-removeFileButtonLabel', (file === null || file === void 0 || (_file$value = file.value) === null || _file$value === void 0 ? void 0 : _file$value.name) ?? '')
       }
     });
+    if (_cancelButtonPosition === 'end') {
+      file.cancelButton.$element().addClass(FILEUPLOADER_CANCEL_BUTTON_POSITION_END_CLASS);
+    }
     return (0, _renderer.default)('<div>').addClass(FILEUPLOADER_BUTTON_CONTAINER_CLASS).append(file.cancelButton.$element());
   }
   _getUploadButton(file) {
@@ -164267,6 +173393,2399 @@ var _default = exports["default"] = Gallery;
 
 /***/ }),
 
+/***/ 22717:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.getGanttViewCore = getGanttViewCore;
+var _ui = _interopRequireDefault(__webpack_require__(35185));
+var _devexpressGantt = _interopRequireDefault(__webpack_require__(1990));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+// eslint-disable-next-line @stylistic/max-len
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type,@typescript-eslint/explicit-module-boundary-types
+function getGanttViewCore() {
+  if (!_devexpressGantt.default) {
+    throw _ui.default.Error('E1041', 'devexpress-gantt');
+  }
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  return _devexpressGantt.default;
+}
+
+/***/ }),
+
+/***/ 91283:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.GanttActionsManager = void 0;
+var _element = __webpack_require__(61404);
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _extend = __webpack_require__(52576);
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+
+const Actions = {
+  onContextMenuPreparing: 'onContextMenuPreparing',
+  onCustomCommand: 'onCustomCommand',
+  onDependencyDeleted: 'onDependencyDeleted',
+  onDependencyDeleting: 'onDependencyDeleting',
+  onDependencyInserted: 'onDependencyInserted',
+  onDependencyInserting: 'onDependencyInserting',
+  onResourceAssigned: 'onResourceAssigned',
+  onResourceAssigning: 'onResourceAssigning',
+  onResourceDeleted: 'onResourceDeleted',
+  onResourceDeleting: 'onResourceDeleting',
+  onResourceInserted: 'onResourceInserted',
+  onResourceInserting: 'onResourceInserting',
+  onResourceManagerDialogShowing: 'onResourceManagerDialogShowing',
+  onResourceUnassigned: 'onResourceUnassigned',
+  onResourceUnassigning: 'onResourceUnassigning',
+  onSelectionChanged: 'onSelectionChanged',
+  onTaskClick: 'onTaskClick',
+  onTaskDblClick: 'onTaskDblClick',
+  onTaskDeleted: 'onTaskDeleted',
+  onTaskDeleting: 'onTaskDeleting',
+  onTaskEditDialogShowing: 'onTaskEditDialogShowing',
+  onTaskInserted: 'onTaskInserted',
+  onTaskInserting: 'onTaskInserting',
+  onTaskMoving: 'onTaskMoving',
+  onTaskUpdated: 'onTaskUpdated',
+  onTaskUpdating: 'onTaskUpdating',
+  onScaleCellPrepared: 'onScaleCellPrepared'
+};
+const GANTT_TASKS = 'tasks';
+const GANTT_DEPENDENCIES = 'dependencies';
+const GANTT_RESOURCES = 'resources';
+const GANTT_RESOURCE_ASSIGNMENTS = 'resourceAssignments';
+const GANTT_NEW_TASK_CACHE_KEY = 'gantt_new_task_key';
+class GanttActionsManager {
+  constructor(gantt) {
+    this._gantt = gantt;
+    this._mappingHelper = gantt._mappingHelper;
+    this._customFieldsManager = gantt._customFieldsManager;
+  }
+  _createActionByOption(optionName) {
+    var _this$_gantt;
+    return (_this$_gantt = this._gantt) === null || _this$_gantt === void 0 ? void 0 : _this$_gantt._createActionByOption(optionName);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getTaskData(key) {
+    return this._gantt.getTaskData(key);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _convertCoreToMappedData(optionName, coreData) {
+    var _this$_mappingHelper;
+    return (_this$_mappingHelper = this._mappingHelper) === null || _this$_mappingHelper === void 0 ? void 0 : _this$_mappingHelper.convertCoreToMappedData(optionName, coreData);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _convertMappedToCoreData(optionName, mappedData) {
+    var _this$_mappingHelper2;
+    return (_this$_mappingHelper2 = this._mappingHelper) === null || _this$_mappingHelper2 === void 0 ? void 0 : _this$_mappingHelper2.convertMappedToCoreData(optionName, mappedData);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _convertMappedToCoreFields(optionName, fields) {
+    var _this$_mappingHelper3;
+    return (_this$_mappingHelper3 = this._mappingHelper) === null || _this$_mappingHelper3 === void 0 ? void 0 : _this$_mappingHelper3.convertMappedToCoreFields(optionName, fields);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _convertCoreToMappedFields(optionName, fields) {
+    var _this$_mappingHelper4;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return (_this$_mappingHelper4 = this._mappingHelper) === null || _this$_mappingHelper4 === void 0 ? void 0 : _this$_mappingHelper4.convertCoreToMappedFields(optionName, fields);
+  }
+  _saveCustomFieldsDataToCache(key, data) {
+    var _this$_customFieldsMa;
+    let forceUpdateOnKeyExpire = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
+    let isCustomFieldsUpdateOnly = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : false;
+    (_this$_customFieldsMa = this._customFieldsManager) === null || _this$_customFieldsMa === void 0 || _this$_customFieldsMa.saveCustomFieldsDataToCache(key, data, forceUpdateOnKeyExpire, isCustomFieldsUpdateOnly);
+  }
+  createTaskDblClickAction() {
+    this._taskDblClickAction = this._createActionByOption(Actions.onTaskDblClick);
+  }
+  taskDblClickAction(args) {
+    var _this$_taskDblClickAc;
+    if (!this._taskDblClickAction) {
+      this.createTaskDblClickAction();
+    }
+    (_this$_taskDblClickAc = this._taskDblClickAction) === null || _this$_taskDblClickAc === void 0 || _this$_taskDblClickAc.call(this, args);
+  }
+  raiseTaskDblClickAction(key, event) {
+    const args = {
+      cancel: false,
+      data: this._getTaskData(key),
+      event,
+      key
+    };
+    this.taskDblClickAction(args);
+    return !args.cancel;
+  }
+  createTaskClickAction() {
+    this._taskClickAction = this._createActionByOption(Actions.onTaskClick);
+  }
+  taskClickAction(args) {
+    var _this$_taskClickActio;
+    if (!this._taskClickAction) {
+      this.createTaskClickAction();
+    }
+    (_this$_taskClickActio = this._taskClickAction) === null || _this$_taskClickActio === void 0 || _this$_taskClickActio.call(this, args);
+  }
+  raiseTaskClickAction(key, event) {
+    const args = {
+      key,
+      event,
+      data: this._getTaskData(key)
+    };
+    this.taskClickAction(args);
+  }
+  createSelectionChangedAction() {
+    this._selectionChangedAction = this._createActionByOption(Actions.onSelectionChanged);
+  }
+  selectionChangedAction(args) {
+    var _this$_selectionChang;
+    if (!this._selectionChangedAction) {
+      this.createSelectionChangedAction();
+    }
+    (_this$_selectionChang = this._selectionChangedAction) === null || _this$_selectionChang === void 0 || _this$_selectionChang.call(this, args);
+  }
+  raiseSelectionChangedAction(selectedRowKey) {
+    this.selectionChangedAction({
+      selectedRowKey
+    });
+  }
+  createCustomCommandAction() {
+    this._customCommandAction = this._createActionByOption(Actions.onCustomCommand);
+  }
+  customCommandAction(args) {
+    var _this$_customCommandA;
+    if (!this._customCommandAction) {
+      this.createCustomCommandAction();
+    }
+    (_this$_customCommandA = this._customCommandAction) === null || _this$_customCommandA === void 0 || _this$_customCommandA.call(this, args);
+  }
+  raiseCustomCommand(commandName) {
+    this.customCommandAction({
+      name: commandName
+    });
+  }
+  createContextMenuPreparingAction() {
+    this._contextMenuPreparingAction = this._createActionByOption(Actions.onContextMenuPreparing);
+  }
+  contextMenuPreparingAction(args) {
+    var _this$_contextMenuPre;
+    if (!this._contextMenuPreparingAction) {
+      this.createContextMenuPreparingAction();
+    }
+    (_this$_contextMenuPre = this._contextMenuPreparingAction) === null || _this$_contextMenuPre === void 0 || _this$_contextMenuPre.call(this, args);
+  }
+  raiseContextMenuPreparing(options) {
+    this.contextMenuPreparingAction(options);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getInsertingAction(optionName) {
+    switch (optionName) {
+      case GANTT_TASKS:
+        return this._getTaskInsertingAction();
+      case GANTT_DEPENDENCIES:
+        return this._getDependencyInsertingAction();
+      case GANTT_RESOURCES:
+        return this._getResourceInsertingAction();
+      case GANTT_RESOURCE_ASSIGNMENTS:
+        return this._getResourceAssigningAction();
+      default:
+        return () => {};
+    }
+  }
+  raiseInsertingAction(optionName, coreArgs) {
+    const action = this._getInsertingAction(optionName);
+    if (action) {
+      const args = {
+        cancel: false,
+        values: this._convertCoreToMappedData(optionName, coreArgs.values)
+      };
+      action(args);
+      coreArgs.cancel = args.cancel;
+      (0, _extend.extend)(coreArgs.values, this._convertMappedToCoreData(optionName, args.values));
+      if (optionName === GANTT_TASKS) {
+        this._saveCustomFieldsDataToCache(GANTT_NEW_TASK_CACHE_KEY, args.values);
+      }
+    }
+  }
+  createTaskInsertingAction() {
+    this._taskInsertingAction = this._createActionByOption(Actions.onTaskInserting);
+  }
+  taskInsertingAction(args) {
+    const action = this._getTaskInsertingAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getTaskInsertingAction() {
+    if (!this._taskInsertingAction) {
+      this.createTaskInsertingAction();
+    }
+    return this._taskInsertingAction;
+  }
+  createDependencyInsertingAction() {
+    this._dependencyInsertingAction = this._createActionByOption(Actions.onDependencyInserting);
+  }
+  dependencyInsertingAction(args) {
+    const action = this._getDependencyInsertingAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getDependencyInsertingAction() {
+    if (!this._dependencyInsertingAction) {
+      this.createDependencyInsertingAction();
+    }
+    return this._dependencyInsertingAction;
+  }
+  createResourceInsertingAction() {
+    this._resourceInsertingAction = this._createActionByOption(Actions.onResourceInserting);
+  }
+  resourceInsertingAction(args) {
+    const action = this._getResourceInsertingAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getResourceInsertingAction() {
+    if (!this._resourceInsertingAction) {
+      this.createResourceInsertingAction();
+    }
+    return this._resourceInsertingAction;
+  }
+  createResourceAssigningAction() {
+    this._resourceAssigningAction = this._createActionByOption(Actions.onResourceAssigning);
+  }
+  resourceAssigningAction(args) {
+    const action = this._getResourceAssigningAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getResourceAssigningAction() {
+    if (!this._resourceAssigningAction) {
+      this.createResourceAssigningAction();
+    }
+    return this._resourceAssigningAction;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getInsertedAction(optionName) {
+    switch (optionName) {
+      case GANTT_TASKS:
+        return this._getTaskInsertedAction();
+      case GANTT_DEPENDENCIES:
+        return this._getDependencyInsertedAction();
+      case GANTT_RESOURCES:
+        return this._getResourceInsertedAction();
+      case GANTT_RESOURCE_ASSIGNMENTS:
+        return this._getResourceAssignedAction();
+      default:
+        return () => {};
+    }
+  }
+  raiseInsertedAction(optionName, data, key) {
+    const action = this._getInsertedAction(optionName);
+    if (action) {
+      const args = {
+        values: data,
+        key
+      };
+      action(args);
+    }
+  }
+  createTaskInsertedAction() {
+    this._taskInsertedAction = this._createActionByOption(Actions.onTaskInserted);
+  }
+  taskInsertedAction(args) {
+    const action = this._getTaskInsertedAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getTaskInsertedAction() {
+    if (!this._taskInsertedAction) {
+      this.createTaskInsertedAction();
+    }
+    return this._taskInsertedAction;
+  }
+  createDependencyInsertedAction() {
+    this._dependencyInsertedAction = this._createActionByOption(Actions.onDependencyInserted);
+  }
+  dependencyInsertedAction(args) {
+    const action = this._getDependencyInsertedAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getDependencyInsertedAction() {
+    if (!this._dependencyInsertedAction) {
+      this.createDependencyInsertedAction();
+    }
+    return this._dependencyInsertedAction;
+  }
+  createResourceInsertedAction() {
+    this._resourceInsertedAction = this._createActionByOption(Actions.onResourceInserted);
+  }
+  resourceInsertedAction(args) {
+    const action = this._getResourceInsertedAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getResourceInsertedAction() {
+    if (!this._resourceInsertedAction) {
+      this.createResourceInsertedAction();
+    }
+    return this._resourceInsertedAction;
+  }
+  createResourceAssignedAction() {
+    this._resourceAssignedAction = this._createActionByOption(Actions.onResourceAssigned);
+  }
+  resourceAssignedAction(args) {
+    const action = this._getResourceAssignedAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getResourceAssignedAction() {
+    if (!this._resourceAssignedAction) {
+      this.createResourceAssignedAction();
+    }
+    return this._resourceAssignedAction;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getDeletingAction(optionName) {
+    switch (optionName) {
+      case GANTT_TASKS:
+        return this._getTaskDeletingAction();
+      case GANTT_DEPENDENCIES:
+        return this._getDependencyDeletingAction();
+      case GANTT_RESOURCES:
+        return this._getResourceDeletingAction();
+      case GANTT_RESOURCE_ASSIGNMENTS:
+        return this._getResourceUnassigningAction();
+      default:
+        return () => {};
+    }
+  }
+  raiseDeletingAction(optionName, coreArgs) {
+    const action = this._getDeletingAction(optionName);
+    if (action) {
+      const args = {
+        cancel: false,
+        key: coreArgs.key,
+        values: this._convertCoreToMappedData(optionName, coreArgs.values)
+      };
+      action(args);
+      coreArgs.cancel = args.cancel;
+    }
+  }
+  createTaskDeletingAction() {
+    this._taskDeletingAction = this._createActionByOption(Actions.onTaskDeleting);
+  }
+  taskDeletingAction(args) {
+    const action = this._getTaskDeletingAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getTaskDeletingAction() {
+    if (!this._taskDeletingAction) {
+      this.createTaskDeletingAction();
+    }
+    return this._taskDeletingAction;
+  }
+  createDependencyDeletingAction() {
+    this._dependencyDeletingAction = this._createActionByOption(Actions.onDependencyDeleting);
+  }
+  dependencyDeletingAction(args) {
+    const action = this._getDependencyDeletingAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getDependencyDeletingAction() {
+    if (!this._dependencyDeletingAction) {
+      this.createDependencyDeletingAction();
+    }
+    return this._dependencyDeletingAction;
+  }
+  createResourceDeletingAction() {
+    this._resourceDeletingAction = this._createActionByOption(Actions.onResourceDeleting);
+  }
+  resourceDeletingAction(args) {
+    const action = this._getResourceDeletingAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getResourceDeletingAction() {
+    if (!this._resourceDeletingAction) {
+      this.createResourceDeletingAction();
+    }
+    return this._resourceDeletingAction;
+  }
+  createResourceUnassigningAction() {
+    this._resourceUnassigningAction = this._createActionByOption(Actions.onResourceUnassigning);
+  }
+  resourceUnassigningAction(args) {
+    const action = this._getResourceUnassigningAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getResourceUnassigningAction() {
+    if (!this._resourceUnassigningAction) {
+      this.createResourceUnassigningAction();
+    }
+    return this._resourceUnassigningAction;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getDeletedAction(optionName) {
+    switch (optionName) {
+      case GANTT_TASKS:
+        return this._getTaskDeletedAction();
+      case GANTT_DEPENDENCIES:
+        return this._getDependencyDeletedAction();
+      case GANTT_RESOURCES:
+        return this._getResourceDeletedAction();
+      case GANTT_RESOURCE_ASSIGNMENTS:
+        return this._getResourceUnassignedAction();
+      default:
+        return () => {};
+    }
+  }
+  raiseDeletedAction(optionName, key, data) {
+    const action = this._getDeletedAction(optionName);
+    if (action) {
+      const args = {
+        key,
+        values: data
+      };
+      action(args);
+    }
+  }
+  createTaskDeletedAction() {
+    this._taskDeletedAction = this._createActionByOption(Actions.onTaskDeleted);
+  }
+  taskDeletedAction(args) {
+    const action = this._getTaskDeletedAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getTaskDeletedAction() {
+    if (!this._taskDeletedAction) {
+      this.createTaskDeletedAction();
+    }
+    return this._taskDeletedAction;
+  }
+  createDependencyDeletedAction() {
+    this._dependencyDeletedAction = this._createActionByOption(Actions.onDependencyDeleted);
+  }
+  dependencyDeletedAction(args) {
+    const action = this._getDependencyDeletedAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getDependencyDeletedAction() {
+    if (!this._dependencyDeletedAction) {
+      this.createDependencyDeletedAction();
+    }
+    return this._dependencyDeletedAction;
+  }
+  createResourceDeletedAction() {
+    this._resourceDeletedAction = this._createActionByOption(Actions.onResourceDeleted);
+  }
+  resourceDeletedAction(args) {
+    const action = this._getResourceDeletedAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getResourceDeletedAction() {
+    if (!this._resourceDeletedAction) {
+      this.createResourceDeletedAction();
+    }
+    return this._resourceDeletedAction;
+  }
+  createResourceUnassignedAction() {
+    this._resourceUnassignedAction = this._createActionByOption(Actions.onResourceUnassigned);
+  }
+  resourceUnassignedAction(args) {
+    const action = this._getResourceUnassignedAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getResourceUnassignedAction() {
+    if (!this._resourceUnassignedAction) {
+      this.createResourceUnassignedAction();
+    }
+    return this._resourceUnassignedAction;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getUpdatingAction(optionName) {
+    switch (optionName) {
+      case GANTT_TASKS:
+        return this._getTaskUpdatingAction();
+      default:
+        return () => {};
+    }
+  }
+  raiseUpdatingAction(optionName, coreArgs, action) {
+    // eslint-disable-next-line no-param-reassign
+    action = action || this._getUpdatingAction(optionName);
+    if (action) {
+      var _this$_customFieldsMa2;
+      const isTaskUpdating = optionName === GANTT_TASKS;
+      const args = {
+        cancel: false,
+        key: coreArgs.key,
+        newValues: this._convertCoreToMappedData(optionName, coreArgs.newValues),
+        values: isTaskUpdating ? this._getTaskData(coreArgs.key) : this._convertCoreToMappedData(optionName, coreArgs.values)
+      };
+      if (isTaskUpdating && (_this$_customFieldsMa2 = this._customFieldsManager) !== null && _this$_customFieldsMa2 !== void 0 && _this$_customFieldsMa2.cache.hasData(args.key)) {
+        var _this$_customFieldsMa3;
+        (_this$_customFieldsMa3 = this._customFieldsManager) === null || _this$_customFieldsMa3 === void 0 || _this$_customFieldsMa3.addCustomFieldsDataFromCache(args.key, args.newValues);
+      }
+      action(args);
+      coreArgs.cancel = args.cancel;
+      (0, _extend.extend)(coreArgs.newValues, this._convertMappedToCoreData(optionName, args.newValues));
+      if (isTaskUpdating) {
+        if (args.cancel) {
+          var _this$_customFieldsMa4;
+          (_this$_customFieldsMa4 = this._customFieldsManager) === null || _this$_customFieldsMa4 === void 0 || _this$_customFieldsMa4.resetCustomFieldsDataCache(args.key);
+        } else {
+          const forceUpdateOnKeyExpire = !Object.keys(coreArgs.newValues).length;
+          this._saveCustomFieldsDataToCache(args.key, args.newValues, forceUpdateOnKeyExpire);
+        }
+      }
+    }
+  }
+  createTaskUpdatingAction() {
+    this._taskUpdatingAction = this._createActionByOption(Actions.onTaskUpdating);
+  }
+  taskUpdatingAction(args) {
+    const action = this._getTaskUpdatingAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getTaskUpdatingAction() {
+    if (!this._taskUpdatingAction) {
+      this.createTaskUpdatingAction();
+    }
+    return this._taskUpdatingAction;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getUpdatedAction(optionName) {
+    switch (optionName) {
+      case GANTT_TASKS:
+        return this._getTaskUpdatedAction();
+      default:
+        return () => {};
+    }
+  }
+  raiseUpdatedAction(optionName, data, key) {
+    const action = this._getUpdatedAction(optionName);
+    if (action) {
+      const args = {
+        values: data,
+        key
+      };
+      action(args);
+    }
+  }
+  createTaskUpdatedAction() {
+    this._taskUpdatedAction = this._createActionByOption(Actions.onTaskUpdated);
+  }
+  taskUpdatedAction(args) {
+    const action = this._getTaskUpdatedAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getTaskUpdatedAction() {
+    if (!this._taskUpdatedAction) {
+      this.createTaskUpdatedAction();
+    }
+    return this._taskUpdatedAction;
+  }
+  createTaskEditDialogShowingAction() {
+    this._taskEditDialogShowingAction = this._createActionByOption(Actions.onTaskEditDialogShowing);
+  }
+  taskEditDialogShowingAction(args) {
+    const action = this._getTaskEditDialogShowingAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getTaskEditDialogShowingAction() {
+    if (!this._taskEditDialogShowingAction) {
+      this.createTaskEditDialogShowingAction();
+    }
+    return this._taskEditDialogShowingAction;
+  }
+  raiseTaskEditDialogShowingAction(coreArgs) {
+    const action = this._getTaskEditDialogShowingAction();
+    if (action) {
+      const args = {
+        cancel: false,
+        key: coreArgs.key,
+        values: this._convertCoreToMappedData(GANTT_TASKS, coreArgs.values),
+        readOnlyFields: this._convertCoreToMappedFields(GANTT_TASKS, coreArgs.readOnlyFields),
+        hiddenFields: this._convertCoreToMappedFields(GANTT_TASKS, coreArgs.hiddenFields)
+      };
+      action(args);
+      coreArgs.cancel = args.cancel;
+      (0, _extend.extend)(coreArgs.values, this._convertMappedToCoreData(GANTT_TASKS, args.values));
+      coreArgs.readOnlyFields = this._convertMappedToCoreFields(GANTT_TASKS, args.readOnlyFields);
+      coreArgs.hiddenFields = this._convertMappedToCoreFields(GANTT_TASKS, args.hiddenFields);
+    }
+  }
+  createResourceManagerDialogShowingAction() {
+    this._resourceManagerDialogShowingAction = this._createActionByOption(Actions.onResourceManagerDialogShowing);
+  }
+  resourceManagerDialogShowingAction(args) {
+    const action = this._getResourceManagerDialogShowingAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getResourceManagerDialogShowingAction() {
+    if (!this._resourceManagerDialogShowingAction) {
+      this.createResourceManagerDialogShowingAction();
+    }
+    return this._resourceManagerDialogShowingAction;
+  }
+  raiseResourceManagerDialogShowingAction(coreArgs) {
+    const action = this._getResourceManagerDialogShowingAction();
+    if (action) {
+      const mappedResources = coreArgs.values.resources.items.map(r => this._convertMappedToCoreData(GANTT_RESOURCES, r));
+      const args = {
+        cancel: false,
+        values: mappedResources
+      };
+      action(args);
+      coreArgs.cancel = args.cancel;
+    }
+  }
+  createTaskMovingAction() {
+    this._taskMovingAction = this._createActionByOption(Actions.onTaskMoving);
+  }
+  taskMovingAction(args) {
+    const action = this.getTaskMovingAction();
+    action === null || action === void 0 || action(args);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getTaskMovingAction() {
+    if (!this._taskMovingAction) {
+      this.createTaskMovingAction();
+    }
+    return this._taskMovingAction;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getScaleCellPreparedAction() {
+    if (!this._scaleCellPreparedAction) {
+      this.createScaleCellPreparedAction();
+    }
+    return this._scaleCellPreparedAction;
+  }
+  createScaleCellPreparedAction() {
+    this._scaleCellPreparedAction = this._createActionByOption(Actions.onScaleCellPrepared);
+  }
+  raiseScaleCellPreparedAction(data) {
+    const action = this.getScaleCellPreparedAction();
+    if (action) {
+      const args = {
+        scaleIndex: data.scaleIndex,
+        scaleType: this._getScaleType(data.scaleType),
+        scaleElement: (0, _element.getPublicElement)((0, _renderer.default)(data.scaleElement)),
+        separatorElement: (0, _element.getPublicElement)((0, _renderer.default)(data.separatorElement)),
+        startDate: new Date(data.start),
+        endDate: new Date(data.end)
+      };
+      // @ts-expect-error ts-error
+      action === null || action === void 0 || action(args);
+    }
+  }
+  _getScaleType(viewType) {
+    switch (viewType) {
+      case 0:
+        return 'minutes';
+      case 1:
+        return 'hours';
+      case 2:
+        return 'sixHours';
+      case 3:
+        return 'days';
+      case 4:
+        return 'weeks';
+      case 5:
+        return 'months';
+      case 6:
+        return 'quarters';
+      case 7:
+        return 'years';
+      case 8:
+        return 'fiveYears';
+      default:
+        return undefined;
+    }
+  }
+}
+exports.GanttActionsManager = GanttActionsManager;
+
+/***/ }),
+
+/***/ 5102:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.GanttToolbar = exports.GanttContextMenuBar = void 0;
+var _message = _interopRequireDefault(__webpack_require__(4671));
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _extend = __webpack_require__(52576);
+var _context_menu = _interopRequireDefault(__webpack_require__(84252));
+var _toolbar = _interopRequireDefault(__webpack_require__(53716));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+// eslint-disable-next-line max-classes-per-file
+
+const TOOLBAR_SEPARATOR_CLASS = 'dx-gantt-toolbar-separator';
+const COMMANDS = {
+  createTask: 0,
+  createSubTask: 1,
+  removeTask: 2,
+  removeDependency: 3,
+  taskInformation: 4,
+  taskAddContextItem: 5,
+  undo: 6,
+  redo: 7,
+  zoomIn: 8,
+  zoomOut: 9,
+  fullScreen: 10,
+  collapseAll: 11,
+  expandAll: 12,
+  resourceManager: 13,
+  toggleResources: 14,
+  toggleDependencies: 15
+};
+class Bar {
+  constructor(element, owner) {
+    this._element = element;
+    this._owner = owner;
+    this._items = [];
+    this._createControl();
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _createControl() {}
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _createSeparator() {}
+  // @ts-ignore
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _createDefaultItem(_commandId, _text, _icon) {}
+  createItems(items) {
+    var _this$_menu;
+    this._cache = null;
+    this._items = this._createItemsCore(items);
+    (_this$_menu = this._menu) === null || _this$_menu === void 0 || _this$_menu.option('items', this._items);
+  }
+  _createItemsCore(items) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return items.map(item => {
+      // eslint-disable-next-line @typescript-eslint/init-declarations
+      let result;
+      if (typeof item === 'string') {
+        result = this._createItemByText(item);
+      } else {
+        result = item.name ? (0, _extend.extend)(this._createItemByText(item.name), item) : (0, _extend.extend)(this._getDefaultItemOptions(), item);
+      }
+      if (item.items) {
+        result.items = this._createItemsCore(item.items);
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return result;
+    });
+  }
+  _createItemByText(text) {
+    switch (text.toLowerCase()) {
+      case 'separator':
+        // @ts-expect-error ts-error
+        return this._createSeparator();
+      case 'undo':
+        return this._createDefaultItem(COMMANDS.undo, _message.default.format('dxGantt-undo'), this._getIcon('undo'));
+      case 'redo':
+        return this._createDefaultItem(COMMANDS.redo, _message.default.format('dxGantt-redo'), this._getIcon('redo'));
+      case 'expandall':
+        return this._createDefaultItem(COMMANDS.expandAll, _message.default.format('dxGantt-expandAll'), this._getIcon('expand'));
+      case 'collapseall':
+        return this._createDefaultItem(COMMANDS.collapseAll, _message.default.format('dxGantt-collapseAll'), this._getIcon('collapse'));
+      case 'addtask':
+        return this._createDefaultItem(COMMANDS.createTask, _message.default.format('dxGantt-addNewTask'), this._getIcon('add'));
+      case 'addsubtask':
+        return this._createDefaultItem(COMMANDS.createSubTask, _message.default.format('dxGantt-contextMenuNewSubtask'), this._getIcon('add-sub-task'));
+      case 'deletetask':
+        return this._createDefaultItem(COMMANDS.removeTask, _message.default.format('dxGantt-deleteSelectedTask'), this._getIcon('delete'));
+      case 'deletedependency':
+        return this._createDefaultItem(COMMANDS.removeDependency, _message.default.format('dxGantt-contextMenuDeleteDependency'), this._getIcon('delete-dependency'));
+      case 'zoomin':
+        return this._createDefaultItem(COMMANDS.zoomIn, _message.default.format('dxGantt-zoomIn'), this._getIcon('zoom-in'));
+      case 'zoomout':
+        return this._createDefaultItem(COMMANDS.zoomOut, _message.default.format('dxGantt-zoomOut'), this._getIcon('zoom-out'));
+      case 'fullscreen':
+        return this._createDefaultItem(COMMANDS.fullScreen, _message.default.format('dxGantt-fullScreen'), this._getIcon('full-screen'));
+      case 'taskdetails':
+        return this._createDefaultItem(COMMANDS.taskInformation, `${_message.default.format('dxGantt-dialogTaskDetailsTitle')}...`, this._getIcon('task-details'));
+      case 'resourcemanager':
+        return this._createDefaultItem(COMMANDS.resourceManager, _message.default.format('dxGantt-dialogResourceManagerTitle'), this._getIcon('resource-manager'));
+      case 'showresources':
+        return this._createDefaultItem(COMMANDS.toggleResources, _message.default.format('dxGantt-showResources'), this._getIcon('toggle-resources'));
+      case 'showdependencies':
+        return this._createDefaultItem(COMMANDS.toggleDependencies, _message.default.format('dxGantt-showDependencies'), this._getIcon('toggle-dependencies'));
+      default:
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        return (0, _extend.extend)(this._getDefaultItemOptions(), {
+          options: {
+            text
+          }
+        });
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getDefaultItemOptions() {
+    return {};
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getItemsCache() {
+    if (!this._cache) {
+      this._cache = {};
+      this._fillCache(this._items);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._cache;
+  }
+  _fillCache(items) {
+    items.forEach(item => {
+      const key = item.commandId;
+      if (key !== undefined) {
+        if (!this._cache[key]) {
+          this._cache[key] = [];
+        }
+        this._cache[key].push(item);
+      }
+      if (item.items) {
+        this._fillCache(item.items);
+      }
+    });
+  }
+  _getIcon(name) {
+    return `dx-gantt-i dx-gantt-i-${name}`;
+  }
+  // IBar
+  getCommandKeys() {
+    const itemsCache = this._getItemsCache();
+    const result = [];
+    // eslint-disable-next-line no-restricted-syntax,guard-for-in
+    for (const itemKey in itemsCache) {
+      result.push(parseInt(itemKey, 10));
+    }
+    return result;
+  }
+  setItemEnabled(key, enabled) {
+    const itemsCache = this._getItemsCache();
+    itemsCache[key].forEach(item => {
+      item.disabled = !enabled;
+    });
+  }
+  setItemVisible(key, visible) {
+    const itemsCache = this._getItemsCache();
+    itemsCache[key].forEach(item => {
+      item.visible = visible;
+    });
+  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  setItemValue(_key, _value) {}
+  setEnabled(enabled) {
+    var _this$_menu2;
+    (_this$_menu2 = this._menu) === null || _this$_menu2 === void 0 || _this$_menu2.option('disabled', !enabled);
+  }
+  updateItemsList() {}
+  isVisible() {
+    return true;
+  }
+  isContextMenu() {
+    return false;
+  }
+  completeUpdate() {}
+}
+class GanttToolbar extends Bar {
+  _createControl() {
+    this._menu = this._owner._createComponent(this._element, _toolbar.default, {
+      onItemClick: e => {
+        const {
+          commandId
+        } = e.itemData;
+        if (commandId !== undefined) {
+          this._owner._executeCoreCommand(commandId);
+        }
+      }
+    });
+  }
+  _createDefaultItem(commandId, hint, icon) {
+    return {
+      commandId,
+      disabled: true,
+      widget: 'dxButton',
+      location: 'before',
+      options: {
+        icon,
+        stylingMode: 'text',
+        hint
+      }
+    };
+  }
+  _createSeparator() {
+    return {
+      location: 'before',
+      template: (_data, _index, element) => {
+        (0, _renderer.default)(element).addClass(TOOLBAR_SEPARATOR_CLASS);
+      }
+    };
+  }
+  _getDefaultItemOptions() {
+    return {
+      location: 'before',
+      widget: 'dxButton'
+    };
+  }
+  // IBar
+  completeUpdate() {
+    var _this$_menu3;
+    (_this$_menu3 = this._menu) === null || _this$_menu3 === void 0 || _this$_menu3.option('items', this._items);
+  }
+}
+exports.GanttToolbar = GanttToolbar;
+class GanttContextMenuBar extends Bar {
+  _createControl() {
+    this._menu = this._owner._createComponent(this._element, _context_menu.default, {
+      showEvent: undefined,
+      onItemClick: e => {
+        if (e.itemData.commandId !== undefined) {
+          this._owner._executeCoreCommand(e.itemData.commandId);
+        } else if (e.itemData.name !== undefined) {
+          this._owner._actionsManager.raiseCustomCommand(e.itemData.name);
+        }
+      }
+    });
+  }
+  createItems(items) {
+    if (!items || items.length === 0) {
+      // eslint-disable-next-line no-param-reassign
+      items = this._getDefaultItems();
+    }
+    super.createItems(items);
+  }
+  _getDefaultItems() {
+    return [{
+      text: _message.default.format('dxGantt-dialogButtonAdd'),
+      commandId: COMMANDS.taskAddContextItem,
+      icon: this._getIcon('add'),
+      items: [{
+        text: _message.default.format('dxGantt-contextMenuNewTask'),
+        commandId: COMMANDS.createTask,
+        icon: this._getIcon('add-task')
+      }, {
+        text: _message.default.format('dxGantt-contextMenuNewSubtask'),
+        commandId: COMMANDS.createSubTask,
+        icon: this._getIcon('add-sub-task')
+      }]
+    }, {
+      text: `${_message.default.format('dxGantt-dialogTaskDetailsTitle')}...`,
+      commandId: COMMANDS.taskInformation,
+      icon: this._getIcon('task-details')
+    }, {
+      text: _message.default.format('dxGantt-contextMenuDeleteTask'),
+      commandId: COMMANDS.removeTask,
+      icon: this._getIcon('delete')
+    }, {
+      text: _message.default.format('dxGantt-contextMenuDeleteDependency'),
+      commandId: COMMANDS.removeDependency,
+      icon: this._getIcon('delete-dependency')
+    }];
+  }
+  _createDefaultItem(commandId, text, icon) {
+    return {
+      commandId,
+      text,
+      icon
+    };
+  }
+  show(point, items) {
+    var _this$_menu4, _this$_menu5, _this$_menu6;
+    (_this$_menu4 = this._menu) === null || _this$_menu4 === void 0 || _this$_menu4.option('items', items || this._items);
+    (_this$_menu5 = this._menu) === null || _this$_menu5 === void 0 || _this$_menu5.option('position.offset', {
+      x: point.x,
+      y: point.y
+    });
+    (_this$_menu6 = this._menu) === null || _this$_menu6 === void 0 || _this$_menu6.option('position.collision', 'fit');
+    // @ts-expect-error ts-error
+    this._menu.show();
+  }
+  hide() {
+    // @ts-expect-error ts-error
+    this._menu.hide();
+  }
+  // IBar
+  isContextMenu() {
+    return true;
+  }
+}
+exports.GanttContextMenuBar = GanttContextMenuBar;
+
+/***/ }),
+
+/***/ 98702:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.GanttDataCache = void 0;
+var _extend = __webpack_require__(52576);
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+
+class GanttDataCache {
+  constructor() {
+    this._cache = {};
+    this._timers = {};
+  }
+  saveData(key, data, keyExpireCallback) {
+    if (data) {
+      this._clearTimer(key);
+      const storage = this._getCache(key, true);
+      (0, _extend.extendFromObject)(storage, data, true);
+      if (keyExpireCallback) {
+        this._setExpireTimer(key, keyExpireCallback);
+      }
+    }
+  }
+  pullDataFromCache(key, target) {
+    const data = this._getCache(key);
+    if (data) {
+      // @ts-expect-error ts-error
+      (0, _extend.extendFromObject)(target, data);
+    }
+    this._onKeyExpired(key);
+  }
+  hasData(key) {
+    return !!this._cache[key];
+  }
+  resetCache(key) {
+    this._onKeyExpired(key);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getCache(key, forceCreate) {
+    if (!this._cache[key] && forceCreate) {
+      this._cache[key] = {};
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._cache[key];
+  }
+  _setExpireTimer(key, callback) {
+    // eslint-disable-next-line no-restricted-globals
+    this._timers[key] = setTimeout(() => {
+      callback(key, this._getCache(key));
+      this._onKeyExpired(key);
+    }, 200);
+  }
+  _onKeyExpired(key) {
+    this._clearCache(key);
+    this._clearTimer(key);
+  }
+  _clearCache(key) {
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete this._cache[key];
+  }
+  _clearTimer(key) {
+    const timers = this._timers;
+    if (timers !== null && timers !== void 0 && timers[key]) {
+      clearTimeout(timers[key]);
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete timers[key];
+    }
+  }
+}
+exports.GanttDataCache = GanttDataCache;
+
+/***/ }),
+
+/***/ 39749:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.GanttCustomFieldsManager = void 0;
+var _data = __webpack_require__(31000);
+var _uiGantt = __webpack_require__(98702);
+var _uiGantt2 = __webpack_require__(55886);
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+
+const GANTT_TASKS = 'tasks';
+class GanttCustomFieldsManager {
+  constructor(gantt) {
+    this._gantt = gantt;
+    // @ts-expect-error ts-error
+    this._mappingHelper = gantt._mappingHelper;
+    this.cache = new _uiGantt.GanttDataCache();
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getTaskCustomFields() {
+    const {
+      columns
+    } = this._gantt.option();
+    // @ts-expect-error ts-error
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    const columnFields = columns === null || columns === void 0 ? void 0 : columns.map(c => c.dataField);
+    const mappedFields = this._mappingHelper.getTaskMappedFieldNames();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return columnFields
+    // @ts-expect-error ts-error
+    ? columnFields.filter(f => !mappedFields.includes(f)) : [];
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getCustomFieldsData(data) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._getTaskCustomFields().reduce((previous, field) => {
+      if (data && data[field] !== undefined) {
+        previous[field] = data[field];
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return previous;
+    }, {});
+  }
+  addCustomFieldsData(key, data) {
+    if (data) {
+      var _this$_gantt$_tasksOp;
+      // @ts-expect-error ts-error
+      const modelData = (_this$_gantt$_tasksOp = this._gantt._tasksOption) === null || _this$_gantt$_tasksOp === void 0 ? void 0 : _this$_gantt$_tasksOp._getItems();
+      const keyGetter = (0, _data.compileGetter)(
+      // @ts-expect-error ts-error
+      this._gantt.option(`${GANTT_TASKS}.keyExpr`));
+      // @ts-expect-error ts-error
+      const modelItem = modelData === null || modelData === void 0 ? void 0 : modelData.filter(obj => keyGetter(obj) === key)[0];
+      const customFields = this._getTaskCustomFields();
+      if (modelItem) {
+        // eslint-disable-next-line @typescript-eslint/prefer-for-of
+        for (let i = 0; i < customFields.length; i += 1) {
+          const field = customFields[i];
+          // eslint-disable-next-line max-depth
+          if (Object.prototype.hasOwnProperty.call(modelItem, field)) {
+            data[field] = modelItem[field];
+          }
+        }
+      }
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  appendCustomFields(data) {
+    var _this$_gantt$_tasksOp2;
+    // @ts-expect-error ts-error
+    const modelData = (_this$_gantt$_tasksOp2 = this._gantt._tasksOption) === null || _this$_gantt$_tasksOp2 === void 0 ? void 0 : _this$_gantt$_tasksOp2._getItems();
+    const keyGetter = this._gantt._getTaskKeyGetter();
+    const invertedData = _uiGantt2.GanttHelper.getInvertedData(modelData, keyGetter);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return data.reduce((previous, item) => {
+      // @ts-expect-error ts-error
+      const key = keyGetter(item);
+      const modelItem = invertedData[key];
+      if (!modelItem) {
+        previous.push(item);
+      } else {
+        const updatedItem = {};
+        // eslint-disable-next-line guard-for-in,no-restricted-syntax
+        for (const field in modelItem) {
+          updatedItem[field] = Object.prototype.hasOwnProperty.call(item, field) ? item[field] : modelItem[field];
+        }
+        previous.push(updatedItem);
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return previous;
+    }, []);
+  }
+  addCustomFieldsDataFromCache(key, data) {
+    this.cache.pullDataFromCache(key, data);
+  }
+  saveCustomFieldsDataToCache(key, data) {
+    let forceUpdateOnKeyExpire = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
+    let isCustomFieldsUpdateOnly = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : false;
+    const customFieldsData = this._getCustomFieldsData(data);
+    if (Object.keys(customFieldsData).length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-shadow
+      const updateCallback = (key, data) => {
+        const dataOption = this._gantt[`_${GANTT_TASKS}Option`];
+        if (dataOption && data) {
+          // eslint-disable-next-line @typescript-eslint/no-shadow
+          dataOption.update(key, data, (data, key) => {
+            var _this$_gantt$_ganttVi, _this$_gantt$_actions;
+            const updatedCustomFields = {};
+            this.addCustomFieldsData(key, updatedCustomFields);
+            // eslint-disable-next-line @typescript-eslint/no-shadow
+            dataOption._reloadDataSource().done(data => {
+              var _this$_gantt$_ganttTr;
+              (_this$_gantt$_ganttTr = this._gantt._ganttTreeList) === null || _this$_gantt$_ganttTr === void 0 || _this$_gantt$_ganttTr.updateDataSource(data ?? dataOption._dataSource, false, isCustomFieldsUpdateOnly);
+            });
+            const selectedRowKey = this._gantt.option('selectedRowKey');
+            (_this$_gantt$_ganttVi = this._gantt._ganttView) === null || _this$_gantt$_ganttVi === void 0 || _this$_gantt$_ganttVi._selectTask(selectedRowKey);
+            (_this$_gantt$_actions = this._gantt._actionsManager) === null || _this$_gantt$_actions === void 0 || _this$_gantt$_actions.raiseUpdatedAction(GANTT_TASKS, updatedCustomFields, key);
+          });
+        }
+      };
+      this.cache.saveData(key, customFieldsData, forceUpdateOnKeyExpire ? updateCallback : null);
+    }
+  }
+  resetCustomFieldsDataCache(key) {
+    this.cache.resetCache(key);
+  }
+}
+exports.GanttCustomFieldsManager = GanttCustomFieldsManager;
+
+/***/ }),
+
+/***/ 41447:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _m_data_helper = __webpack_require__(16780);
+var _component = __webpack_require__(17863);
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+
+class DataOption extends _component.Component {
+  constructor(optionName, getLoadPanel,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  dataSourceChangedCallback) {
+    super();
+    this._optionName = optionName;
+    this._getLoadPanel = getLoadPanel;
+    this._dataSourceChangedCallback = dataSourceChangedCallback;
+  }
+  insert(data, callback, errorCallback) {
+    this._showLoadPanel();
+    this._getStore().insert(data).done(response => {
+      if (callback) {
+        callback(response);
+      }
+      this._hideLoadPanel();
+    }).fail(error => {
+      if (errorCallback) {
+        errorCallback(error);
+      }
+      this._hideLoadPanel();
+    });
+  }
+  update(key, data, callback, errorCallback) {
+    this._showLoadPanel();
+    this._getStore().update(key, data)
+    // eslint-disable-next-line @typescript-eslint/no-shadow
+    .done((data, key) => {
+      if (callback) {
+        callback(data, key);
+      }
+      this._hideLoadPanel();
+    }).fail(error => {
+      if (errorCallback) {
+        errorCallback(error);
+      }
+      this._hideLoadPanel();
+    });
+  }
+  remove(key, callback, errorCallback) {
+    this._showLoadPanel();
+    this._getStore().remove(key)
+    // eslint-disable-next-line @typescript-eslint/no-shadow
+    .done(key => {
+      if (callback) {
+        callback(key);
+      }
+      this._hideLoadPanel();
+    }).fail(error => {
+      if (errorCallback) {
+        errorCallback(error);
+      }
+      this._hideLoadPanel();
+    });
+  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _dataSourceChangedHandler(newItems, e) {
+    this._dataSourceChangedCallback(this._optionName, newItems);
+  }
+  _dataSourceOptions() {
+    return {
+      paginate: false
+    };
+  }
+  _dataSourceLoadingChangedHandler(isLoading) {
+    // @ts-expect-error ts-error
+    if (isLoading && !this._dataSource.isLoaded()) {
+      this._showLoadPanel();
+    } else {
+      this._hideLoadPanel();
+    }
+  }
+  _showLoadPanel() {
+    var _this$_getLoadPanel;
+    (_this$_getLoadPanel = this._getLoadPanel()) === null || _this$_getLoadPanel === void 0 || _this$_getLoadPanel.show();
+  }
+  _hideLoadPanel() {
+    var _this$_getLoadPanel2;
+    (_this$_getLoadPanel2 = this._getLoadPanel()) === null || _this$_getLoadPanel2 === void 0 || _this$_getLoadPanel2.hide();
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getStore() {
+    // @ts-expect-error ts-error
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._dataSource.store();
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getItems() {
+    // @ts-expect-error ts-error
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._getStore()._array || this._dataSource.items();
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _reloadDataSource() {
+    // @ts-expect-error ts-error
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._dataSource.load();
+  }
+  dispose() {
+    // @ts-expect-error ts-error
+    this._disposeDataSource();
+  }
+  _optionChanged(args) {
+    const {
+      name
+    } = args;
+    switch (name) {
+      case 'dataSource':
+        break;
+      default:
+        break;
+    }
+  }
+}
+// @ts-expect-error ts-error
+DataOption.include(_m_data_helper.DataHelperMixin);
+var _default = exports["default"] = DataOption;
+
+/***/ }),
+
+/***/ 89311:
+/***/ (function(__unused_webpack_module, exports) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.GanttDataChangesProcessingHelper = void 0;
+class GanttDataChangesProcessingHelper {
+  constructor() {
+    this._waitingForGanttViewReady = false;
+    this._waitingForTreeListReady = false;
+    this._completionActions = [];
+  }
+  onGanttViewReady() {
+    this._stopWaitForGanttViewReady();
+    this.executeActionsIfPossible();
+  }
+  onTreeListReady() {
+    this._stopWaitForTreeListReady();
+    this.executeActionsIfPossible();
+  }
+  addCompletionAction(action, waitGanttViewReady, waitTreeListReady) {
+    if (action) {
+      if (waitGanttViewReady) {
+        this._startWaitForGanttViewReady();
+      }
+      if (waitTreeListReady) {
+        this._startWaitForTreeListReady();
+      }
+      this._completionActions.push(action);
+    }
+  }
+  executeActionsIfPossible() {
+    if (this._canExecuteActions()) {
+      this._completionActions.forEach(act => act());
+      this._completionActions = [];
+    }
+  }
+  _startWaitForGanttViewReady() {
+    this._waitingForGanttViewReady = true;
+  }
+  _stopWaitForGanttViewReady() {
+    this._waitingForGanttViewReady = false;
+  }
+  _startWaitForTreeListReady() {
+    this._waitingForTreeListReady = true;
+  }
+  _stopWaitForTreeListReady() {
+    this._waitingForTreeListReady = false;
+  }
+  _canExecuteActions() {
+    return !(this._waitingForGanttViewReady || this._waitingForTreeListReady);
+  }
+}
+exports.GanttDataChangesProcessingHelper = GanttDataChangesProcessingHelper;
+
+/***/ }),
+
+/***/ 15145:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.GanttDialog = void 0;
+__webpack_require__(4575);
+__webpack_require__(84798);
+__webpack_require__(80070);
+__webpack_require__(94660);
+var _date = _interopRequireDefault(__webpack_require__(38662));
+var _message = _interopRequireDefault(__webpack_require__(4671));
+var _form = _interopRequireDefault(__webpack_require__(10378));
+var _m_popup = _interopRequireDefault(__webpack_require__(43864));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+/* eslint-disable max-classes-per-file,@typescript-eslint/explicit-module-boundary-types */
+
+class DialogInfoBase {
+  constructor(parameters, applyAction, hideAction, editingOptions, owner) {
+    this._parameters = parameters;
+    this._applyAction = applyAction;
+    this._hideAction = hideAction;
+    this._editingOptions = editingOptions;
+    this._owner = owner;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getFormItems() {
+    return {};
+  }
+  _getFormCssClass() {
+    return '';
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getFormData() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._parameters;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _updateParameters(_formData) {}
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getOkToolbarItem() {
+    return this._getToolbarItem('OK', this._applyAction);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getCancelToolbarItem() {
+    return this._getToolbarItem('Cancel', this._hideAction);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getYesToolbarItem() {
+    return this._getToolbarItem('Yes', this._applyAction);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getNoToolbarItem() {
+    return this._getToolbarItem('No', this._hideAction);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getToolbarItem(localizationText, action) {
+    return {
+      widget: 'dxButton',
+      toolbar: 'bottom',
+      options: {
+        text: _message.default.format(localizationText),
+        onClick: action
+      }
+    };
+  }
+  getTitle() {
+    return '';
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getToolbarItems() {
+    return this._editingOptions.enabled ? [this._getOkToolbarItem(), this._getCancelToolbarItem()] : [this._getCancelToolbarItem()];
+  }
+  getMaxWidth() {
+    return 400;
+  }
+  getHeight() {
+    return 'auto';
+  }
+  getContentTemplate() {
+    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+    return content => {
+      // @ts-expect-error ts-error
+      this._form = new _form.default(content, {
+        formData: this._getFormData(),
+        items: this._getFormItems(),
+        elementAttr: {
+          class: this._getFormCssClass()
+        },
+        rtlEnabled: false
+      });
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return content;
+    };
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getResult() {
+    const formData = this.getFormData();
+    this._updateParameters(formData);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._parameters;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getFormData() {
+    var _this$_form;
+    const formData = (_this$_form = this._form) === null || _this$_form === void 0 ? void 0 : _this$_form.option('formData');
+    return formData;
+  }
+  isValidated() {
+    return true;
+  }
+  shouldHidePopup() {
+    return true;
+  }
+}
+class TaskEditDialogInfo extends DialogInfoBase {
+  getTitle() {
+    return _message.default.format('dxGantt-dialogTaskDetailsTitle');
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getFormItems() {
+    const readOnly = !this._editingOptions.enabled || !this._editingOptions.allowTaskUpdating;
+    const readOnlyRange = readOnly || !this._parameters.enableRangeEdit;
+    return [{
+      dataField: 'title',
+      editorType: 'dxTextBox',
+      label: {
+        text: _message.default.format('dxGantt-dialogTitle')
+      },
+      editorOptions: {
+        readOnly: readOnly || this._isReadOnlyField('title')
+      },
+      visible: !this._isHiddenField('title')
+    }, {
+      dataField: 'start',
+      editorType: 'dxDateBox',
+      label: {
+        text: _message.default.format('dxGantt-dialogStartTitle')
+      },
+      editorOptions: {
+        type: 'datetime',
+        width: '100%',
+        readOnly: readOnlyRange || this._isReadOnlyField('start')
+      },
+      visible: !this._isHiddenField('start'),
+      validationRules: [{
+        type: 'required',
+        message: _message.default.format('validation-required-formatted',
+        // @ts-expect-error ts-error
+        _message.default.format('dxGantt-dialogStartTitle'))
+      }, {
+        type: 'custom',
+        validationCallback: e => {
+          if (this._parameters.isValidationRequired) {
+            const correctDateRange = this._parameters.getCorrectDateRange(this._parameters.id, e.value, this._parameters.end);
+            if (correctDateRange.start.getTime() !== e.value.getTime()) {
+              e.rule.message = this._getValidationMessage(true, correctDateRange.start);
+              return false;
+            }
+          }
+          return true;
+        }
+      }]
+    }, {
+      dataField: 'end',
+      editorType: 'dxDateBox',
+      label: {
+        text: _message.default.format('dxGantt-dialogEndTitle')
+      },
+      editorOptions: {
+        type: 'datetime',
+        width: '100%',
+        readOnly: readOnlyRange || this._isReadOnlyField('end')
+      },
+      visible: !this._isHiddenField('end'),
+      validationRules: [{
+        type: 'required',
+        message: _message.default.format('validation-required-formatted',
+        // @ts-expect-error ts-error
+        _message.default.format('dxGantt-dialogEndTitle'))
+      }, {
+        type: 'custom',
+        validationCallback: e => {
+          if (this._parameters.isValidationRequired) {
+            const correctDateRange = this._parameters.getCorrectDateRange(this._parameters.id, this._parameters.start, e.value);
+            if (correctDateRange.end.getTime() !== e.value.getTime()) {
+              e.rule.message = this._getValidationMessage(false, correctDateRange.end);
+              return false;
+            }
+          }
+          return true;
+        }
+      }]
+    }, {
+      dataField: 'progress',
+      editorType: 'dxNumberBox',
+      label: {
+        text: _message.default.format('dxGantt-dialogProgressTitle')
+      },
+      editorOptions: {
+        showSpinButtons: true,
+        min: 0,
+        max: 1,
+        format: '#0%',
+        step: 0.01,
+        readOnly: readOnlyRange || this._isReadOnlyField('progress')
+      },
+      visible: !this._isHiddenField('progress')
+    }, {
+      dataField: 'assigned.items',
+      editorType: 'dxTagBox',
+      label: {
+        text: _message.default.format('dxGantt-dialogResourcesTitle')
+      },
+      editorOptions: {
+        readOnly: readOnly || !this._editingOptions.allowTaskResourceUpdating,
+        dataSource: this._parameters.resources.items,
+        displayExpr: 'text',
+        buttons: [{
+          name: 'editResources',
+          location: 'after',
+          options: {
+            disabled: !this._editingOptions.allowResourceAdding && !this._editingOptions.allowResourceDeleting,
+            text: '...',
+            hint: _message.default.format('dxGantt-dialogEditResourceListHint'),
+            onClick: () => {
+              const formData = this.getFormData();
+              const showTaskEditDialogCallback = () => {
+                this._parameters.showTaskEditDialogCommand.execute();
+                this._restoreFormData(formData);
+              };
+              this._parameters.showResourcesDialogCommand.execute(showTaskEditDialogCallback);
+            }
+          }
+        }]
+      }
+    }];
+  }
+  _restoreFormData(formData) {
+    const newForm = this._owner._dialogInfo._form;
+    const titleEdit = newForm.getEditor('title');
+    const assignedEdit = newForm.getEditor('assigned.items');
+    const startEdit = newForm.getEditor('start');
+    const endEdit = newForm.getEditor('end');
+    const progressEdit = newForm.getEditor('progress');
+    titleEdit.option('value', formData.title);
+    assignedEdit.option('value', formData.assigned.items);
+    startEdit.option('value', formData.start);
+    endEdit.option('value', formData.end);
+    progressEdit.option('value', formData.progress);
+  }
+  _getValidationMessage(isStartDependencies, correctDate) {
+    if (isStartDependencies) {
+      return _message.default.format('dxGantt-dialogStartDateValidation',
+      // @ts-expect-error ts-error
+      this._getFormattedDateText(correctDate));
+    }
+    return _message.default.format('dxGantt-dialogEndDateValidation',
+    // @ts-expect-error ts-error
+    this._getFormattedDateText(correctDate));
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getFormattedDateText(date) {
+    return date ? _date.default.format(date, 'shortDateShortTime') : '';
+  }
+  _isReadOnlyField(field) {
+    return this._parameters.readOnlyFields.indexOf(field) > -1;
+  }
+  _isHiddenField(field) {
+    return this._parameters.hiddenFields.indexOf(field) > -1;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getFormData() {
+    const data = {};
+    // eslint-disable-next-line guard-for-in,no-restricted-syntax
+    for (const field in this._parameters) {
+      data[field] = field === 'progress' ? this._parameters[field] / 100 : this._parameters[field];
+    }
+    return data;
+  }
+  _updateParameters(formData) {
+    this._parameters.title = formData.title;
+    this._parameters.start = formData.start;
+    this._parameters.end = formData.end;
+    this._parameters.progress = Math.round(formData.progress * 100);
+    this._parameters.assigned = formData.assigned;
+  }
+  isValidated() {
+    var _this$_form2;
+    const validationResult = (_this$_form2 = this._form) === null || _this$_form2 === void 0 ? void 0 : _this$_form2.validate();
+    // @ts-expect-error ts-error
+    return validationResult === null || validationResult === void 0 ? void 0 : validationResult.isValid;
+  }
+}
+class ResourcesEditDialogInfo extends DialogInfoBase {
+  getTitle() {
+    return _message.default.format('dxGantt-dialogResourceManagerTitle');
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getFormItems() {
+    return [{
+      label: {
+        visible: false
+      },
+      dataField: 'resources.items',
+      editorType: 'dxList',
+      editorOptions: {
+        allowItemDeleting: this._editingOptions.enabled && this._editingOptions.allowResourceDeleting,
+        itemDeleteMode: 'static',
+        selectionMode: 'none',
+        items: this._parameters.resources.items,
+        height: 250,
+        noDataText: _message.default.format('dxGantt-dialogEditNoResources'),
+        onInitialized: e => {
+          // @ts-expect-error ts-error
+          this.list = e.component;
+        },
+        onItemDeleted: e => {
+          this._parameters.resources.remove(e.itemData);
+        }
+      }
+    }, {
+      label: {
+        visible: false
+      },
+      editorType: 'dxTextBox',
+      editorOptions: {
+        readOnly: !this._editingOptions.enabled || !this._editingOptions.allowResourceAdding,
+        onInitialized: e => {
+          // @ts-expect-error ts-error
+          this.textBox = e.component;
+        },
+        onInput: e => {
+          const addButton = e.component.getButton('addResource');
+          const resourceName = e.component.option('text');
+          addButton.option('disabled', resourceName.length === 0);
+        },
+        buttons: [{
+          name: 'addResource',
+          location: 'after',
+          options: {
+            text: _message.default.format('dxGantt-dialogButtonAdd'),
+            disabled: true,
+            onClick: e => {
+              const newItem = this._parameters.resources.createItem();
+              // @ts-expect-error ts-error
+              newItem.text = this.textBox.option('text');
+              this._parameters.resources.add(newItem);
+              // @ts-expect-error ts-error
+              this.list.option('items', this._parameters.resources.items);
+              // @ts-expect-error ts-error
+              this.list.scrollToItem(newItem);
+              // @ts-expect-error ts-error
+              this.textBox.clear();
+              e.component.option('disabled', true);
+            }
+          }
+        }]
+      }
+    }];
+  }
+  shouldHidePopup() {
+    return false;
+  }
+}
+class ConfirmDialogInfo extends DialogInfoBase {
+  getContentTemplate() {
+    return () => this._getConfirmMessage();
+  }
+  _getConfirmMessage() {
+    switch (this._parameters.type) {
+      case 0:
+        return _message.default.format('dxGantt-dialogTaskDeleteConfirmation');
+      case 1:
+        return _message.default.format('dxGantt-dialogDependencyDeleteConfirmation');
+      case 2:
+        return _message.default.format('dxGantt-dialogResourcesDeleteConfirmation',
+        // @ts-expect-error ts-error
+        this._parameters.message);
+      default:
+        return '';
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getToolbarItems() {
+    return [this._getYesToolbarItem(), this._getNoToolbarItem()];
+  }
+}
+class ConstraintViolationDialogInfo extends DialogInfoBase {
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getFormItems() {
+    const {
+      hasCriticalErrors
+    } = this._parameters;
+    const severalErrors = this._parameters.errorsCount > 1;
+    const items = [];
+    const deleteMessage = severalErrors ? 'dxGantt-dialogDeleteDependenciesMessage' : 'dxGantt-dialogDeleteDependencyMessage';
+    const moveMessage = severalErrors ? 'dxGantt-dialogMoveTaskAndKeepDependenciesMessage' : 'dxGantt-dialogMoveTaskAndKeepDependencyMessage';
+    let titleMessage = '';
+    if (hasCriticalErrors) {
+      titleMessage = severalErrors ? 'dxGantt-dialogConstraintCriticalViolationSeveralTasksMessage' : 'dxGantt-dialogConstraintCriticalViolationMessage';
+    } else {
+      titleMessage = severalErrors ? 'dxGantt-dialogConstraintViolationSeveralTasksMessage' : 'dxGantt-dialogConstraintViolationMessage';
+    }
+    items.push({
+      text: _message.default.format('dxGantt-dialogCancelOperationMessage'),
+      value: 0
+    });
+    items.push({
+      text: _message.default.format(deleteMessage),
+      value: 1
+    });
+    if (!hasCriticalErrors) {
+      items.push({
+        text: _message.default.format(moveMessage),
+        value: 2
+      });
+    }
+    return [{
+      template: _message.default.format(titleMessage)
+    }, {
+      cssClass: 'dx-cv-dialog-row',
+      dataField: 'option',
+      label: {
+        visible: false
+      },
+      editorType: 'dxRadioGroup',
+      editorOptions: {
+        items,
+        valueExpr: 'value',
+        value: 0
+      }
+    }];
+  }
+  _getFormCssClass() {
+    return 'dx-cv-dialog';
+  }
+  _updateParameters(formData) {
+    this._parameters.option = formData.option;
+  }
+}
+class GanttDialog {
+  constructor(owner, $element) {
+    this._popupInstance = owner._createComponent($element, _m_popup.default);
+    this.infoMap = {
+      TaskEdit: TaskEditDialogInfo,
+      Resources: ResourcesEditDialogInfo,
+      Confirmation: ConfirmDialogInfo,
+      ConstraintViolation: ConstraintViolationDialogInfo
+    };
+  }
+  _apply() {
+    if (this._dialogInfo.isValidated()) {
+      const result = this._dialogInfo.getResult();
+      this._callback(result);
+      this.hide();
+    }
+  }
+  show(name, parameters, callback, afterClosing, editingOptions) {
+    var _this$_popupInstance, _this$_popupInstance2;
+    this._callback = callback;
+    this._afterClosing = afterClosing;
+    if (!this.infoMap[name]) {
+      return;
+    }
+    const isRefresh = ((_this$_popupInstance = this._popupInstance) === null || _this$_popupInstance === void 0 ? void 0 : _this$_popupInstance._isVisible()) && this._dialogInfo && this._dialogInfo instanceof this.infoMap[name];
+    this._dialogInfo = new this.infoMap[name](parameters, this._apply.bind(this), this.hide.bind(this), editingOptions, this);
+    (_this$_popupInstance2 = this._popupInstance) === null || _this$_popupInstance2 === void 0 || _this$_popupInstance2.option({
+      showTitle: !!this._dialogInfo.getTitle(),
+      title: this._dialogInfo.getTitle(),
+      toolbarItems: this._dialogInfo.getToolbarItems(),
+      maxWidth: this._dialogInfo.getMaxWidth(),
+      height: this._dialogInfo.getHeight(),
+      contentTemplate: this._dialogInfo.getContentTemplate()
+    });
+    if (this._afterClosing) {
+      var _this$_popupInstance3;
+      (_this$_popupInstance3 = this._popupInstance) === null || _this$_popupInstance3 === void 0 || _this$_popupInstance3.option('onHidden', this._afterClosing);
+    }
+    if (!isRefresh) {
+      var _this$_popupInstance4;
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      (_this$_popupInstance4 = this._popupInstance) === null || _this$_popupInstance4 === void 0 || _this$_popupInstance4.show();
+    }
+  }
+  hide() {
+    if (this._dialogInfo.shouldHidePopup()) {
+      var _this$_popupInstance5;
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      (_this$_popupInstance5 = this._popupInstance) === null || _this$_popupInstance5 === void 0 || _this$_popupInstance5.hide();
+    }
+    if (this._afterClosing) {
+      this._afterClosing();
+    }
+  }
+}
+exports.GanttDialog = GanttDialog;
+
+/***/ }),
+
+/***/ 76315:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.GanttExportHelper = void 0;
+var _date = _interopRequireDefault(__webpack_require__(38662));
+var _number = _interopRequireDefault(__webpack_require__(52771));
+var _type = __webpack_require__(11528);
+var _window = __webpack_require__(3104);
+var _m_utils = _interopRequireDefault(__webpack_require__(53226));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+// eslint-disable-next-line @stylistic/max-len
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types,@typescript-eslint/explicit-function-return-type */
+
+const window = (0, _window.getWindow)();
+const TREELIST_EMPTY_SPACE = 'dx-treelist-empty-space';
+const TREELIST_TABLE = 'dx-treelist-table';
+class GanttExportHelper {
+  constructor(gantt) {
+    this._gantt = gantt;
+    this._treeList = gantt._treeList;
+    this._cache = {};
+  }
+  reset() {
+    this._cache = {};
+  }
+  getTreeListTableStyle() {
+    const table = this._getTreeListTable();
+    // @ts-expect-error ts-error
+    const style = window.getComputedStyle(table);
+    return {
+      color: style.color,
+      backgroundColor: style.backgroundColor,
+      fontSize: style.fontSize,
+      fontFamily: style.fontFamily,
+      fontWeight: style.fontWeight,
+      fontStyle: style.fontStyle,
+      textAlign: 'left',
+      verticalAlign: 'middle'
+    };
+  }
+  getTreeListColCount() {
+    const headerView = this._getHeaderView();
+    const widths = headerView.getColumnWidths().filter(w => w > 0);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return widths.length;
+  }
+  getTreeListHeaderInfo(colIndex) {
+    const element = this._getHeaderElement(colIndex);
+    if (!element) return null;
+    const style = window.getComputedStyle(element);
+    const styleForExport = {
+      color: style.color,
+      padding: style.padding,
+      paddingLeft: style.paddingLeft,
+      paddingTop: style.paddingTop,
+      paddingRight: style.paddingRight,
+      paddingBottom: style.paddingBottom,
+      verticalAlign: style.verticalAlign,
+      width: this._getColumnWidth(colIndex)
+    };
+    return {
+      content: element.textContent,
+      styles: styleForExport
+    };
+  }
+  getTreeListCellInfo(key, colIndex) {
+    var _this$_treeList, _this$_treeList2;
+    // @ts-expect-error ts-error
+    const node = (_this$_treeList = this._treeList) === null || _this$_treeList === void 0 ? void 0 : _this$_treeList.getNodeByKey(key);
+    // @ts-expect-error ts-error
+    const visibleRowIndex = (_this$_treeList2 = this._treeList) === null || _this$_treeList2 === void 0 ? void 0 : _this$_treeList2.getRowIndexByKey(key);
+    const cell = visibleRowIndex > -1 ? this._getDataCell(visibleRowIndex, colIndex) : null;
+    const style = cell ? window.getComputedStyle(cell) : this._getColumnCellStyle(colIndex);
+    const styleForExport = {
+      color: style.color,
+      padding: style.padding,
+      paddingLeft: style.paddingLeft,
+      paddingTop: style.paddingTop,
+      paddingRight: style.paddingRight,
+      paddingBottom: style.paddingBottom,
+      width: this._getColumnWidth(colIndex)
+    };
+    if (colIndex === 0) {
+      // @ts-expect-error ts-error
+      styleForExport.extraLeftPadding = this._getEmptySpaceWidth(node.level);
+    }
+    return {
+      content: (cell === null || cell === void 0 ? void 0 : cell.textContent) ?? this._getDisplayText(key, colIndex),
+      styles: styleForExport
+    };
+  }
+  getTreeListEmptyDataCellInfo() {
+    var _this$_treeList3;
+    return {
+      content: (_this$_treeList3 = this._treeList) === null || _this$_treeList3 === void 0 ? void 0 : _this$_treeList3.option('noDataText')
+    };
+  }
+  _ensureColumnWidthCache(colIndex) {
+    var _a;
+    (_a = this._cache).columnWidths ?? (_a.columnWidths = {});
+    if (!this._cache.columnWidths[colIndex]) {
+      const header = this._getHeaderElement(colIndex);
+      this._cache.columnWidths[colIndex] = (header === null || header === void 0 ? void 0 : header.clientWidth) ?? 0;
+    }
+  }
+  _getColumnWidth(colIndex) {
+    this._ensureColumnWidthCache(colIndex);
+    const widths = this._cache.columnWidths;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return widths === null || widths === void 0 ? void 0 : widths[colIndex];
+  }
+  _getEmptySpaceWidth(level) {
+    var _a;
+    if (!this._cache.emptyWidth) {
+      const element = this._getTreeListElement(TREELIST_EMPTY_SPACE);
+      // @ts-expect-error ts-error
+      (_a = this._cache).emptyWidth ?? (_a.emptyWidth = (element === null || element === void 0 ? void 0 : element.offsetWidth) ?? 0);
+    }
+    return this._cache.emptyWidth * (level + 1);
+  }
+  _getColumnCellStyle(colIndex) {
+    this._ensureColumnCellStyleCache(colIndex);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._cache.columnStyles[colIndex];
+  }
+  _ensureColumnCellStyleCache(colIndex) {
+    var _a;
+    (_a = this._cache).columnStyles ?? (_a.columnStyles = {});
+    if (!this._cache.columnStyles[colIndex]) {
+      const cell = this._getDataCell(0, colIndex);
+      this._cache.columnStyles[colIndex] = window.getComputedStyle(cell);
+    }
+  }
+  _getTask(key) {
+    this._ensureTaskCache(key);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._cache.tasks[key];
+  }
+  _ensureTaskCache(key) {
+    var _a, _b;
+    (_a = this._cache).tasks ?? (_a.tasks = {});
+    (_b = this._cache.tasks)[key] ?? (_b[key] = this._gantt._findTaskByKey(key));
+  }
+  _getTreeListTable() {
+    return this._getTreeListElement(TREELIST_TABLE);
+  }
+  _getTreeListElement(className) {
+    var _this$_treeList4;
+    return (_this$_treeList4 = this._treeList) === null || _this$_treeList4 === void 0 ? void 0 : _this$_treeList4.$element().find(`.${className}`).get(0);
+  }
+  _getDataCell(rowIndex, colIndex) {
+    const treeList = this._treeList;
+    // @ts-expect-error ts-error
+    const cellElement = treeList === null || treeList === void 0 ? void 0 : treeList.getCellElement(rowIndex, colIndex);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return cellElement !== null && cellElement !== void 0 && cellElement.length ? cellElement[0] : cellElement;
+  }
+  _getHeaderElement(index) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._getHeaderView().getHeaderElement(index).get(0);
+  }
+  _getHeaderView() {
+    var _this$_treeList5;
+    // @ts-expect-error ts-error
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return (_this$_treeList5 = this._treeList) === null || _this$_treeList5 === void 0 ? void 0 : _this$_treeList5._views.columnHeadersView;
+  }
+  _getDisplayText(key, colIndex) {
+    const task = this._getTask(key);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return task && this._getGridDisplayText(colIndex, task);
+  }
+  _getGridDisplayText(colIndex, data) {
+    var _this$_treeList6;
+    // @ts-expect-error ts-error
+    const columns = (_this$_treeList6 = this._treeList) === null || _this$_treeList6 === void 0 ? void 0 : _this$_treeList6.getController('columns').getVisibleColumns();
+    const column = columns[colIndex];
+    const field = column === null || column === void 0 ? void 0 : column.dataField;
+    const format = column === null || column === void 0 ? void 0 : column.format;
+    const value = _m_utils.default.getDisplayValue(column, data[field], data, 'data');
+    if ((0, _type.isDefined)(format)) {
+      if ((column === null || column === void 0 ? void 0 : column.dataType) === 'date' || (column === null || column === void 0 ? void 0 : column.dataType) === 'datetime') {
+        const date = (0, _type.isDate)(value) ? value : new Date(value);
+        return _date.default.format(date, format);
+      }
+      if ((0, _type.isNumeric)(value)) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        return _number.default.format(value, format);
+      }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return typeof value === 'string' ? value : value === null || value === void 0 ? void 0 : value.toString();
+  }
+}
+exports.GanttExportHelper = GanttExportHelper;
+
+/***/ }),
+
+/***/ 55886:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.GanttHelper = void 0;
+var _message = _interopRequireDefault(__webpack_require__(4671));
+var _data = __webpack_require__(31000);
+var _type = __webpack_require__(11528);
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+
+const GanttHelper = exports.GanttHelper = {
+  prepareMapHandler(getters) {
+    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+    return data => Object.keys(getters).reduce((previous, key) => {
+      const resultKey = key === 'key' ? 'id' : key;
+      previous[resultKey] = getters[key](data);
+      return previous;
+    }, {});
+  },
+  prepareSetterMapHandler(setters) {
+    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+    return data => Object.keys(setters).reduce((previous, key) => {
+      const resultKey = key === 'key' ? 'id' : key;
+      setters[key](previous, data[resultKey]);
+      return previous;
+    }, {});
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  compileGettersByOption(optionValue) {
+    const getters = {};
+    // eslint-disable-next-line guard-for-in,no-restricted-syntax
+    for (const field in optionValue) {
+      const exprMatches = /(\w*)Expr/.exec(field);
+      if (exprMatches) {
+        getters[exprMatches[1]] = (0, _data.compileGetter)(optionValue[exprMatches[0]]);
+      }
+    }
+    return getters;
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  compileSettersByOption(optionValue) {
+    const setters = {};
+    // eslint-disable-next-line guard-for-in,no-restricted-syntax
+    for (const field in optionValue) {
+      const exprMatches = /(\w*)Expr/.exec(field);
+      if (exprMatches && !(0, _type.isFunction)(optionValue[exprMatches[0]])) {
+        setters[exprMatches[1]] = (0, _data.compileSetter)(optionValue[exprMatches[0]]);
+      }
+    }
+    return setters;
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  compileFuncSettersByOption(optionValue) {
+    const setters = {};
+    // eslint-disable-next-line guard-for-in,no-restricted-syntax
+    for (const field in optionValue) {
+      const exprMatches = /(\w*)Expr/.exec(field);
+      if (exprMatches && (0, _type.isFunction)(optionValue[exprMatches[0]])) {
+        setters[exprMatches[1]] = optionValue[exprMatches[0]];
+      }
+    }
+    return setters;
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getStoreObject(option, modelObject) {
+    const setters = GanttHelper.compileSettersByOption(option);
+    return Object.keys(setters).reduce((previous, key) => {
+      if (key !== 'key') {
+        setters[key](previous, modelObject[key]);
+      }
+      return previous;
+    }, {});
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getInvertedData(data, keyGetter) {
+    const inverted = {};
+    if (data) {
+      // eslint-disable-next-line @typescript-eslint/prefer-for-of
+      for (let i = 0; i < data.length; i += 1) {
+        const dataItem = data[i];
+        const key = keyGetter(dataItem);
+        inverted[key] = dataItem;
+      }
+    }
+    return inverted;
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getArrayFromOneElement(element) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return element === undefined || element === null ? [] : [element];
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getSelectionMode(allowSelection) {
+    return allowSelection ? 'single' : 'none';
+  },
+  convertTreeToList(node, array) {
+    if (node !== null && node !== void 0 && node.data && node !== null && node !== void 0 && node.visible) {
+      array.push(node.data);
+    }
+    for (let i = 0; i < ((_node$children = node.children) === null || _node$children === void 0 ? void 0 : _node$children.length); i += 1) {
+      var _node$children;
+      const child = node.children[i];
+      GanttHelper.convertTreeToList(child, array);
+    }
+  },
+  getAllParentNodesKeys(node, array) {
+    var _node$parent;
+    if (node !== null && node !== void 0 && node.data) {
+      array.push(node.key);
+    }
+    if (node !== null && node !== void 0 && (_node$parent = node.parent) !== null && _node$parent !== void 0 && _node$parent.data) {
+      GanttHelper.getAllParentNodesKeys(node.parent, array);
+    }
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getDefaultOptions() {
+    return {
+      tasks: {
+        dataSource: null,
+        keyExpr: 'id',
+        parentIdExpr: 'parentId',
+        startExpr: 'start',
+        endExpr: 'end',
+        progressExpr: 'progress',
+        titleExpr: 'title',
+        colorExpr: 'color'
+      },
+      dependencies: {
+        dataSource: null,
+        keyExpr: 'id',
+        predecessorIdExpr: 'predecessorId',
+        successorIdExpr: 'successorId',
+        typeExpr: 'type'
+      },
+      resources: {
+        dataSource: null,
+        keyExpr: 'id',
+        textExpr: 'text',
+        colorExpr: 'color'
+      },
+      resourceAssignments: {
+        dataSource: null,
+        keyExpr: 'id',
+        taskIdExpr: 'taskId',
+        resourceIdExpr: 'resourceId'
+      },
+      columns: undefined,
+      taskListWidth: 300,
+      showResources: true,
+      showDependencies: true,
+      taskTitlePosition: 'inside',
+      firstDayOfWeek: undefined,
+      selectedRowKey: undefined,
+      onSelectionChanged: null,
+      onTaskClick: null,
+      onTaskDblClick: null,
+      onTaskInserting: null,
+      onTaskInserted: null,
+      onTaskDeleting: null,
+      onTaskDeleted: null,
+      onTaskUpdating: null,
+      onTaskUpdated: null,
+      onTaskMoving: null,
+      onTaskEditDialogShowing: null,
+      onDependencyInserting: null,
+      onDependencyInserted: null,
+      onDependencyDeleting: null,
+      onDependencyDeleted: null,
+      onResourceInserting: null,
+      onResourceInserted: null,
+      onResourceDeleting: null,
+      onResourceDeleted: null,
+      onResourceAssigning: null,
+      onResourceAssigned: null,
+      onResourceUnassigning: null,
+      onResourceUnassigned: null,
+      onCustomCommand: null,
+      onContextMenuPreparing: null,
+      allowSelection: true,
+      showRowLines: true,
+      stripLines: undefined,
+      scaleType: 'auto',
+      scaleTypeRange: {
+        min: 'minutes',
+        max: 'years'
+      },
+      editing: {
+        enabled: false,
+        allowTaskAdding: true,
+        allowTaskDeleting: true,
+        allowTaskUpdating: true,
+        allowDependencyAdding: true,
+        allowDependencyDeleting: true,
+        allowResourceAdding: true,
+        allowResourceDeleting: true,
+        allowResourceUpdating: true,
+        allowTaskResourceUpdating: true
+      },
+      validation: {
+        validateDependencies: false,
+        autoUpdateParentTasks: false,
+        enablePredecessorGap: false
+      },
+      toolbar: null,
+      contextMenu: {
+        enabled: true,
+        items: undefined
+      },
+      taskTooltipContentTemplate: null,
+      taskProgressTooltipContentTemplate: null,
+      taskTimeTooltipContentTemplate: null,
+      taskContentTemplate: null,
+      rootValue: 0,
+      sorting: {
+        ascendingText: _message.default.format('dxGantt-sortingAscendingText'),
+        descendingText: _message.default.format('dxGantt-sortingDescendingText'),
+        clearText: _message.default.format('dxGantt-sortingClearText'),
+        mode: 'single',
+        showSortIndexes: false
+      },
+      filterRow: undefined,
+      headerFilter: undefined,
+      rtlEnabled: false
+    };
+  }
+};
+
+/***/ }),
+
 /***/ 72986:
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -164284,22 +175803,22 @@ var _extend = __webpack_require__(52576);
 var _size = __webpack_require__(57653);
 var _type = __webpack_require__(11528);
 var _window = __webpack_require__(3104);
-var _uiGantt = __webpack_require__(28997);
-var _uiGantt2 = __webpack_require__(68962);
-var _uiGantt3 = __webpack_require__(57967);
-var _uiGanttData = _interopRequireDefault(__webpack_require__(9121));
-var _uiGantt4 = __webpack_require__(15337);
-var _uiGantt5 = __webpack_require__(51695);
-var _uiGantt6 = __webpack_require__(51237);
-var _uiGantt7 = __webpack_require__(34376);
-var _uiGantt8 = __webpack_require__(86235);
-var _uiGantt9 = __webpack_require__(70136);
-var _uiGantt10 = __webpack_require__(3116);
-var _uiGantt11 = __webpack_require__(41141);
-var _uiGantt12 = __webpack_require__(95736);
-var _uiGantt13 = __webpack_require__(79669);
 var _splitter_control = _interopRequireDefault(__webpack_require__(47744));
 var _widget = _interopRequireDefault(__webpack_require__(89275));
+var _uiGantt = __webpack_require__(91283);
+var _uiGantt2 = __webpack_require__(5102);
+var _uiGantt3 = __webpack_require__(39749);
+var _uiGanttData = _interopRequireDefault(__webpack_require__(41447));
+var _uiGantt4 = __webpack_require__(89311);
+var _uiGantt5 = __webpack_require__(15145);
+var _uiGantt6 = __webpack_require__(76315);
+var _uiGantt7 = __webpack_require__(55886);
+var _uiGantt8 = __webpack_require__(91389);
+var _uiGantt9 = __webpack_require__(93002);
+var _uiGantt10 = __webpack_require__(64490);
+var _uiGantt11 = __webpack_require__(81495);
+var _uiGantt12 = __webpack_require__(17418);
+var _uiGantt13 = __webpack_require__(78199);
 var _load_panel = _interopRequireDefault(__webpack_require__(77986));
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); } /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
@@ -164392,6 +175911,7 @@ class Gantt extends _widget.default {
   }
   _renderTreeList() {
     this._ganttTreeList = new _uiGantt12.GanttTreeList(this);
+    // @ts-expect-error ts-error
     this._treeList = this._ganttTreeList.getTreeList();
     this._ganttTreeList.onAfterTreeListCreate();
   }
@@ -164452,6 +175972,7 @@ class Gantt extends _widget.default {
     this._ganttView = this._createComponent(this._$ganttView, _uiGantt13.GanttView, {
       width: '100%',
       height: (_this$_ganttTreeList = this._ganttTreeList) === null || _this$_ganttTreeList === void 0 ? void 0 : _this$_ganttTreeList.getOffsetHeight(),
+      // @ts-expect-error ts-error
       rowHeight: (_this$_ganttTreeList2 = this._ganttTreeList) === null || _this$_ganttTreeList2 === void 0 ? void 0 : _this$_ganttTreeList2.getRowHeight(),
       headerHeight: (_this$_ganttTreeList3 = this._ganttTreeList) === null || _this$_ganttTreeList3 === void 0 ? void 0 : _this$_ganttTreeList3.getHeaderHeight(),
       tasks: this._tasks,
@@ -164885,7 +176406,6 @@ class Gantt extends _widget.default {
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type,@typescript-eslint/no-unused-vars
   _getGanttViewOption(optionName, value) {
     var _this$_ganttView7;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return (_this$_ganttView7 = this._ganttView) === null || _this$_ganttView7 === void 0 ? void 0 : _this$_ganttView7.option(optionName);
   }
   _getExportHelper() {
@@ -165387,6 +176907,1619 @@ class Gantt extends _widget.default {
 }
 (0, _component_registrator.default)('dxGantt', Gantt);
 var _default = exports["default"] = Gantt;
+
+/***/ }),
+
+/***/ 91389:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.GanttMappingHelper = void 0;
+var _data = __webpack_require__(31000);
+var _type = __webpack_require__(11528);
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+
+const GANTT_TASKS = 'tasks';
+const GANTT_MAPPED_FIELD_REGEX = /(\w*)Expr/;
+class GanttMappingHelper {
+  constructor(gantt) {
+    this._gantt = gantt;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getMappedFieldName(optionName, coreField) {
+    let coreFieldName = coreField;
+    if (coreField === 'id') {
+      coreFieldName = 'key';
+    }
+    return this._gantt.option(`${optionName}.${coreFieldName}Expr`);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getTaskMappedFieldNames() {
+    const mappedFields = [];
+    const mappedFieldsData = this._gantt.option(GANTT_TASKS);
+    // eslint-disable-next-line guard-for-in,no-restricted-syntax
+    for (const field in mappedFieldsData) {
+      const exprMatches = GANTT_MAPPED_FIELD_REGEX.exec(field);
+      const mappedFieldName = exprMatches && mappedFieldsData[exprMatches[0]];
+      if (mappedFieldName) {
+        // @ts-expect-error ts-error
+        mappedFields.push(mappedFieldName);
+      }
+    }
+    return mappedFields;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  convertCoreToMappedData(optionName, coreData) {
+    return Object.keys(coreData).reduce((previous, f) => {
+      const mappedField = this._getMappedFieldName(optionName, f);
+      if (mappedField && !(0, _type.isFunction)(mappedField)) {
+        // @ts-expect-error ts-error
+        const setter = (0, _data.compileSetter)(mappedField);
+        // @ts-expect-error ts-error
+        setter(previous, coreData[f]);
+      }
+      return previous;
+    }, {});
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  convertMappedToCoreData(optionName, mappedData) {
+    const coreData = {};
+    if (mappedData) {
+      const mappedFields = this._gantt.option(optionName);
+      // eslint-disable-next-line guard-for-in,no-restricted-syntax
+      for (const field in mappedFields) {
+        const exprMatches = GANTT_MAPPED_FIELD_REGEX.exec(field);
+        const mappedFieldName = exprMatches && mappedFields[exprMatches[0]];
+        if (mappedFieldName && mappedData[mappedFieldName] !== undefined) {
+          const getter = (0, _data.compileGetter)(mappedFieldName);
+          const coreFieldName = exprMatches[1];
+          // @ts-expect-error ts-error
+          coreData[coreFieldName] = getter(mappedData);
+        }
+      }
+    }
+    return coreData;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  convertCoreToMappedFields(optionName, fields) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return fields.reduce((previous, f) => {
+      const mappedField = this._getMappedFieldName(optionName, f);
+      if (mappedField) {
+        previous.push(mappedField);
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return previous;
+    }, []);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  convertMappedToCoreFields(optionName, fields) {
+    const coreFields = [];
+    const mappedFields = this._gantt.option(optionName);
+    // eslint-disable-next-line guard-for-in,no-restricted-syntax
+    for (const field in mappedFields) {
+      const exprMatches = GANTT_MAPPED_FIELD_REGEX.exec(field);
+      const mappedFieldName = exprMatches && mappedFields[exprMatches[0]];
+      if (mappedFieldName && fields.indexOf(mappedFieldName) > -1) {
+        const coreFieldName = exprMatches[1];
+        // @ts-expect-error ts-error
+        coreFields.push(coreFieldName);
+      }
+    }
+    return coreFields;
+  }
+}
+exports.GanttMappingHelper = GanttMappingHelper;
+
+/***/ }),
+
+/***/ 93002:
+/***/ (function(__unused_webpack_module, exports) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.ModelChangesListener = void 0;
+const GANTT_TASKS = 'tasks';
+const GANTT_DEPENDENCIES = 'dependencies';
+const GANTT_RESOURCES = 'resources';
+const GANTT_RESOURCE_ASSIGNMENTS = 'resourceAssignments';
+const ModelChangesListener = exports.ModelChangesListener = {
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  create(gantt) {
+    return {
+      NotifyTaskCreated: (task, callback, errorCallback) => {
+        gantt._onRecordInserted(GANTT_TASKS, task, callback);
+      },
+      NotifyTaskRemoved: (taskId, errorCallback, task) => {
+        gantt._onRecordRemoved(GANTT_TASKS, taskId, task);
+      },
+      NotifyTaskUpdated: (taskId, newValues, errorCallback) => {
+        gantt._onRecordUpdated(GANTT_TASKS, taskId, newValues);
+      },
+      NotifyParentTaskUpdated: (task, errorCallback) => {
+        gantt._onParentTaskUpdated(task);
+      },
+      NotifyDependencyInserted: (dependency, callback, errorCallback) => {
+        gantt._onRecordInserted(GANTT_DEPENDENCIES, dependency, callback);
+      },
+      NotifyDependencyRemoved: (dependencyId, errorCallback, dependency) => {
+        gantt._onRecordRemoved(GANTT_DEPENDENCIES, dependencyId, dependency);
+      },
+      NotifyResourceCreated: (resource, callback, errorCallback) => {
+        gantt._onRecordInserted(GANTT_RESOURCES, resource, callback);
+      },
+      NotifyResourceRemoved: (resourceId, errorCallback, resource) => {
+        gantt._onRecordRemoved(GANTT_RESOURCES, resourceId, resource);
+      },
+      NotifyResourceAssigned: (assignment, callback, errorCallback) => {
+        gantt._onRecordInserted(GANTT_RESOURCE_ASSIGNMENTS, assignment, callback);
+      },
+      NotifyResourceUnassigned: (assignmentId, errorCallback, assignment) => {
+        gantt._onRecordRemoved(GANTT_RESOURCE_ASSIGNMENTS, assignmentId, assignment);
+      },
+      NotifyParentDataRecalculated: data => {
+        gantt._onParentTasksRecalculated(data);
+      },
+      NotifyTaskCreating: args => {
+        var _gantt$_actionsManage;
+        (_gantt$_actionsManage = gantt._actionsManager) === null || _gantt$_actionsManage === void 0 || _gantt$_actionsManage.raiseInsertingAction(GANTT_TASKS, args);
+      },
+      NotifyTaskRemoving: args => {
+        var _gantt$_actionsManage2;
+        (_gantt$_actionsManage2 = gantt._actionsManager) === null || _gantt$_actionsManage2 === void 0 || _gantt$_actionsManage2.raiseDeletingAction(GANTT_TASKS, args);
+      },
+      NotifyTaskUpdating: args => {
+        var _gantt$_actionsManage3;
+        (_gantt$_actionsManage3 = gantt._actionsManager) === null || _gantt$_actionsManage3 === void 0 || _gantt$_actionsManage3.raiseUpdatingAction(GANTT_TASKS, args);
+      },
+      NotifyTaskMoving: args => {
+        var _gantt$_actionsManage4, _gantt$_actionsManage5;
+        (_gantt$_actionsManage4 = gantt._actionsManager) === null || _gantt$_actionsManage4 === void 0 || _gantt$_actionsManage4.raiseUpdatingAction(GANTT_TASKS, args, (_gantt$_actionsManage5 = gantt._actionsManager) === null || _gantt$_actionsManage5 === void 0 ? void 0 : _gantt$_actionsManage5.getTaskMovingAction());
+      },
+      NotifyTaskEditDialogShowing: args => {
+        var _gantt$_actionsManage6;
+        (_gantt$_actionsManage6 = gantt._actionsManager) === null || _gantt$_actionsManage6 === void 0 || _gantt$_actionsManage6.raiseTaskEditDialogShowingAction(args);
+      },
+      NotifyResourceManagerDialogShowing: args => {
+        var _gantt$_actionsManage7;
+        (_gantt$_actionsManage7 = gantt._actionsManager) === null || _gantt$_actionsManage7 === void 0 || _gantt$_actionsManage7.raiseResourceManagerDialogShowingAction(args);
+      },
+      NotifyDependencyInserting: args => {
+        var _gantt$_actionsManage8;
+        (_gantt$_actionsManage8 = gantt._actionsManager) === null || _gantt$_actionsManage8 === void 0 || _gantt$_actionsManage8.raiseInsertingAction(GANTT_DEPENDENCIES, args);
+      },
+      NotifyDependencyRemoving: args => {
+        var _gantt$_actionsManage9;
+        (_gantt$_actionsManage9 = gantt._actionsManager) === null || _gantt$_actionsManage9 === void 0 || _gantt$_actionsManage9.raiseDeletingAction(GANTT_DEPENDENCIES, args);
+      },
+      NotifyResourceCreating: args => {
+        var _gantt$_actionsManage10;
+        (_gantt$_actionsManage10 = gantt._actionsManager) === null || _gantt$_actionsManage10 === void 0 || _gantt$_actionsManage10.raiseInsertingAction(GANTT_RESOURCES, args);
+      },
+      NotifyResourceRemoving: args => {
+        var _gantt$_actionsManage11;
+        (_gantt$_actionsManage11 = gantt._actionsManager) === null || _gantt$_actionsManage11 === void 0 || _gantt$_actionsManage11.raiseDeletingAction(GANTT_RESOURCES, args);
+      },
+      NotifyResourceAssigning: args => {
+        var _gantt$_actionsManage12;
+        (_gantt$_actionsManage12 = gantt._actionsManager) === null || _gantt$_actionsManage12 === void 0 || _gantt$_actionsManage12.raiseInsertingAction(GANTT_RESOURCE_ASSIGNMENTS, args);
+      },
+      NotifyResourceUnassigning: args => {
+        var _gantt$_actionsManage13;
+        (_gantt$_actionsManage13 = gantt._actionsManager) === null || _gantt$_actionsManage13 === void 0 || _gantt$_actionsManage13.raiseDeletingAction(GANTT_RESOURCE_ASSIGNMENTS, args);
+      },
+      NotifyScaleCellPrepared: args => {
+        var _gantt$_actionsManage14;
+        (_gantt$_actionsManage14 = gantt._actionsManager) === null || _gantt$_actionsManage14 === void 0 || _gantt$_actionsManage14.raiseScaleCellPreparedAction(args);
+      },
+      NotifyGanttViewUpdated: () => {
+        gantt._onGanttViewCoreUpdated();
+      }
+    };
+  }
+};
+
+/***/ }),
+
+/***/ 64490:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.GanttSizeHelper = void 0;
+var _size = __webpack_require__(57653);
+var _window = __webpack_require__(3104);
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+
+class GanttSizeHelper {
+  constructor(gantt) {
+    this._gantt = gantt;
+  }
+  _setTreeListDimension(dimension, value) {
+    var _this$_gantt$_ganttTr;
+    const setter = dimension === 'width' ? _size.setWidth : _size.setHeight;
+    const getter = dimension === 'width' ? _size.getWidth : _size.getHeight;
+    setter(this._gantt._$treeListWrapper, value);
+    (_this$_gantt$_ganttTr = this._gantt._ganttTreeList) === null || _this$_gantt$_ganttTr === void 0 || _this$_gantt$_ganttTr.setOption(dimension, getter(this._gantt._$treeListWrapper));
+  }
+  _setGanttViewDimension(dimension, value) {
+    const setter = dimension === 'width' ? _size.setWidth : _size.setHeight;
+    const getter = dimension === 'width' ? _size.getWidth : _size.getHeight;
+    setter(this._gantt._$ganttView, value);
+    this._gantt._setGanttViewOption(dimension, getter(this._gantt._$ganttView));
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getPanelsWidthByOption() {
+    var _leftPanelWidth$index, _leftPanelWidth$index2;
+    const ganttWidth = (0, _size.getWidth)(this._gantt.$element());
+    const leftPanelWidth = this._gantt.option('taskListWidth');
+    // eslint-disable-next-line @typescript-eslint/init-declarations
+    let rightPanelWidth;
+    // @ts-expect-error ts-error
+    if (!isNaN(leftPanelWidth)) {
+      // @ts-expect-error ts-error
+      rightPanelWidth = ganttWidth - parseInt(leftPanelWidth, 10);
+      // @ts-expect-error ts-error
+    } else if (((_leftPanelWidth$index = leftPanelWidth.indexOf) === null || _leftPanelWidth$index === void 0 ? void 0 : _leftPanelWidth$index.call(leftPanelWidth, 'px')) > 0) {
+      // @ts-expect-error ts-error
+      rightPanelWidth = `${ganttWidth - parseInt(leftPanelWidth.replace('px', ''), 10)}px`;
+      // @ts-expect-error ts-error
+    } else if (((_leftPanelWidth$index2 = leftPanelWidth.indexOf) === null || _leftPanelWidth$index2 === void 0 ? void 0 : _leftPanelWidth$index2.call(leftPanelWidth, '%')) > 0) {
+      // @ts-expect-error ts-error
+      rightPanelWidth = `${100 - parseInt(leftPanelWidth.replace('%', ''), 10)}%`;
+    }
+    return {
+      leftPanelWidth,
+      rightPanelWidth
+    };
+  }
+  onAdjustControl() {
+    const elementHeight = (0, _size.getHeight)(this._gantt.$element());
+    this.updateGanttWidth();
+    this.setGanttHeight(elementHeight);
+  }
+  onApplyPanelSize(e) {
+    this.setInnerElementsWidth(e);
+    this.updateGanttRowHeights();
+  }
+  updateGanttRowHeights() {
+    var _this$_gantt$_ganttTr2;
+    const rowHeight = (_this$_gantt$_ganttTr2 = this._gantt._ganttTreeList) === null || _this$_gantt$_ganttTr2 === void 0 ? void 0 : _this$_gantt$_ganttTr2.getRowHeight();
+    if (this._gantt._getGanttViewOption('rowHeight') !== rowHeight) {
+      var _this$_gantt$_ganttVi;
+      this._gantt._setGanttViewOption('rowHeight', rowHeight);
+      (_this$_gantt$_ganttVi = this._gantt._ganttView) === null || _this$_gantt$_ganttVi === void 0 || _this$_gantt$_ganttVi._ganttViewCore.updateRowHeights(rowHeight);
+    }
+  }
+  adjustHeight() {
+    if (!this._gantt._hasHeight) {
+      var _this$_gantt$_ganttTr3;
+      this._gantt._setGanttViewOption('height', 0);
+      this._gantt._setGanttViewOption('height', (_this$_gantt$_ganttTr3 = this._gantt._ganttTreeList) === null || _this$_gantt$_ganttTr3 === void 0 ? void 0 : _this$_gantt$_ganttTr3.getOffsetHeight());
+    }
+  }
+  setInnerElementsWidth(widths) {
+    if (!(0, _window.hasWindow)()) {
+      return;
+    }
+    const takeWithFromOption = !widths;
+    if (takeWithFromOption) {
+      // eslint-disable-next-line no-param-reassign
+      widths = this._getPanelsWidthByOption();
+      this._setTreeListDimension('width', 0);
+      this._setGanttViewDimension('width', 0);
+    }
+    this._setTreeListDimension('width', widths.leftPanelWidth);
+    this._setGanttViewDimension('width', widths.rightPanelWidth);
+    if (takeWithFromOption) {
+      var _this$_gantt$_splitte;
+      (_this$_gantt$_splitte = this._gantt._splitter) === null || _this$_gantt$_splitte === void 0 || _this$_gantt$_splitte._setSplitterPositionLeft();
+    }
+  }
+  updateGanttWidth() {
+    var _this$_gantt$_splitte2;
+    (_this$_gantt$_splitte2 = this._gantt._splitter) === null || _this$_gantt$_splitte2 === void 0 || _this$_gantt$_splitte2._dimensionChanged();
+  }
+  setGanttHeight(height) {
+    var _this$_gantt$_ganttVi2;
+    // @ts-expect-error ts-error
+    const toolbarHeightOffset = this._gantt._$toolbarWrapper.get(0).offsetHeight;
+    const mainWrapperHeight = height - toolbarHeightOffset;
+    this._setTreeListDimension('height', mainWrapperHeight);
+    this._setGanttViewDimension('height', mainWrapperHeight);
+    (_this$_gantt$_ganttVi2 = this._gantt._ganttView) === null || _this$_gantt$_ganttVi2 === void 0 || _this$_gantt$_ganttVi2._ganttViewCore.resetAndUpdate();
+  }
+}
+exports.GanttSizeHelper = GanttSizeHelper;
+
+/***/ }),
+
+/***/ 88957:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.TaskAreaContainer = void 0;
+var _scroll_view = _interopRequireDefault(__webpack_require__(71100));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+class TaskAreaContainer {
+  constructor(element, ganttViewWidget) {
+    this._element = element;
+    this._scrollView = ganttViewWidget._createComponent(this._element, _scroll_view.default, {
+      scrollByContent: false,
+      scrollByThumb: true,
+      showScrollbar: 'onHover',
+      direction: 'both',
+      onScroll: () => {
+        ganttViewWidget.updateView();
+      }
+    });
+  }
+  // ITaskAreaContainer
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  get scrollTop() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._scrollView.scrollTop();
+  }
+  set scrollTop(value) {
+    const diff = value - this._scrollView.scrollTop();
+    if (diff !== 0) {
+      this._scrollView.scrollBy({
+        left: 0,
+        top: diff
+      });
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  get scrollLeft() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._scrollView.scrollLeft();
+  }
+  set scrollLeft(value) {
+    const diff = value - this._scrollView.scrollLeft();
+    if (diff !== 0) {
+      this._scrollView.scrollBy({
+        left: diff,
+        top: 0
+      });
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  get scrollWidth() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._scrollView.scrollWidth();
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  get scrollHeight() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._scrollView.scrollHeight();
+  }
+  // eslint-disable-next-line @typescript-eslint/class-literal-property-style
+  get isExternal() {
+    return true;
+  }
+  getWidth() {
+    return this._element.offsetWidth;
+  }
+  getHeight() {
+    return this._element.offsetHeight;
+  }
+  getElement() {
+    return this._element;
+  }
+}
+exports.TaskAreaContainer = TaskAreaContainer;
+
+/***/ }),
+
+/***/ 81495:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.GanttTemplatesManager = void 0;
+var _element = __webpack_require__(61404);
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+
+class GanttTemplatesManager {
+  constructor(gantt) {
+    this._gantt = gantt;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getTaskTooltipContentTemplateFunc(taskTooltipContentTemplateOption) {
+    const isTooltipShowing = true;
+    const template = taskTooltipContentTemplateOption && this._gantt._getTemplate(taskTooltipContentTemplateOption);
+    const createTemplateFunction = template && ((container, item, callback) => {
+      template.render({
+        model: this._gantt.getTaskDataByCoreData(item),
+        container: (0, _element.getPublicElement)((0, _renderer.default)(container)),
+        onRendered: () => {
+          callback();
+        }
+      });
+      return isTooltipShowing;
+    });
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return createTemplateFunction;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getTaskProgressTooltipContentTemplateFunc(taskTooltipContentTemplateOption) {
+    const isTooltipShowing = true;
+    const template = taskTooltipContentTemplateOption && this._gantt._getTemplate(taskTooltipContentTemplateOption);
+    const createTemplateFunction = template && ((container, item, callback) => {
+      template.render({
+        model: item,
+        container: (0, _element.getPublicElement)((0, _renderer.default)(container)),
+        onRendered: () => {
+          callback();
+        }
+      });
+      return isTooltipShowing;
+    });
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return createTemplateFunction;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getTaskTimeTooltipContentTemplateFunc(taskTooltipContentTemplateOption) {
+    const isTooltipShowing = true;
+    const template = taskTooltipContentTemplateOption && this._gantt._getTemplate(taskTooltipContentTemplateOption);
+    const createTemplateFunction = template && ((container, item, callback) => {
+      template.render({
+        model: item,
+        container: (0, _element.getPublicElement)((0, _renderer.default)(container)),
+        onRendered: () => {
+          callback();
+        }
+      });
+      return isTooltipShowing;
+    });
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return createTemplateFunction;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getTaskContentTemplateFunc(taskContentTemplateOption) {
+    const isTaskShowing = true;
+    const template = taskContentTemplateOption && this._gantt._getTemplate(taskContentTemplateOption);
+    const createTemplateFunction = template && ((container, item, callback, index) => {
+      item.taskData = this._gantt.getTaskDataByCoreData(item.taskData);
+      template.render({
+        model: item,
+        container: (0, _element.getPublicElement)((0, _renderer.default)(container)),
+        onRendered: () => {
+          callback(container, index);
+        }
+      });
+      return isTaskShowing;
+    });
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return createTemplateFunction;
+  }
+}
+exports.GanttTemplatesManager = GanttTemplatesManager;
+
+/***/ }),
+
+/***/ 17418:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.GanttTreeList = void 0;
+var _array_store = _interopRequireDefault(__webpack_require__(80556));
+var _data_source = _interopRequireDefault(__webpack_require__(14479));
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _data = __webpack_require__(31000);
+var _position = __webpack_require__(41639);
+var _size = __webpack_require__(57653);
+var _type = __webpack_require__(11528);
+var _tree_list = _interopRequireDefault(__webpack_require__(21872));
+var _uiGantt = __webpack_require__(55886);
+var _uiGanttTreelist = __webpack_require__(2639);
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+
+const GANTT_TASKS = 'tasks';
+const GANTT_COLLAPSABLE_ROW = 'dx-gantt-collapsable-row';
+const GANTT_DEFAULT_ROW_HEIGHT = 34;
+const GANTT_SCROLL_ACTIVATION_LEVEL = 2;
+class GanttTreeList {
+  constructor(gantt) {
+    this._gantt = gantt;
+    this._$treeList = this._gantt._$treeList;
+  }
+  getTreeList() {
+    // @ts-expect-error ts-error
+    const {
+      keyExpr,
+      parentIdExpr
+    } = this._gantt.option(GANTT_TASKS);
+    this._treeList = this._gantt._createComponent(this._$treeList, _tree_list.default, {
+      dataSource: this.createDataSource(this._gantt._tasksRaw, keyExpr),
+      keyExpr,
+      filterSyncEnabled: true,
+      parentIdExpr,
+      columns: this.getColumns(),
+      columnResizingMode: 'nextColumn',
+      height: this._getHeight(),
+      width: this._gantt.option('taskListWidth'),
+      selection: {
+        mode: _uiGantt.GanttHelper.getSelectionMode(this._gantt.option('allowSelection'))
+      },
+      selectedRowKeys: _uiGantt.GanttHelper.getArrayFromOneElement(this._gantt.option('selectedRowKey')),
+      sorting: this._gantt.option('sorting'),
+      filterRow: this._gantt.option('filterRow'),
+      headerFilter: this._gantt.option('headerFilter'),
+      scrolling: {
+        showScrollbar: 'onHover',
+        mode: 'virtual'
+      },
+      allowColumnResizing: true,
+      autoExpandAll: true,
+      showRowLines: this._gantt.option('showRowLines'),
+      rootValue: this._gantt.option('rootValue'),
+      onContentReady: e => {
+        this._onContentReady(e);
+      },
+      onSelectionChanged: e => {
+        this._onSelectionChanged(e);
+      },
+      onRowCollapsed: e => {
+        this._onRowCollapsed(e);
+      },
+      onRowExpanded: e => {
+        this._onRowExpanded(e);
+      },
+      onRowPrepared: e => {
+        this._onRowPrepared(e);
+      },
+      onContextMenuPreparing: e => {
+        this._onContextMenuPreparing(e);
+      },
+      onRowClick: e => {
+        this.onRowClick(e);
+      },
+      onRowDblClick: e => {
+        this.onRowDblClick(e);
+      },
+      onNodesInitialized: () => {
+        this._onNodesInitialized();
+      },
+      _disableDeprecationWarnings: true
+    });
+    return this._treeList;
+  }
+  onAfterTreeListCreate() {
+    if (this._postponedGanttInitRequired) {
+      this._initGanttOnContentReady({
+        component: this._treeList
+      });
+      delete this._postponedGanttInitRequired;
+    }
+  }
+  _onContentReady(e) {
+    const hasTreeList = !!this._treeList;
+    if (hasTreeList) {
+      this._initGanttOnContentReady(e);
+    } else {
+      this._postponedGanttInitRequired = true;
+    }
+    this._gantt._onTreeListContentReady(e);
+  }
+  _initGanttOnContentReady(e) {
+    var _this$_gantt$_sizeHel;
+    if (e.component.getDataSource()) {
+      this._gantt._initGanttView();
+      this._initScrollSync(e.component);
+    }
+    this._gantt._sortAndFilter();
+    (_this$_gantt$_sizeHel = this._gantt._sizeHelper) === null || _this$_gantt$_sizeHel === void 0 || _this$_gantt$_sizeHel.updateGanttRowHeights();
+  }
+  _onSelectionChanged(e) {
+    var _this$_gantt$_actions;
+    const selectedRowKey = e.currentSelectedRowKeys[0];
+    this._gantt._setGanttViewOption('selectedRowKey', selectedRowKey);
+    this._gantt._setOptionWithoutOptionChange('selectedRowKey', selectedRowKey);
+    (_this$_gantt$_actions = this._gantt._actionsManager) === null || _this$_gantt$_actions === void 0 || _this$_gantt$_actions.raiseSelectionChangedAction(selectedRowKey);
+  }
+  _onRowCollapsed(e) {
+    this._gantt._onTreeListRowExpandChanged(e, false);
+  }
+  _onRowExpanded(e) {
+    this._gantt._onTreeListRowExpandChanged(e, true);
+  }
+  _onRowPrepared(e) {
+    if (e.rowType === 'data' && e.node.children.length > 0) {
+      (0, _renderer.default)(e.rowElement).addClass(GANTT_COLLAPSABLE_ROW);
+    }
+  }
+  _onContextMenuPreparing(e) {
+    var _e$row, _e$row2;
+    if (e.target === 'header') {
+      return;
+    }
+    if (((_e$row = e.row) === null || _e$row === void 0 ? void 0 : _e$row.rowType) === 'data') {
+      this.setOption('selectedRowKeys', [
+      // @ts-expect-error ts-error
+      e.row.data[this._gantt.option('tasks.keyExpr')]]);
+    }
+    const info = {
+      cancel: false,
+      event: e.event,
+      type: 'task',
+      key: (_e$row2 = e.row) === null || _e$row2 === void 0 ? void 0 : _e$row2.key,
+      position: {
+        x: e.event.pageX,
+        y: e.event.pageY
+      }
+    };
+    this._gantt._showPopupMenu(info);
+    e.event.preventDefault();
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getHeight() {
+    if ((0, _size.getHeight)(this._$treeList)) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return (0, _size.getHeight)(this._$treeList);
+    }
+    this._gantt._hasHeight = (0, _type.isDefined)(this._gantt.option('height'))
+    // @ts-expect-error ts-error
+    && this._gantt.option('height') !== '';
+    return this._gantt._hasHeight ? '100%' : '';
+  }
+  _initScrollSync(treeList) {
+    const treeListScrollable = treeList.getScrollable();
+    if (treeListScrollable) {
+      treeListScrollable.off('scroll');
+      treeListScrollable.on('scroll', e => {
+        this._onScroll(e);
+      });
+    }
+  }
+  _onScroll(treeListScrollView) {
+    var _this$_gantt$_ganttVi;
+    const ganttViewTaskAreaContainer = (_this$_gantt$_ganttVi = this._gantt._ganttView) === null || _this$_gantt$_ganttVi === void 0 ? void 0 : _this$_gantt$_ganttVi.getTaskAreaContainer();
+    if (ganttViewTaskAreaContainer.scrollTop !== treeListScrollView.component.scrollTop()) {
+      ganttViewTaskAreaContainer.scrollTop = treeListScrollView.component.scrollTop();
+    }
+  }
+  _correctRowsViewRowHeight(height) {
+    var _this$_treeList;
+    // @ts-expect-error ts-error
+    const view = (_this$_treeList = this._treeList) === null || _this$_treeList === void 0 || (_this$_treeList = _this$_treeList._views) === null || _this$_treeList === void 0 ? void 0 : _this$_treeList.rowsView;
+    if ((view === null || view === void 0 ? void 0 : view._rowHeight) !== height) {
+      view._rowHeight = height;
+    }
+  }
+  _skipUpdateTreeListDataSource() {
+    const {
+      validation
+    } = this._gantt.option();
+    return validation === null || validation === void 0 ? void 0 : validation.autoUpdateParentTasks;
+  }
+  selectRows(keys) {
+    this.setOption('selectedRowKeys', keys);
+  }
+  scrollBy(scrollTop) {
+    var _this$_treeList2;
+    const treeListScrollable = (_this$_treeList2 = this._treeList) === null || _this$_treeList2 === void 0 ? void 0 : _this$_treeList2.getScrollable();
+    if (treeListScrollable) {
+      const diff = scrollTop - treeListScrollable.scrollTop();
+      if (Math.abs(diff) >= GANTT_SCROLL_ACTIVATION_LEVEL) {
+        treeListScrollable.scrollBy({
+          left: 0,
+          top: diff
+        });
+      }
+    }
+  }
+  updateDataSource(data) {
+    let forceUpdate = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+    let forceCustomData = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
+    if (!this._skipUpdateTreeListDataSource() || forceUpdate) {
+      this.setDataSource(data);
+    } else if (forceCustomData) {
+      var _this$_treeList3;
+      // eslint-disable-next-line @typescript-eslint/no-shadow
+      const data = (_this$_treeList3 = this._treeList) === null || _this$_treeList3 === void 0 ? void 0 : _this$_treeList3.option('dataSource');
+      this._gantt._onParentTasksRecalculated(data);
+    }
+  }
+  setDataSource(data) {
+    // @ts-expect-error ts-error
+    this.setOption('dataSource', this.createDataSource(data));
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  createDataSource(data, key) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return data && new _data_source.default({
+      store: new _array_store.default({
+        data,
+        key: key || this.getOption('keyExpr')
+      })
+    });
+  }
+  onRowClick(e) {
+    var _this$_gantt$_actions2;
+    (_this$_gantt$_actions2 = this._gantt._actionsManager) === null || _this$_gantt$_actions2 === void 0 || _this$_gantt$_actions2.raiseTaskClickAction(e.key, e.event);
+  }
+  onRowDblClick(e) {
+    var _this$_gantt$_actions3;
+    if ((_this$_gantt$_actions3 = this._gantt._actionsManager) !== null && _this$_gantt$_actions3 !== void 0 && _this$_gantt$_actions3.raiseTaskDblClickAction(e.key, e.event)) {
+      var _this$_gantt$_ganttVi2;
+      (_this$_gantt$_ganttVi2 = this._gantt._ganttView) === null || _this$_gantt$_ganttVi2 === void 0 || _this$_gantt$_ganttVi2._ganttViewCore.showTaskEditDialog();
+    }
+  }
+  saveExpandedKeys() {
+    const treeList = this._treeList;
+    const visibleRowCount = treeList === null || treeList === void 0 ? void 0 : treeList.getVisibleRows().length;
+    // @ts-expect-error ts-error
+    if (visibleRowCount > 0) {
+      const nodes = this.getAllNodes();
+      const keys = this.getOption('expandedRowKeys');
+      const hasExpandedRows = keys && nodes.length !== visibleRowCount;
+      if (hasExpandedRows) {
+        const state = this.getNodesState();
+        state.applyNodes(nodes, this.getOption('rootValue'));
+        state.saveExpandedState(keys);
+      }
+    }
+  }
+  _onNodesInitialized() {
+    const state = this.getNodesState();
+    const savedKeys = state.getExpandedKeys();
+    const nodes = this.getAllNodes();
+    state.applyNodes(nodes, this.getOption('rootValue'));
+    const expandedKeys = state.getExpandedKeys();
+    if (expandedKeys) {
+      this.setOption('expandedRowKeys', expandedKeys);
+    }
+    if (this.isExpandedStateChanged(savedKeys, expandedKeys)) {
+      var _this$_gantt$_ganttVi3;
+      const expandedState = nodes.reduce((previous, node) => {
+        previous[node.key] = expandedKeys
+        // @ts-expect-error ts-error
+        ? expandedKeys.includes(node.key) : true;
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        return previous;
+      }, {});
+      (_this$_gantt$_ganttVi3 = this._gantt._ganttView) === null || _this$_gantt$_ganttVi3 === void 0 || _this$_gantt$_ganttVi3.applyTasksExpandedState(expandedState);
+    }
+    state.clear();
+  }
+  getNodesState() {
+    if (!this._nodeState) {
+      this._nodeState = new _uiGanttTreelist.GanttTreeListNodesState();
+    }
+    return this._nodeState;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getAllNodes() {
+    var _this$_treeList4, _this$_treeList5;
+    const store = (_this$_treeList4 = this._treeList) === null || _this$_treeList4 === void 0 || (_this$_treeList4 = _this$_treeList4.getDataSource()) === null || _this$_treeList4 === void 0 ? void 0 : _this$_treeList4.store();
+    if (!store || !((_this$_treeList5 = this._treeList) !== null && _this$_treeList5 !== void 0 && _this$_treeList5.getNodeByKey)) {
+      return [];
+    }
+    // @ts-expect-error ts-error
+    const keyGetter = (0, _data.compileGetter)(store.key());
+    // @ts-expect-error ts-error
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return store._array
+    // @ts-expect-error ts-error
+    .map(item => {
+      var _this$_treeList6;
+      return (_this$_treeList6 = this._treeList) === null || _this$_treeList6 === void 0 ? void 0 : _this$_treeList6.getNodeByKey(keyGetter(item));
+    }).filter(item => !!item);
+  }
+  isExpandedStateChanged(keys1, keys2) {
+    if (keys1 === null && keys2 === null) {
+      return false;
+    }
+    if ((keys1 === null || keys1 === void 0 ? void 0 : keys1.length) !== (keys2 === null || keys2 === void 0 ? void 0 : keys2.length)) {
+      return true;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return keys1.some((key, index) => key !== keys2[index]);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getOffsetHeight() {
+    var _this$_gantt$_treeLis;
+    // @ts-expect-error ts-error
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return (_this$_gantt$_treeLis = this._gantt._treeList) === null || _this$_gantt$_treeLis === void 0 ? void 0 : _this$_gantt$_treeLis.$element().get(0).offsetHeight;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getRowHeight() {
+    var _this$_treeList7;
+    const $row = (_this$_treeList7 = this._treeList) === null || _this$_treeList7 === void 0 ? void 0 : _this$_treeList7.$element().find('.dx-data-row');
+    let height = $row !== null && $row !== void 0 && $row.length ? (0, _position.getBoundingRect)($row === null || $row === void 0 ? void 0 : $row.last().get(0)).height : GANTT_DEFAULT_ROW_HEIGHT;
+    if (!height) {
+      height = GANTT_DEFAULT_ROW_HEIGHT;
+    }
+    this._correctRowsViewRowHeight(height);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return height;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getHeaderHeight() {
+    var _this$_treeList8;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return (0, _position.getBoundingRect)((_this$_treeList8 = this._treeList) === null || _this$_treeList8 === void 0 ? void 0 : _this$_treeList8.$element().find('.dx-treelist-headers').get(0)).height;
+  }
+  getColumns() {
+    const {
+      columns
+    } = this._gantt.option();
+    if (columns) {
+      // eslint-disable-next-line @typescript-eslint/prefer-for-of
+      for (let i = 0; i < columns.length; i += 1) {
+        const column = columns[i];
+        // @ts-expect-error ts-error
+        const isKeyColumn = column.dataField === this._gantt.option(`${GANTT_TASKS}.keyExpr`)
+        // @ts-expect-error ts-error
+        || column.dataField === this._gantt.option(`${GANTT_TASKS}.parentIdExpr`);
+        // @ts-expect-error ts-error
+        if (isKeyColumn && !column.dataType) {
+          // @ts-expect-error ts-error
+          column.dataType = 'object';
+        }
+      }
+    }
+    return columns;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getSievedItems() {
+    var _this$_treeList9;
+    const rootNode = (_this$_treeList9 = this._treeList) === null || _this$_treeList9 === void 0 ? void 0 : _this$_treeList9.getRootNode();
+    if (!rootNode) {
+      return undefined;
+    }
+    const resultArray = [];
+    _uiGantt.GanttHelper.convertTreeToList(rootNode, resultArray);
+    const getters = _uiGantt.GanttHelper.compileGettersByOption(this._gantt.option(GANTT_TASKS));
+    const validatedData = this._gantt._validateSourceData(GANTT_TASKS, resultArray);
+    const mappedData = validatedData.map(_uiGantt.GanttHelper.prepareMapHandler(getters));
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return mappedData;
+  }
+  setOption(optionName, value) {
+    var _this$_treeList10;
+    (_this$_treeList10 = this._treeList) === null || _this$_treeList10 === void 0 || _this$_treeList10.option(optionName, value);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getOption(optionName) {
+    var _this$_treeList11;
+    return (_this$_treeList11 = this._treeList) === null || _this$_treeList11 === void 0 ? void 0 : _this$_treeList11.option(optionName);
+  }
+  onTaskInserted(insertedId, parentId) {
+    if ((0, _type.isDefined)(parentId)) {
+      const expandedRowKeys = this.getOption('expandedRowKeys');
+      // @ts-expect-error ts-error
+      if (expandedRowKeys.indexOf(parentId) === -1) {
+        // @ts-expect-error ts-error
+        expandedRowKeys.push(parentId);
+        this.setOption('expandedRowKeys', expandedRowKeys);
+      }
+    }
+    this.selectRows(_uiGantt.GanttHelper.getArrayFromOneElement(insertedId));
+    this.setOption('focusedRowKey', insertedId);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getDataSource() {
+    var _this$_treeList12;
+    return (_this$_treeList12 = this._treeList) === null || _this$_treeList12 === void 0 ? void 0 : _this$_treeList12.getDataSource();
+  }
+}
+exports.GanttTreeList = GanttTreeList;
+
+/***/ }),
+
+/***/ 2639:
+/***/ (function(__unused_webpack_module, exports) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.GanttTreeListNodesState = exports.GanttTreeListNodeState = void 0;
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+// eslint-disable-next-line max-classes-per-file
+class GanttTreeListNodeState {
+  constructor(treeListNode) {
+    var _treeListNode$parent;
+    this.collapsed = false;
+    this.key = treeListNode.key;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    this.children = treeListNode.children.map(node => node.key);
+    this.parentKey = (_treeListNode$parent = treeListNode.parent) === null || _treeListNode$parent === void 0 ? void 0 : _treeListNode$parent.key;
+  }
+  hasChildren() {
+    return this.children.length > 0;
+  }
+  removeChild(state) {
+    const index = this.children.indexOf(state.key);
+    if (index > -1) {
+      this.children = this.children.splice(index, 1);
+    }
+  }
+  equal(state) {
+    if (!state || state.key !== this.key || state.parentKey !== this.parentKey) {
+      return false;
+    }
+    if (this.children.length !== state.children.length || this.children.some((value, index) => value !== state.children[index])) {
+      return false;
+    }
+    return true;
+  }
+}
+exports.GanttTreeListNodeState = GanttTreeListNodeState;
+class GanttTreeListNodesState {
+  constructor() {
+    this._resetHash();
+  }
+  clear() {
+    this._resetHash();
+  }
+  applyNodes(nodes, rootValue) {
+    if (this._rootValue !== rootValue) {
+      this._resetHash();
+      this._rootValue = rootValue;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    this._removeNonExistentNodes(nodes.map(node => node.key));
+    nodes.forEach(node => this._applyNode(node));
+    this._validateHash();
+  }
+  saveExpandedState(expandedKeys) {
+    this._hasCollapsed = false;
+    this._forEachState(state => {
+      if (state.hasChildren() && !expandedKeys.includes(state.key)) {
+        state.collapsed = true;
+        this._hasCollapsed = true;
+      }
+    });
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getExpandedKeys() {
+    if (this._hasCollapsed) {
+      const keys = [];
+      this._forEachState(state => {
+        if (state.hasChildren() && !state.collapsed) {
+          // @ts-expect-error ts-error
+          keys.push(state.key);
+        }
+      });
+      return keys;
+    }
+    return null;
+  }
+  _resetHash() {
+    this._nodeHash = {};
+    this._hasCollapsed = false;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getNodeState(key) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._nodeHash[key];
+  }
+  _removeNonExistentNodes(existingKeys) {
+    if (existingKeys) {
+      this._forEachState(state => {
+        if (!existingKeys.includes(state.key)) {
+          this._removeStateWithChildren(state);
+        }
+      });
+    }
+  }
+  _removeStateWithChildren(key) {
+    const state = this._getNodeState(key);
+    if (state) {
+      var _this$_nodeHash;
+      state.children.forEach(child => this._removeStateWithChildren(child));
+      const parent = this._getNodeState(state.parentKey);
+      if (parent) {
+        parent.removeChild(state);
+      }
+      (_this$_nodeHash = this._nodeHash) === null || _this$_nodeHash === void 0 || delete _this$_nodeHash[key];
+    }
+  }
+  _applyNode(node) {
+    const nodeState = new GanttTreeListNodeState(node);
+    const oldState = this._getNodeState(node.key);
+    if (!(oldState !== null && oldState !== void 0 && oldState.equal(nodeState))) {
+      this._nodeHash[node.key] = nodeState;
+      this._expandTreelineToNode(node.key);
+    }
+  }
+  _expandTreelineToNode(key) {
+    const state = this._getNodeState(key);
+    let parent = this._getNodeState(state === null || state === void 0 ? void 0 : state.parentKey);
+    while (parent) {
+      parent.collapsed = false;
+      parent = this._getNodeState(parent.parentKey);
+    }
+  }
+  _validateHash() {
+    Object.keys(this._nodeHash).forEach(key => {
+      const state = this._getNodeState(key);
+      const parentKey = state === null || state === void 0 ? void 0 : state.parentKey;
+      if (parentKey !== this._rootValue && !this._getNodeState(parentKey)) {
+        this._removeStateWithChildren(key);
+      }
+    });
+  }
+  _forEachState(callback) {
+    Object.keys(this._nodeHash).forEach(key => {
+      var _this$_nodeHash2;
+      const state = (_this$_nodeHash2 = this._nodeHash) === null || _this$_nodeHash2 === void 0 ? void 0 : _this$_nodeHash2[key];
+      if (state) {
+        callback(state);
+      }
+    });
+  }
+}
+exports.GanttTreeListNodesState = GanttTreeListNodesState;
+
+/***/ }),
+
+/***/ 78199:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.GanttView = void 0;
+var _frame = __webpack_require__(84096);
+var _core = _interopRequireDefault(__webpack_require__(84109));
+var _date = _interopRequireDefault(__webpack_require__(38662));
+var _message = _interopRequireDefault(__webpack_require__(4671));
+var _renderer = _interopRequireDefault(__webpack_require__(64553));
+var _string = __webpack_require__(54497);
+var _type = __webpack_require__(11528);
+var _widget = _interopRequireDefault(__webpack_require__(89275));
+var _gantt_importer = __webpack_require__(22717);
+var _uiGanttTaskArea = __webpack_require__(88957);
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); } /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+const visualStateKey = 'visualState';
+const fullScreenModeKey = 'fullScreen';
+class GanttView extends _widget.default {
+  _init() {
+    super._init();
+    this._onSelectionChanged = this._createActionByOption('onSelectionChanged');
+    this._onViewTypeChanged = this._createActionByOption('onViewTypeChanged');
+    this._onScroll = this._createActionByOption('onScroll');
+    this._onDialogShowing = this._createActionByOption('onDialogShowing');
+    this._onPopupMenuShowing = this._createActionByOption('onPopupMenuShowing');
+    this._onPopupMenuHiding = this._createActionByOption('onPopupMenuHiding');
+    this._expandAll = this._createActionByOption('onExpandAll');
+    this._collapseAll = this._createActionByOption('onCollapseAll');
+    this._taskClick = this._createActionByOption('onTaskClick');
+    this._taskDblClick = this._createActionByOption('onTaskDblClick');
+    this._onAdjustControl = this._createActionByOption('onAdjustControl');
+  }
+  _initMarkup() {
+    var _this$option;
+    // eslint-disable-next-line @typescript-eslint/no-shadow
+    const GanttView = (0, _gantt_importer.getGanttViewCore)();
+    this._ganttViewCore = new GanttView(this.$element().get(0), this, {
+      showResources: this.option('showResources'),
+      showDependencies: this.option('showDependencies'),
+      taskTitlePosition: this._getTaskTitlePosition(this.option('taskTitlePosition')),
+      firstDayOfWeek: this._getFirstDayOfWeek(this.option('firstDayOfWeek')),
+      allowSelectTask: this.option('allowSelection'),
+      startDateRange: this.option('startDateRange'),
+      endDateRange: this.option('endDateRange'),
+      editing: this._parseEditingSettings(this.option('editing')),
+      validation: this.option('validation'),
+      stripLines: {
+        // @ts-expect-error ts-error
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        stripLines: (_this$option = this.option('stripLines')) === null || _this$option === void 0 ? void 0 : _this$option.map(item => _extends({}, item))
+      },
+      areHorizontalBordersEnabled: this.option('showRowLines'),
+      areAlternateRowsEnabled: false,
+      viewType: this._getViewTypeByScaleType(this.option('scaleType')),
+      viewTypeRange: this._parseViewTypeRangeSettings(this.option('scaleTypeRange')),
+      cultureInfo: this._getCultureInfo(),
+      taskTooltipContentTemplate: this.option('taskTooltipContentTemplate'),
+      taskProgressTooltipContentTemplate: this.option('taskProgressTooltipContentTemplate'),
+      taskTimeTooltipContentTemplate: this.option('taskTimeTooltipContentTemplate'),
+      taskContentTemplate: this.option('taskContentTemplate'),
+      sieve: this.option('sieve')
+    });
+    this._selectTask(this.option('selectedRowKey'));
+    this.updateBarItemsState();
+    const visualState = this.option(visualStateKey);
+    if (visualState) {
+      // eslint-disable-next-line @stylistic/max-len
+      this._restoreStateFrameId = (0, _frame.requestAnimationFrame)(() => this._restoreVisualState(visualState));
+    }
+  }
+  _dispose() {
+    super._dispose();
+    (0, _frame.cancelAnimationFrame)(this._restoreStateFrameId);
+  }
+  _restoreVisualState(state) {
+    if (state[fullScreenModeKey]) {
+      this._ganttViewCore.setFullScreenMode();
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getFirstDayOfWeek(value) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return (0, _type.isDefined)(value) ? value : _date.default.firstDayOfWeekIndex();
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getTaskAreaContainer() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._ganttViewCore.getTaskAreaContainer();
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getBarManager() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._ganttViewCore.barManager;
+  }
+  executeCoreCommand(id) {
+    const command = this._ganttViewCore.getCommandByKey(id);
+    if (command) {
+      command.execute();
+    }
+  }
+  changeTaskExpanded(id, value) {
+    this._ganttViewCore.changeTaskExpanded(id, value);
+  }
+  updateView() {
+    var _this$_ganttViewCore;
+    (_this$_ganttViewCore = this._ganttViewCore) === null || _this$_ganttViewCore === void 0 || _this$_ganttViewCore.updateView();
+  }
+  updateBarItemsState() {
+    this._ganttViewCore.barManager.updateItemsState([]);
+  }
+  setWidth(value) {
+    this._ganttViewCore.setWidth(value);
+  }
+  _onDimensionChanged() {
+    this._ganttViewCore.onBrowserWindowResize();
+  }
+  _selectTask(id) {
+    this._ganttViewCore.selectTaskById(id);
+  }
+  _update(keepExpandState) {
+    var _this$_ganttViewCore2;
+    (_this$_ganttViewCore2 = this._ganttViewCore) === null || _this$_ganttViewCore2 === void 0 || _this$_ganttViewCore2.updateWithDataReload(keepExpandState);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getCultureInfo() {
+    return {
+      // @ts-expect-error ts-error
+      monthNames: _date.default.getMonthNames('wide'),
+      // @ts-expect-error ts-error
+      dayNames: _date.default.getDayNames('wide'),
+      abbrMonthNames: _date.default.getMonthNames('abbreviated'),
+      abbrDayNames: _date.default.getDayNames('abbreviated'),
+      quarterNames: this._getQuarterNames(),
+      amText: this._getAmText(),
+      pmText: this._getPmText(),
+      start: _message.default.format('dxGantt-dialogStartTitle'),
+      end: _message.default.format('dxGantt-dialogEndTitle'),
+      progress: _message.default.format('dxGantt-dialogProgressTitle')
+    };
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getAmText() {
+    // @ts-expect-error ts-error
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._hasAmPM() ? _date.default.getPeriodNames()[0] : '';
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getPmText() {
+    // @ts-expect-error ts-error
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._hasAmPM() ? _date.default.getPeriodNames()[1] : '';
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _hasAmPM() {
+    const date = new Date(Date.UTC(2012, 11, 12, 3, 0, 0));
+    const dateString = date.toLocaleTimeString(_core.default.locale());
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    return /am|pm/i.exec(dateString) || /am|pm/i.exec(date.toString());
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getQuarterNames() {
+    const quarterFormat = _message.default.format('dxGantt-quarter');
+    if (!quarterFormat) {
+      // @ts-expect-error ts-error
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return _date.default.getQuarterNames();
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return [(0, _string.format)(quarterFormat, 1), (0, _string.format)(quarterFormat, 2), (0, _string.format)(quarterFormat, 3), (0, _string.format)(quarterFormat, 4)];
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getTaskTitlePosition(value) {
+    switch (value) {
+      case 'outside':
+        return 1;
+      case 'none':
+        return 2;
+      default:
+        return 0;
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _getViewTypeByScaleType(scaleType) {
+    switch (scaleType) {
+      case 'minutes':
+        return 0;
+      case 'hours':
+        return 1;
+      case 'sixHours':
+        return 2;
+      case 'days':
+        return 3;
+      case 'weeks':
+        return 4;
+      case 'months':
+        return 5;
+      case 'quarters':
+        return 6;
+      case 'years':
+        return 7;
+      default:
+        return undefined;
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _parseEditingSettings(value) {
+    return {
+      enabled: value.enabled,
+      allowDependencyDelete: value.allowDependencyDeleting,
+      allowDependencyInsert: value.allowDependencyAdding,
+      allowTaskDelete: value.allowTaskDeleting,
+      allowTaskInsert: value.allowTaskAdding,
+      allowTaskUpdate: value.allowTaskUpdating,
+      allowResourceDelete: value.allowResourceDeleting,
+      allowResourceInsert: value.allowResourceAdding,
+      allowResourceUpdate: value.allowResourceUpdating,
+      allowTaskResourceUpdate: value.allowTaskResourceUpdating
+    };
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _parseViewTypeRangeSettings(value) {
+    return {
+      min: this._getViewTypeByScaleType(value.min),
+      max: this._getViewTypeByScaleType(value.max)
+    };
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  _optionChanged(args) {
+    switch (args.name) {
+      case 'width':
+        super._optionChanged(args);
+        this._ganttViewCore.setWidth(args.value);
+        break;
+      case 'height':
+        this._ganttViewCore.setHeight(args.value);
+        break;
+      case 'tasks':
+      case 'dependencies':
+      case 'resources':
+      case 'resourceAssignments':
+        this._sieveOptions = undefined;
+        this._update(true);
+        break;
+      case 'showResources':
+        this._ganttViewCore.setShowResources(args.value);
+        break;
+      case 'showDependencies':
+        this._ganttViewCore.setShowDependencies(args.value);
+        break;
+      case 'taskTitlePosition':
+        this._ganttViewCore.setTaskTitlePosition(this._getTaskTitlePosition(args.value));
+        break;
+      case 'firstDayOfWeek':
+        this._ganttViewCore.setFirstDayOfWeek(this._getFirstDayOfWeek(args.value));
+        break;
+      case 'startDateRange':
+        this._ganttViewCore.setStartDateRange(args.value);
+        break;
+      case 'endDateRange':
+        this._ganttViewCore.setEndDateRange(args.value);
+        break;
+      case 'allowSelection':
+        this._ganttViewCore.setAllowSelection(args.value);
+        break;
+      case 'selectedRowKey':
+        this._selectTask(args.value);
+        break;
+      case 'editing':
+        this._ganttViewCore.setEditingSettings(this._parseEditingSettings(args.value));
+        break;
+      case 'validation':
+        this._ganttViewCore.setValidationSettings(args.value);
+        this._update(true);
+        break;
+      case 'showRowLines':
+        this._ganttViewCore.setRowLinesVisible(args.value);
+        break;
+      case 'scaleType':
+        this._ganttViewCore.setViewType(this._getViewTypeByScaleType(args.value));
+        break;
+      case 'scaleTypeRange':
+        this._ganttViewCore.setViewTypeRange(this._getViewTypeByScaleType(args.value.min), this._getViewTypeByScaleType(args.value.max));
+        break;
+      case 'stripLines':
+        this._ganttViewCore.setStripLines({
+          stripLines: this.option('stripLines')
+        });
+        break;
+      case 'taskTooltipContentTemplate':
+        this._ganttViewCore.setTaskTooltipContentTemplate(args.value);
+        break;
+      case 'taskProgressTooltipContentTemplate':
+        this._ganttViewCore.setTaskProgressTooltipContentTemplate(args.value);
+        break;
+      case 'taskTimeTooltipContentTemplate':
+        this._ganttViewCore.setTaskTimeTooltipContentTemplate(args.value);
+        break;
+      case 'taskContentTemplate':
+        this._ganttViewCore.setTaskContentTemplate(args.value);
+        break;
+      case 'sieve':
+        this._sortAndFilter(args.value);
+        break;
+      default:
+        super._optionChanged(args);
+    }
+  }
+  // IGanttOwner
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  get bars() {
+    return this.option('bars');
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getRowHeight() {
+    return this.option('rowHeight');
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getHeaderHeight() {
+    return this.option('headerHeight');
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getGanttTasksData() {
+    const tasks = this.option('tasks');
+    const sieveOptions = this.getSieveOptions();
+    if (sieveOptions !== null && sieveOptions !== void 0 && sieveOptions.sievedItems && sieveOptions !== null && sieveOptions !== void 0 && sieveOptions.sieveColumn) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return sieveOptions.sievedItems;
+    }
+    return tasks;
+  }
+  _sortAndFilter(args) {
+    this._sieveOptions = args;
+    this._update(!(args !== null && args !== void 0 && args.expandTasks));
+    const selectedRowKey = this.option('selectedRowKey');
+    this._selectTask(selectedRowKey);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getSieveOptions() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this._sieveOptions;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getGanttDependenciesData() {
+    return this.option('dependencies');
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getGanttResourcesData() {
+    return this.option('resources');
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getGanttResourceAssignmentsData() {
+    return this.option('resourceAssignments');
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getGanttWorkTimeRules() {
+    return null;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getExternalTaskAreaContainer(element) {
+    if (!this._taskAreaContainer) {
+      this._taskAreaContainer = new _uiGanttTaskArea.TaskAreaContainer(element, this);
+    }
+    return this._taskAreaContainer;
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  prepareExternalTaskAreaContainer(element, info) {
+    if (info !== null && info !== void 0 && info.height) {
+      var _this$_taskAreaContai;
+      (_this$_taskAreaContai = this._taskAreaContainer) === null || _this$_taskAreaContai === void 0 || _this$_taskAreaContai._scrollView.option('height', info.height);
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  changeGanttTaskSelection(id, selected) {
+    var _this$_onSelectionCha;
+    (_this$_onSelectionCha = this._onSelectionChanged) === null || _this$_onSelectionCha === void 0 || _this$_onSelectionCha.call(this, {
+      id,
+      selected
+    });
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  onGanttScroll(scrollTop) {
+    var _this$_onScroll;
+    (_this$_onScroll = this._onScroll) === null || _this$_onScroll === void 0 || _this$_onScroll.call(this, {
+      scrollTop
+    });
+  }
+  showDialog(name, parameters, callback, afterClosing) {
+    var _this$_onDialogShowin;
+    (_this$_onDialogShowin = this._onDialogShowing) === null || _this$_onDialogShowin === void 0 || _this$_onDialogShowin.call(this, {
+      name,
+      parameters,
+      callback,
+      afterClosing
+    });
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getModelChangesListener() {
+    return this.option('modelChangesListener');
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getExportInfo() {
+    return this.option('exportInfo');
+  }
+  showPopupMenu(info) {
+    var _this$_onPopupMenuSho;
+    (_this$_onPopupMenuSho = this._onPopupMenuShowing) === null || _this$_onPopupMenuSho === void 0 || _this$_onPopupMenuSho.call(this, info);
+  }
+  hidePopupMenu(info) {
+    var _this$_onPopupMenuHid;
+    (_this$_onPopupMenuHid = this._onPopupMenuHiding) === null || _this$_onPopupMenuHid === void 0 || _this$_onPopupMenuHid.call(this, info);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getMainElement() {
+    // @ts-expect-error ts-error
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this.option('mainElement').get(0);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  adjustControl() {
+    var _this$_onAdjustContro;
+    (_this$_onAdjustContro = this._onAdjustControl) === null || _this$_onAdjustContro === void 0 || _this$_onAdjustContro.call(this);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getRequireFirstLoadParentAutoCalc() {
+    return this.option('validation.autoUpdateParentTasks');
+  }
+  collapseAll() {
+    var _this$_collapseAll;
+    (_this$_collapseAll = this._collapseAll) === null || _this$_collapseAll === void 0 || _this$_collapseAll.call(this);
+  }
+  expandAll() {
+    var _this$_expandAll;
+    (_this$_expandAll = this._expandAll) === null || _this$_expandAll === void 0 || _this$_expandAll.call(this);
+  }
+  onTaskClick(key, event) {
+    var _this$_taskClick;
+    (_this$_taskClick = this._taskClick) === null || _this$_taskClick === void 0 || _this$_taskClick.call(this, {
+      key,
+      event
+    });
+    return true;
+  }
+  onTaskDblClick(key, event) {
+    var _this$_taskDblClick;
+    return (_this$_taskDblClick = this._taskDblClick) === null || _this$_taskDblClick === void 0 ? void 0 : _this$_taskDblClick.call(this, {
+      key,
+      event
+    });
+  }
+  // eslint-disable-next-line @stylistic/max-len
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type,@typescript-eslint/no-unused-vars
+  onGanttViewContextMenu(event, key, type) {
+    return true;
+  }
+  getFormattedDateText(date) {
+    let result = '';
+    if (date) {
+      const datePart = _date.default.format(date, 'shortDate');
+      const timeFormat = this._hasAmPM() ? 'hh:mm a' : 'HH:mm';
+      const timePart = _date.default.format(date, timeFormat);
+      result = `${datePart} ${timePart}`;
+    }
+    return result;
+  }
+  destroyTemplate(container) {
+    (0, _renderer.default)(container).empty();
+  }
+  onTaskAreaSizeChanged(info) {
+    var _this$_taskAreaContai2;
+    const scrollView = (_this$_taskAreaContai2 = this._taskAreaContainer) === null || _this$_taskAreaContai2 === void 0 ? void 0 : _this$_taskAreaContai2._scrollView;
+    if ((0, _type.isDefined)(info === null || info === void 0 ? void 0 : info.height)) {
+      var _this$_taskAreaContai3;
+      // @ts-expect-error ts-error
+      const direction = (info === null || info === void 0 ? void 0 : info.height) > ((_this$_taskAreaContai3 = this._taskAreaContainer) === null || _this$_taskAreaContai3 === void 0 ? void 0 : _this$_taskAreaContai3.getHeight()) ? 'both' : 'horizontal';
+      scrollView.option('direction', direction);
+    }
+  }
+  updateGanttViewType(type) {
+    var _this$_onViewTypeChan;
+    (_this$_onViewTypeChan = this._onViewTypeChanged) === null || _this$_onViewTypeChan === void 0 || _this$_onViewTypeChan.call(this, {
+      type
+    });
+  }
+  // export
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getTreeListTableStyle() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this.callExportHelperMethod('getTreeListTableStyle');
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getTreeListColCount() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this.callExportHelperMethod('getTreeListColCount');
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getTreeListHeaderInfo(colIndex) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this.callExportHelperMethod('getTreeListHeaderInfo', colIndex);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getTreeListCellInfo(rowIndex, colIndex, key) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this.callExportHelperMethod('getTreeListCellInfo', key, colIndex);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getTreeListEmptyDataCellInfo() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this.callExportHelperMethod('getTreeListEmptyDataCellInfo');
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  callExportHelperMethod(methodName) {
+    const helper = this.option('exportHelper');
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    for (var _len = arguments.length, args = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+      args[_key - 1] = arguments[_key];
+    }
+    return helper[methodName](...args);
+  }
+  applyTasksExpandedState(state) {
+    var _this$_ganttViewCore3;
+    (_this$_ganttViewCore3 = this._ganttViewCore) === null || _this$_ganttViewCore3 === void 0 || _this$_ganttViewCore3.applyTasksExpandedState(state);
+  }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  getVisualStateToRestore() {
+    var _this$_ganttViewCore4, _this$_ganttViewCore5;
+    return {
+      [fullScreenModeKey]: (_this$_ganttViewCore4 = this._ganttViewCore) === null || _this$_ganttViewCore4 === void 0 || (_this$_ganttViewCore5 = _this$_ganttViewCore4.isInFullScreenMode) === null || _this$_ganttViewCore5 === void 0 ? void 0 : _this$_ganttViewCore5.call(_this$_ganttViewCore4)
+    };
+  }
+}
+exports.GanttView = GanttView;
 
 /***/ }),
 
@@ -175216,6 +188349,7 @@ class EditDecoratorSelection extends _listEdit.default {
   _selectAllHandler(event) {
     var _this$_selectAllCheck4;
     event.stopPropagation();
+    event.preventDefault(); // to prevent scrolling on space key press
     this._list._saveSelectionChangeEvent(event);
     const {
       value
@@ -176073,6 +189207,8 @@ class ListEdit extends _list.ListBase {
           } else {
             parent.downArrow(e);
           }
+        } else {
+          e.preventDefault(); // to prevent extra scrolling
         }
       }
     };
@@ -182701,7 +195837,7 @@ var _default = exports["default"] = TagBox;
 Object.defineProperty(exports, "__esModule", ({
   value: true
 }));
-exports["default"] = exports.TEXTAREA_CLASS = void 0;
+exports["default"] = exports.TEXTEDITOR_INPUT_CLASS_AUTO_RESIZE = exports.TEXTAREA_CLASS = void 0;
 var _events_engine = _interopRequireDefault(__webpack_require__(92774));
 var _emitterGesture = _interopRequireDefault(__webpack_require__(86548));
 var _pointer = _interopRequireDefault(__webpack_require__(89797));
@@ -182717,7 +195853,7 @@ var _m_utils = __webpack_require__(81569);
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
 const TEXTAREA_CLASS = exports.TEXTAREA_CLASS = 'dx-textarea';
-const TEXTEDITOR_INPUT_CLASS_AUTO_RESIZE = 'dx-texteditor-input-auto-resize';
+const TEXTEDITOR_INPUT_CLASS_AUTO_RESIZE = exports.TEXTEDITOR_INPUT_CLASS_AUTO_RESIZE = 'dx-texteditor-input-auto-resize';
 class TextArea extends _m_text_box.default {
   _getDefaultOptions() {
     return _extends({}, super._getDefaultOptions(), {
@@ -182838,13 +195974,13 @@ class TextArea extends _m_text_box.default {
     const heightDifference = this._getHeightDifference($input);
     this._renderDimensions();
     const minHeight = this._getBoundaryHeight('minHeight');
-    const maxHeight = this._getBoundaryHeight('maxHeight');
+    const maxHeight = this._getMaxHeight();
     let inputHeight = $input[0].scrollHeight;
     if (minHeight !== undefined) {
       inputHeight = Math.max(inputHeight, minHeight - heightDifference);
     }
     if (maxHeight !== undefined) {
-      const adjustedMaxHeight = maxHeight - heightDifference;
+      const adjustedMaxHeight = this._getAdjustedMaxHeight(maxHeight, heightDifference);
       const needScroll = inputHeight > adjustedMaxHeight;
       inputHeight = Math.min(inputHeight, adjustedMaxHeight);
       this._updateInputAutoResizeAppearance($input, !needScroll);
@@ -182853,6 +195989,14 @@ class TextArea extends _m_text_box.default {
     if (autoHeightResizing) {
       this.$element().css('height', 'auto');
     }
+  }
+  // eslint-disable-next-line class-methods-use-this
+  _getAdjustedMaxHeight(maxHeight, heightDifference) {
+    const adjustedMaxHeight = maxHeight - heightDifference;
+    return adjustedMaxHeight;
+  }
+  _getMaxHeight() {
+    return this._getBoundaryHeight('maxHeight');
   }
   _getBoundaryHeight(optionName) {
     const boundaryValue = this.option(optionName);
@@ -196296,6 +209440,7 @@ Object.defineProperty(exports, "__esModule", ({
 exports["default"] = void 0;
 var _frame = __webpack_require__(84096);
 var _class = _interopRequireDefault(__webpack_require__(55620));
+var _type = __webpack_require__(11528);
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 class Animator {
   constructor() {
@@ -196310,7 +209455,9 @@ class Animator {
   }
   stop() {
     this._stopped = true;
-    (0, _frame.cancelAnimationFrame)(this._stepAnimationFrame);
+    if ((0, _type.isDefined)(this._stepAnimationFrame)) {
+      (0, _frame.cancelAnimationFrame)(this._stepAnimationFrame);
+    }
   }
   _stepCore() {
     if (this._isStopped()) {
@@ -205250,18 +218397,21 @@ class Stepper extends _collection_widget.default {
     this._setAriaOrientation();
     super._initMarkup();
   }
+  _getConnectorOptions() {
+    const {
+      orientation
+    } = this.option();
+    return {
+      orientation,
+      size: this._getConnectorSize(),
+      value: this._getConnectorValue()
+    };
+  }
   _renderConnector() {
     if (this._connector) {
       return;
     }
-    const {
-      orientation
-    } = this.option();
-    this._connector = this._createComponent((0, _renderer.default)('<div>'), _connector.default, {
-      orientation,
-      size: this._getConnectorSize(),
-      value: this._getConnectorValue()
-    });
+    this._connector = this._createComponent((0, _renderer.default)('<div>'), _connector.default, this._getConnectorOptions());
     (0, _renderer.default)(this.element()).prepend(this._connector.$element());
   }
   _getConnectorSize() {
@@ -205395,6 +218545,10 @@ class Stepper extends _collection_widget.default {
         break;
       case 'hintExpr':
         this._invalidate();
+        break;
+      case 'items':
+        super._optionChanged(args);
+        this._connector.option(this._getConnectorOptions());
         break;
       default:
         super._optionChanged(args);
@@ -270596,123 +283750,24 @@ function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e
 
 /***/ }),
 
-/***/ 88424:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-
-exports.convertTransitionTimingFuncToEasing = void 0;
-exports.getEasing = getEasing;
-exports.setEasing = setEasing;
-var _type = __webpack_require__(11528);
-const CSS_TRANSITION_EASING_REGEX = /cubic-bezier\((\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\)/;
-const TransitionTimingFuncMap = {
-  'linear': 'cubic-bezier(0, 0, 1, 1)',
-  'swing': 'cubic-bezier(0.445, 0.05, 0.55, 0.95)',
-  'ease': 'cubic-bezier(0.25, 0.1, 0.25, 1)',
-  'ease-in': 'cubic-bezier(0.42, 0, 1, 1)',
-  'ease-out': 'cubic-bezier(0, 0, 0.58, 1)',
-  'ease-in-out': 'cubic-bezier(0.42, 0, 0.58, 1)'
-};
-const polynomBezier = function (x1, y1, x2, y2) {
-  const Cx = 3 * x1;
-  const Bx = 3 * (x2 - x1) - Cx;
-  const Ax = 1 - Cx - Bx;
-  const Cy = 3 * y1;
-  const By = 3 * (y2 - y1) - Cy;
-  const Ay = 1 - Cy - By;
-  const bezierX = function (t) {
-    return t * (Cx + t * (Bx + t * Ax));
-  };
-  const bezierY = function (t) {
-    return t * (Cy + t * (By + t * Ay));
-  };
-  const derivativeX = function (t) {
-    return Cx + t * (2 * Bx + t * 3 * Ax);
-  };
-  const findXFor = function (t) {
-    let x = t;
-    let i = 0;
-    let z;
-    while (i < 14) {
-      z = bezierX(x) - t;
-      if (Math.abs(z) < 1e-3) {
-        break;
-      }
-      x = x - z / derivativeX(x);
-      i++;
-    }
-    return x;
-  };
-  return function (t) {
-    return bezierY(findXFor(t));
-  };
-};
-let easing = {};
-const convertTransitionTimingFuncToEasing = function (cssTransitionEasing) {
-  cssTransitionEasing = TransitionTimingFuncMap[cssTransitionEasing] || cssTransitionEasing;
-  let coeffs = cssTransitionEasing.match(CSS_TRANSITION_EASING_REGEX);
-  let forceName;
-  if (!coeffs) {
-    forceName = 'linear';
-    coeffs = TransitionTimingFuncMap[forceName].match(CSS_TRANSITION_EASING_REGEX);
-  }
-  coeffs = coeffs.slice(1, 5);
-  for (let i = 0; i < coeffs.length; i++) {
-    coeffs[i] = parseFloat(coeffs[i]);
-  }
-  const easingName = forceName || 'cubicbezier_' + coeffs.join('_').replace(/\./g, 'p');
-  if (!(0, _type.isFunction)(easing[easingName])) {
-    easing[easingName] = function (x, t, b, c, d) {
-      return c * polynomBezier(coeffs[0], coeffs[1], coeffs[2], coeffs[3])(t / d) + b;
-    };
-  }
-  return easingName;
-};
-exports.convertTransitionTimingFuncToEasing = convertTransitionTimingFuncToEasing;
-function setEasing(value) {
-  easing = value;
-}
-function getEasing(name) {
-  return easing[name];
-}
-
-/***/ }),
-
 /***/ 84096:
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
 
-exports.cancelAnimationFrame = cancelAnimationFrame;
-exports.requestAnimationFrame = requestAnimationFrame;
-var _window = __webpack_require__(3104);
-var _call_once = _interopRequireDefault(__webpack_require__(13630));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const window = (0, _window.hasWindow)() ? (0, _window.getWindow)() : {};
-const FRAME_ANIMATION_STEP_TIME = 1000 / 60;
-let request = function (callback) {
-  return setTimeout(callback, FRAME_ANIMATION_STEP_TIME);
-};
-let cancel = function (requestID) {
-  clearTimeout(requestID);
-};
-const setAnimationFrameMethods = (0, _call_once.default)(function () {
-  const nativeRequest = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame;
-  const nativeCancel = window.cancelAnimationFrame || window.webkitCancelAnimationFrame || window.mozCancelAnimationFrame || window.oCancelAnimationFrame || window.msCancelAnimationFrame;
-  if (nativeRequest && nativeCancel) {
-    request = nativeRequest;
-    cancel = nativeCancel;
+Object.defineProperty(exports, "cancelAnimationFrame", ({
+  enumerable: true,
+  get: function () {
+    return _frame.cancelAnimationFrame;
   }
-});
-function requestAnimationFrame() {
-  setAnimationFrameMethods();
-  return request.apply(window, arguments);
-}
-function cancelAnimationFrame() {
-  setAnimationFrameMethods();
-  cancel.apply(window, arguments);
-}
+}));
+Object.defineProperty(exports, "requestAnimationFrame", ({
+  enumerable: true,
+  get: function () {
+    return _frame.requestAnimationFrame;
+  }
+}));
+var _frame = __webpack_require__(26106);
 
 /***/ }),
 
@@ -270722,701 +283777,9 @@ function cancelAnimationFrame() {
 
 
 exports["default"] = void 0;
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _window = __webpack_require__(3104);
-var _events_engine = _interopRequireDefault(__webpack_require__(92774));
-var _errors = _interopRequireDefault(__webpack_require__(87129));
-var _element = __webpack_require__(61404);
-var _extend = __webpack_require__(52576);
-var _type = __webpack_require__(11528);
-var _iterator = __webpack_require__(21274);
-var _translator = __webpack_require__(88603);
-var _easing = __webpack_require__(88424);
-var _frame = __webpack_require__(84096);
-var _m_support = _interopRequireDefault(__webpack_require__(85991));
-var _position = _interopRequireDefault(__webpack_require__(3030));
-var _remove = __webpack_require__(28630);
-var _index = __webpack_require__(98834);
-var _deferred = __webpack_require__(87739);
-var _common = __webpack_require__(17781);
+var _fx = _interopRequireDefault(__webpack_require__(28885));
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const window = (0, _window.getWindow)();
-const removeEventName = (0, _index.addNamespace)(_remove.removeEvent, 'dxFX');
-const RELATIVE_VALUE_REGEX = /^([+-])=(.*)/i;
-const ANIM_DATA_KEY = 'dxAnimData';
-const ANIM_QUEUE_KEY = 'dxAnimQueue';
-const TRANSFORM_PROP = 'transform';
-const TransitionAnimationStrategy = {
-  initAnimation: function ($element, config) {
-    $element.css({
-      'transitionProperty': 'none'
-    });
-    if (typeof config.from === 'string') {
-      $element.addClass(config.from);
-    } else {
-      setProps($element, config.from);
-    }
-    const that = this;
-    const deferred = new _deferred.Deferred();
-    const cleanupWhen = config.cleanupWhen;
-    config.transitionAnimation = {
-      deferred: deferred,
-      finish: function () {
-        that._finishTransition($element);
-        if (cleanupWhen) {
-          (0, _deferred.when)(deferred, cleanupWhen).always(function () {
-            that._cleanup($element, config);
-          });
-        } else {
-          that._cleanup($element, config);
-        }
-        deferred.resolveWith($element, [config, $element]);
-      }
-    };
-    this._completeAnimationCallback($element, config).done(function () {
-      config.transitionAnimation.finish();
-    }).fail(function () {
-      deferred.rejectWith($element, [config, $element]);
-    });
-    if (!config.duration) {
-      config.transitionAnimation.finish();
-    }
-
-    // NOTE: Hack for setting 'from' css by browser before run animation
-    //       Do not move this hack to initAnimation since some css props can be changed in the 'start' callback (T231434)
-    //       Unfortunately this can't be unit tested
-    // TODO: find better way if possible
-    $element.css('transform');
-  },
-  animate: function ($element, config) {
-    this._startAnimation($element, config);
-    return config.transitionAnimation.deferred.promise();
-  },
-  _completeAnimationCallback: function ($element, config) {
-    const that = this;
-    const startTime = Date.now() + config.delay;
-    const deferred = new _deferred.Deferred();
-    const transitionEndFired = new _deferred.Deferred();
-    const simulatedTransitionEndFired = new _deferred.Deferred();
-    let simulatedEndEventTimer;
-    const transitionEndEventFullName = _m_support.default.transitionEndEventName() + '.dxFX';
-    config.transitionAnimation.cleanup = function () {
-      clearTimeout(simulatedEndEventTimer);
-      clearTimeout(waitForJSCompleteTimer);
-      _events_engine.default.off($element, transitionEndEventFullName);
-      _events_engine.default.off($element, removeEventName);
-    };
-    _events_engine.default.one($element, transitionEndEventFullName, function () {
-      // NOTE: prevent native transitionEnd event from previous animation in queue (Chrome)
-      if (Date.now() - startTime >= config.duration) {
-        transitionEndFired.reject();
-      }
-    });
-    _events_engine.default.off($element, removeEventName);
-    _events_engine.default.on($element, removeEventName, function () {
-      that.stop($element, config);
-      deferred.reject();
-    });
-    const waitForJSCompleteTimer = setTimeout(function () {
-      // Fix for a visual bug (T244514): do not setup the timer until all js code has finished working
-      simulatedEndEventTimer = setTimeout(function () {
-        simulatedTransitionEndFired.reject();
-      }, config.duration + config.delay + fx._simulatedTransitionEndDelay /* T255863 */);
-      (0, _deferred.when)(transitionEndFired, simulatedTransitionEndFired).fail(function () {
-        deferred.resolve();
-      }.bind(this));
-    });
-    return deferred.promise();
-  },
-  _startAnimation: function ($element, config) {
-    $element.css({
-      'transitionProperty': 'all',
-      'transitionDelay': config.delay + 'ms',
-      'transitionDuration': config.duration + 'ms',
-      'transitionTimingFunction': config.easing
-    });
-    if (typeof config.to === 'string') {
-      $element[0].className += ' ' + config.to;
-      // Do not uncomment: performance critical
-      // $element.addClass(config.to);
-    } else if (config.to) {
-      setProps($element, config.to);
-    }
-  },
-  _finishTransition: function ($element) {
-    $element.css('transition', 'none');
-  },
-  _cleanup: function ($element, config) {
-    config.transitionAnimation.cleanup();
-    if (typeof config.from === 'string') {
-      $element.removeClass(config.from);
-      $element.removeClass(config.to);
-    }
-  },
-  stop: function ($element, config, jumpToEnd) {
-    if (!config) {
-      return;
-    }
-    if (jumpToEnd) {
-      config.transitionAnimation.finish();
-    } else {
-      if ((0, _type.isPlainObject)(config.to)) {
-        (0, _iterator.each)(config.to, function (key) {
-          $element.css(key, $element.css(key));
-        });
-      }
-      this._finishTransition($element);
-      this._cleanup($element, config);
-    }
-  }
-};
-const FrameAnimationStrategy = {
-  initAnimation: function ($element, config) {
-    setProps($element, config.from);
-  },
-  animate: function ($element, config) {
-    const deferred = new _deferred.Deferred();
-    const that = this;
-    if (!config) {
-      return deferred.reject().promise();
-    }
-    (0, _iterator.each)(config.to, function (prop) {
-      if (config.from[prop] === undefined) {
-        config.from[prop] = that._normalizeValue($element.css(prop));
-      }
-    });
-    if (config.to[TRANSFORM_PROP]) {
-      config.from[TRANSFORM_PROP] = that._parseTransform(config.from[TRANSFORM_PROP]);
-      config.to[TRANSFORM_PROP] = that._parseTransform(config.to[TRANSFORM_PROP]);
-    }
-    config.frameAnimation = {
-      to: config.to,
-      from: config.from,
-      currentValue: config.from,
-      easing: (0, _easing.convertTransitionTimingFuncToEasing)(config.easing),
-      duration: config.duration,
-      startTime: new Date().valueOf(),
-      finish: function () {
-        this.currentValue = this.to;
-        this.draw();
-        (0, _frame.cancelAnimationFrame)(config.frameAnimation.animationFrameId);
-        deferred.resolve();
-      },
-      draw: function () {
-        if (config.draw) {
-          config.draw(this.currentValue);
-          return;
-        }
-        const currentValue = (0, _extend.extend)({}, this.currentValue);
-        if (currentValue[TRANSFORM_PROP]) {
-          currentValue[TRANSFORM_PROP] = (0, _iterator.map)(currentValue[TRANSFORM_PROP], function (value, prop) {
-            if (prop === 'translate') {
-              return (0, _translator.getTranslateCss)(value);
-            } else if (prop === 'scale') {
-              return 'scale(' + value + ')';
-            } else if (prop.substr(0, prop.length - 1) === 'rotate') {
-              return prop + '(' + value + 'deg)';
-            }
-          }).join(' ');
-        }
-        $element.css(currentValue);
-      }
-    };
-    if (config.delay) {
-      config.frameAnimation.startTime += config.delay;
-      config.frameAnimation.delayTimeout = setTimeout(function () {
-        that._startAnimation($element, config);
-      }, config.delay);
-    } else {
-      that._startAnimation($element, config);
-    }
-    return deferred.promise();
-  },
-  _startAnimation: function ($element, config) {
-    _events_engine.default.off($element, removeEventName);
-    _events_engine.default.on($element, removeEventName, function () {
-      if (config.frameAnimation) {
-        (0, _frame.cancelAnimationFrame)(config.frameAnimation.animationFrameId);
-      }
-    });
-    this._animationStep($element, config);
-  },
-  _parseTransform: function (transformString) {
-    const result = {};
-    (0, _iterator.each)(transformString.match(/\w+\d*\w*\([^)]*\)\s*/g), function (i, part) {
-      const translateData = (0, _translator.parseTranslate)(part);
-      const scaleData = part.match(/scale\((.+?)\)/);
-      const rotateData = part.match(/(rotate.)\((.+)deg\)/);
-      if (translateData) {
-        result.translate = translateData;
-      }
-      if (scaleData && scaleData[1]) {
-        result.scale = parseFloat(scaleData[1]);
-      }
-      if (rotateData && rotateData[1]) {
-        result[rotateData[1]] = parseFloat(rotateData[2]);
-      }
-    });
-    return result;
-  },
-  stop: function ($element, config, jumpToEnd) {
-    const frameAnimation = config && config.frameAnimation;
-    if (!frameAnimation) {
-      return;
-    }
-    (0, _frame.cancelAnimationFrame)(frameAnimation.animationFrameId);
-    clearTimeout(frameAnimation.delayTimeout);
-    if (jumpToEnd) {
-      frameAnimation.finish();
-    }
-    delete config.frameAnimation;
-  },
-  _animationStep: function ($element, config) {
-    const frameAnimation = config && config.frameAnimation;
-    if (!frameAnimation) {
-      return;
-    }
-    const now = new Date().valueOf();
-    if (now >= frameAnimation.startTime + frameAnimation.duration) {
-      frameAnimation.finish();
-      return;
-    }
-    frameAnimation.currentValue = this._calcStepValue(frameAnimation, now - frameAnimation.startTime);
-    frameAnimation.draw();
-    const that = this;
-    frameAnimation.animationFrameId = (0, _frame.requestAnimationFrame)(function () {
-      that._animationStep($element, config);
-    });
-  },
-  _calcStepValue: function (frameAnimation, currentDuration) {
-    const calcValueRecursively = function (from, to) {
-      const result = Array.isArray(to) ? [] : {};
-      const calcEasedValue = function (propName) {
-        const x = currentDuration / frameAnimation.duration;
-        const t = currentDuration;
-        const b = 1 * from[propName];
-        const c = to[propName] - from[propName];
-        const d = frameAnimation.duration;
-        return (0, _easing.getEasing)(frameAnimation.easing)(x, t, b, c, d);
-      };
-      (0, _iterator.each)(to, function (propName, endPropValue) {
-        if (typeof endPropValue === 'string' && parseFloat(endPropValue) === false) {
-          return true;
-        }
-        result[propName] = typeof endPropValue === 'object' ? calcValueRecursively(from[propName], endPropValue) : calcEasedValue(propName);
-      });
-      return result;
-    };
-    return calcValueRecursively(frameAnimation.from, frameAnimation.to);
-  },
-  _normalizeValue: function (value) {
-    const numericValue = parseFloat(value);
-    if (numericValue === false) {
-      return value;
-    }
-    return numericValue;
-  }
-};
-const FallbackToNoAnimationStrategy = {
-  initAnimation: function () {},
-  animate: function () {
-    return new _deferred.Deferred().resolve().promise();
-  },
-  stop: _common.noop,
-  isSynchronous: true
-};
-const getAnimationStrategy = function (config) {
-  config = config || {};
-  const animationStrategies = {
-    'transition': _m_support.default.transition() ? TransitionAnimationStrategy : FrameAnimationStrategy,
-    'frame': FrameAnimationStrategy,
-    'noAnimation': FallbackToNoAnimationStrategy
-  };
-  let strategy = config.strategy || 'transition';
-  if (config.type === 'css' && !_m_support.default.transition()) {
-    strategy = 'noAnimation';
-  }
-  return animationStrategies[strategy];
-};
-const baseConfigValidator = function (config, animationType, validate, typeMessage) {
-  (0, _iterator.each)(['from', 'to'], function () {
-    if (!validate(config[this])) {
-      throw _errors.default.Error('E0010', animationType, this, typeMessage);
-    }
-  });
-};
-const isObjectConfigValidator = function (config, animationType) {
-  return baseConfigValidator(config, animationType, function (target) {
-    return (0, _type.isPlainObject)(target);
-  }, 'a plain object');
-};
-const isStringConfigValidator = function (config, animationType) {
-  return baseConfigValidator(config, animationType, function (target) {
-    return typeof target === 'string';
-  }, 'a string');
-};
-const CustomAnimationConfigurator = {
-  setup: function () {}
-};
-const CssAnimationConfigurator = {
-  validateConfig: function (config) {
-    isStringConfigValidator(config, 'css');
-  },
-  setup: function () {}
-};
-const positionAliases = {
-  'top': {
-    my: 'bottom center',
-    at: 'top center'
-  },
-  'bottom': {
-    my: 'top center',
-    at: 'bottom center'
-  },
-  'right': {
-    my: 'left center',
-    at: 'right center'
-  },
-  'left': {
-    my: 'right center',
-    at: 'left center'
-  }
-};
-const SlideAnimationConfigurator = {
-  validateConfig: function (config) {
-    isObjectConfigValidator(config, 'slide');
-  },
-  setup: function ($element, config) {
-    const location = (0, _translator.locate)($element);
-    if (config.type !== 'slide') {
-      const positioningConfig = config.type === 'slideIn' ? config.from : config.to;
-      positioningConfig.position = (0, _extend.extend)({
-        of: window
-      }, positionAliases[config.direction]);
-      setupPosition($element, positioningConfig);
-    }
-    this._setUpConfig(location, config.from);
-    this._setUpConfig(location, config.to);
-    (0, _translator.clearCache)($element);
-  },
-  _setUpConfig: function (location, config) {
-    config.left = 'left' in config ? config.left : '+=0';
-    config.top = 'top' in config ? config.top : '+=0';
-    this._initNewPosition(location, config);
-  },
-  _initNewPosition: function (location, config) {
-    const position = {
-      left: config.left,
-      top: config.top
-    };
-    delete config.left;
-    delete config.top;
-    let relativeValue = this._getRelativeValue(position.left);
-    if (relativeValue !== undefined) {
-      position.left = relativeValue + location.left;
-    } else {
-      config.left = 0;
-    }
-    relativeValue = this._getRelativeValue(position.top);
-    if (relativeValue !== undefined) {
-      position.top = relativeValue + location.top;
-    } else {
-      config.top = 0;
-    }
-    config[TRANSFORM_PROP] = (0, _translator.getTranslateCss)({
-      x: position.left,
-      y: position.top
-    });
-  },
-  _getRelativeValue: function (value) {
-    let relativeValue;
-    if (typeof value === 'string' && (relativeValue = RELATIVE_VALUE_REGEX.exec(value))) {
-      return parseInt(relativeValue[1] + '1') * relativeValue[2];
-    }
-  }
-};
-const FadeAnimationConfigurator = {
-  setup: function ($element, config) {
-    const from = config.from;
-    const to = config.to;
-    const defaultFromOpacity = config.type === 'fadeOut' ? 1 : 0;
-    const defaultToOpacity = config.type === 'fadeOut' ? 0 : 1;
-    let fromOpacity = (0, _type.isPlainObject)(from) ? String(from.opacity ?? defaultFromOpacity) : String(from);
-    let toOpacity = (0, _type.isPlainObject)(to) ? String(to.opacity ?? defaultToOpacity) : String(to);
-    if (!config.skipElementInitialStyles) {
-      fromOpacity = $element.css('opacity');
-    }
-    switch (config.type) {
-      case 'fadeIn':
-        toOpacity = 1;
-        break;
-      case 'fadeOut':
-        toOpacity = 0;
-        break;
-    }
-    config.from = {
-      visibility: 'visible',
-      opacity: fromOpacity
-    };
-    config.to = {
-      opacity: toOpacity
-    };
-  }
-};
-const PopAnimationConfigurator = {
-  validateConfig: function (config) {
-    isObjectConfigValidator(config, 'pop');
-  },
-  setup: function ($element, config) {
-    const from = config.from;
-    const to = config.to;
-    const fromOpacity = 'opacity' in from ? from.opacity : $element.css('opacity');
-    const toOpacity = 'opacity' in to ? to.opacity : 1;
-    const fromScale = 'scale' in from ? from.scale : 0;
-    const toScale = 'scale' in to ? to.scale : 1;
-    config.from = {
-      opacity: fromOpacity
-    };
-    const translate = (0, _translator.getTranslate)($element);
-    config.from[TRANSFORM_PROP] = this._getCssTransform(translate, fromScale);
-    config.to = {
-      opacity: toOpacity
-    };
-    config.to[TRANSFORM_PROP] = this._getCssTransform(translate, toScale);
-  },
-  _getCssTransform: function (translate, scale) {
-    return (0, _translator.getTranslateCss)(translate) + 'scale(' + scale + ')';
-  }
-};
-const animationConfigurators = {
-  'custom': CustomAnimationConfigurator,
-  'slide': SlideAnimationConfigurator,
-  'slideIn': SlideAnimationConfigurator,
-  'slideOut': SlideAnimationConfigurator,
-  'fade': FadeAnimationConfigurator,
-  'fadeIn': FadeAnimationConfigurator,
-  'fadeOut': FadeAnimationConfigurator,
-  'pop': PopAnimationConfigurator,
-  'css': CssAnimationConfigurator
-};
-const getAnimationConfigurator = function (config) {
-  const result = animationConfigurators[config.type];
-  if (!result) {
-    throw _errors.default.Error('E0011', config.type);
-  }
-  return result;
-};
-const defaultJSConfig = {
-  type: 'custom',
-  from: {},
-  to: {},
-  duration: 400,
-  start: _common.noop,
-  complete: _common.noop,
-  easing: 'ease',
-  delay: 0
-};
-const defaultCssConfig = {
-  duration: 400,
-  easing: 'ease',
-  delay: 0
-};
-function setupAnimationOnElement() {
-  const animation = this;
-  const $element = animation.element;
-  const config = animation.config;
-  setupPosition($element, config.from);
-  setupPosition($element, config.to);
-  animation.configurator.setup($element, config);
-  $element.data(ANIM_DATA_KEY, animation);
-  if (fx.off) {
-    config.duration = 0;
-    config.delay = 0;
-  }
-  animation.strategy.initAnimation($element, config);
-  if (config.start) {
-    const element = (0, _element.getPublicElement)($element);
-    config.start.apply(this, [element, config]);
-  }
-}
-const onElementAnimationComplete = function (animation) {
-  const $element = animation.element;
-  const config = animation.config;
-  $element.removeData(ANIM_DATA_KEY);
-  if (config.complete) {
-    const element = (0, _element.getPublicElement)($element);
-    config.complete.apply(this, [element, config]);
-  }
-  animation.deferred.resolveWith(this, [$element, config]);
-};
-const startAnimationOnElement = function () {
-  const animation = this;
-  const $element = animation.element;
-  const config = animation.config;
-  animation.isStarted = true;
-  return animation.strategy.animate($element, config).done(function () {
-    onElementAnimationComplete(animation);
-  }).fail(function () {
-    animation.deferred.rejectWith(this, [$element, config]);
-  });
-};
-const stopAnimationOnElement = function (jumpToEnd) {
-  const animation = this;
-  const $element = animation.element;
-  const config = animation.config;
-  clearTimeout(animation.startTimeout);
-  if (!animation.isStarted) {
-    animation.start();
-  }
-  animation.strategy.stop($element, config, jumpToEnd);
-};
-const scopedRemoveEvent = (0, _index.addNamespace)(_remove.removeEvent, 'dxFXStartAnimation');
-const subscribeToRemoveEvent = function (animation) {
-  _events_engine.default.off(animation.element, scopedRemoveEvent);
-  _events_engine.default.on(animation.element, scopedRemoveEvent, function () {
-    fx.stop(animation.element);
-  });
-  animation.deferred.always(function () {
-    _events_engine.default.off(animation.element, scopedRemoveEvent);
-  });
-};
-const createAnimation = function (element, initialConfig) {
-  const defaultConfig = initialConfig.type === 'css' ? defaultCssConfig : defaultJSConfig;
-  const config = (0, _extend.extend)(true, {}, defaultConfig, initialConfig);
-  const configurator = getAnimationConfigurator(config);
-  const strategy = getAnimationStrategy(config);
-  const animation = {
-    element: (0, _renderer.default)(element),
-    config: config,
-    configurator: configurator,
-    strategy: strategy,
-    isSynchronous: strategy.isSynchronous,
-    setup: setupAnimationOnElement,
-    start: startAnimationOnElement,
-    stop: stopAnimationOnElement,
-    deferred: new _deferred.Deferred()
-  };
-  if ((0, _type.isFunction)(configurator.validateConfig)) {
-    configurator.validateConfig(config);
-  }
-  subscribeToRemoveEvent(animation);
-  return animation;
-};
-const animate = function (element, config) {
-  const $element = (0, _renderer.default)(element);
-  if (!$element.length) {
-    return new _deferred.Deferred().resolve().promise();
-  }
-  const animation = createAnimation($element, config);
-  pushInAnimationQueue($element, animation);
-  return animation.deferred.promise();
-};
-function pushInAnimationQueue($element, animation) {
-  const queueData = getAnimQueueData($element);
-  writeAnimQueueData($element, queueData);
-  queueData.push(animation);
-  if (!isAnimating($element)) {
-    shiftFromAnimationQueue($element, queueData);
-  }
-}
-function getAnimQueueData($element) {
-  return $element.data(ANIM_QUEUE_KEY) || [];
-}
-function writeAnimQueueData($element, queueData) {
-  $element.data(ANIM_QUEUE_KEY, queueData);
-}
-const destroyAnimQueueData = function ($element) {
-  $element.removeData(ANIM_QUEUE_KEY);
-};
-function isAnimating(element) {
-  const $element = (0, _renderer.default)(element);
-  return !!$element.data(ANIM_DATA_KEY);
-}
-function shiftFromAnimationQueue($element, queueData) {
-  queueData = getAnimQueueData($element);
-  if (!queueData.length) {
-    return;
-  }
-  const animation = queueData.shift();
-  if (queueData.length === 0) {
-    destroyAnimQueueData($element);
-  }
-  executeAnimation(animation).done(function () {
-    if (!isAnimating($element)) {
-      shiftFromAnimationQueue($element);
-    }
-  });
-}
-function executeAnimation(animation) {
-  animation.setup();
-  if (fx.off || animation.isSynchronous) {
-    animation.start();
-  } else {
-    animation.startTimeout = setTimeout(function () {
-      animation.start();
-    });
-  }
-  return animation.deferred.promise();
-}
-function setupPosition($element, config) {
-  if (!config || !config.position) {
-    return;
-  }
-  const win = (0, _renderer.default)(window);
-  let left = 0;
-  let top = 0;
-  const position = _position.default.calculate($element, config.position);
-  const offset = $element.offset();
-  const currentPosition = $element.position();
-  if (currentPosition.top > offset.top) {
-    top = win.scrollTop();
-  }
-  if (currentPosition.left > offset.left) {
-    left = win.scrollLeft();
-  }
-  (0, _extend.extend)(config, {
-    left: position.h.location - offset.left + currentPosition.left - left,
-    top: position.v.location - offset.top + currentPosition.top - top
-  });
-  delete config.position;
-}
-function setProps($element, props) {
-  (0, _iterator.each)(props, function (key, value) {
-    try {
-      $element.css(key, (0, _type.isFunction)(value) ? value() : value);
-    } catch (e) {}
-  });
-}
-const stop = function (element, jumpToEnd) {
-  const $element = (0, _renderer.default)(element);
-  const queueData = getAnimQueueData($element);
-
-  // TODO: think about complete all animation in queue
-  (0, _iterator.each)(queueData, function (_, animation) {
-    animation.config.delay = 0;
-    animation.config.duration = 0;
-    animation.isSynchronous = true;
-  });
-  if (!isAnimating($element)) {
-    shiftFromAnimationQueue($element, queueData);
-  }
-  const animation = $element.data(ANIM_DATA_KEY);
-  if (animation) {
-    animation.stop(jumpToEnd);
-  }
-  $element.removeData(ANIM_DATA_KEY);
-  destroyAnimQueueData($element);
-};
-const fx = {
-  off: false,
-  animationTypes: animationConfigurators,
-  animate: animate,
-  createAnimation: createAnimation,
-  isAnimating: isAnimating,
-  stop: stop,
-  _simulatedTransitionEndDelay: 100
-};
-var _default = exports["default"] = fx;
+var _default = exports["default"] = _fx.default;
 module.exports = exports.default;
 module.exports["default"] = exports.default;
 
@@ -271486,152 +283849,16 @@ module.exports["default"] = exports.default;
 
 
 
-exports.TransitionExecutor = void 0;
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _class = _interopRequireDefault(__webpack_require__(55620));
-var _extend = __webpack_require__(52576);
-var _m_common = _interopRequireDefault(__webpack_require__(39315));
-var _type = __webpack_require__(11528);
-var _iterator = __webpack_require__(21274);
-var _fx = _interopRequireDefault(__webpack_require__(27075));
-var _presets = __webpack_require__(61310);
-var _deferred = __webpack_require__(87739);
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const directionPostfixes = {
-  forward: ' dx-forward',
-  backward: ' dx-backward',
-  none: ' dx-no-direction',
-  undefined: ' dx-no-direction'
-};
-const DX_ANIMATING_CLASS = 'dx-animating';
-const TransitionExecutor = exports.TransitionExecutor = _class.default.inherit({
-  ctor: function () {
-    this._accumulatedDelays = {
-      enter: 0,
-      leave: 0
-    };
-    this._animations = [];
-    this.reset();
-  },
-  _createAnimations: function ($elements, initialConfig, configModifier, type) {
-    $elements = (0, _renderer.default)($elements);
-    const that = this;
-    const result = [];
-    configModifier = configModifier || {};
-    const animationConfig = this._prepareElementAnimationConfig(initialConfig, configModifier, type);
-    if (animationConfig) {
-      $elements.each(function () {
-        const animation = that._createAnimation((0, _renderer.default)(this), animationConfig, configModifier);
-        if (animation) {
-          animation.element.addClass(DX_ANIMATING_CLASS);
-          animation.setup();
-          result.push(animation);
-        }
-      });
+var _transition_executor = __webpack_require__(33100);
+Object.keys(_transition_executor).forEach(function (key) {
+  if (key === "default" || key === "__esModule") return;
+  if (key in exports && exports[key] === _transition_executor[key]) return;
+  Object.defineProperty(exports, key, {
+    enumerable: true,
+    get: function () {
+      return _transition_executor[key];
     }
-    return result;
-  },
-  _prepareElementAnimationConfig: function (config, configModifier, type) {
-    let result;
-    if (typeof config === 'string') {
-      const presetName = config;
-      config = _presets.presets.getPreset(presetName);
-    }
-    if (!config) {
-      result = undefined;
-    } else if ((0, _type.isFunction)(config[type])) {
-      result = config[type];
-    } else {
-      result = (0, _extend.extend)({
-        skipElementInitialStyles: true,
-        cleanupWhen: this._completePromise
-      }, config, configModifier);
-      if (!result.type || result.type === 'css') {
-        const cssClass = 'dx-' + type;
-        const extraCssClasses = (result.extraCssClasses ? ' ' + result.extraCssClasses : '') + directionPostfixes[result.direction];
-        result.type = 'css';
-        result.from = (result.from || cssClass) + extraCssClasses;
-        result.to = result.to || cssClass + '-active';
-      }
-      result.staggerDelay = result.staggerDelay || 0;
-      result.delay = result.delay || 0;
-      if (result.staggerDelay) {
-        result.delay += this._accumulatedDelays[type];
-        this._accumulatedDelays[type] += result.staggerDelay;
-      }
-    }
-    return result;
-  },
-  _createAnimation: function ($element, animationConfig, configModifier) {
-    let result;
-    if ((0, _type.isPlainObject)(animationConfig)) {
-      result = _fx.default.createAnimation($element, animationConfig);
-    } else if ((0, _type.isFunction)(animationConfig)) {
-      result = animationConfig($element, configModifier);
-    }
-    return result;
-  },
-  _startAnimations: function () {
-    const animations = this._animations;
-    for (let i = 0; i < animations.length; i++) {
-      animations[i].start();
-    }
-  },
-  _stopAnimations: function (jumpToEnd) {
-    const animations = this._animations;
-    for (let i = 0; i < animations.length; i++) {
-      animations[i].stop(jumpToEnd);
-    }
-  },
-  _clearAnimations: function () {
-    const animations = this._animations;
-    for (let i = 0; i < animations.length; i++) {
-      animations[i].element.removeClass(DX_ANIMATING_CLASS);
-    }
-    this._animations.length = 0;
-  },
-  reset: function () {
-    this._accumulatedDelays.enter = 0;
-    this._accumulatedDelays.leave = 0;
-    this._clearAnimations();
-    this._completeDeferred = new _deferred.Deferred();
-    this._completePromise = this._completeDeferred.promise();
-  },
-  enter: function ($elements, animationConfig, configModifier) {
-    const animations = this._createAnimations($elements, animationConfig, configModifier, 'enter');
-    this._animations.push.apply(this._animations, animations);
-  },
-  leave: function ($elements, animationConfig, configModifier) {
-    const animations = this._createAnimations($elements, animationConfig, configModifier, 'leave');
-    this._animations.push.apply(this._animations, animations);
-  },
-  start: function () {
-    const that = this;
-    let result;
-    if (!this._animations.length) {
-      that.reset();
-      result = new _deferred.Deferred().resolve().promise();
-    } else {
-      const animationDeferreds = (0, _iterator.map)(this._animations, function (animation) {
-        const result = new _deferred.Deferred();
-        animation.deferred.always(function () {
-          result.resolve();
-        });
-        return result.promise();
-      });
-      result = _deferred.when.apply(_renderer.default, animationDeferreds).always(function () {
-        that._completeDeferred.resolve();
-        that.reset();
-      });
-      _m_common.default.executeAsync(function () {
-        that._startAnimations();
-      });
-    }
-    return result;
-  },
-  stop: function (jumpToEnd) {
-    this._stopAnimations(jumpToEnd);
-  }
+  });
 });
 
 /***/ }),
@@ -271641,136 +283868,49 @@ const TransitionExecutor = exports.TransitionExecutor = _class.default.inherit({
 
 
 
-exports.resetPosition = exports.parseTranslate = exports.move = exports.locate = exports.getTranslateCss = exports.getTranslate = exports.clearCache = void 0;
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _element_data = __webpack_require__(74663);
-var _type = __webpack_require__(11528);
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const TRANSLATOR_DATA_KEY = 'dxTranslator';
-const TRANSFORM_MATRIX_REGEX = /matrix(3d)?\((.+?)\)/;
-const TRANSLATE_REGEX = /translate(?:3d)?\((.+?)\)/;
-const locate = function ($element) {
-  $element = (0, _renderer.default)($element);
-  const translate = getTranslate($element);
-  return {
-    left: translate.x,
-    top: translate.y
-  };
-};
-exports.locate = locate;
-function isPercentValue(value) {
-  return (0, _type.type)(value) === 'string' && value[value.length - 1] === '%';
-}
-function cacheTranslate($element, translate) {
-  if ($element.length) {
-    (0, _element_data.data)($element.get(0), TRANSLATOR_DATA_KEY, translate);
+Object.defineProperty(exports, "clearCache", ({
+  enumerable: true,
+  get: function () {
+    return _translator.clearCache;
   }
-}
-const clearCache = function ($element) {
-  if ($element.length) {
-    (0, _element_data.removeData)($element.get(0), TRANSLATOR_DATA_KEY);
+}));
+Object.defineProperty(exports, "getTranslate", ({
+  enumerable: true,
+  get: function () {
+    return _translator.getTranslate;
   }
-};
-exports.clearCache = clearCache;
-const getTranslateCss = function (translate) {
-  translate.x = translate.x || 0;
-  translate.y = translate.y || 0;
-  const xValueString = isPercentValue(translate.x) ? translate.x : translate.x + 'px';
-  const yValueString = isPercentValue(translate.y) ? translate.y : translate.y + 'px';
-  return 'translate(' + xValueString + ', ' + yValueString + ')';
-};
-exports.getTranslateCss = getTranslateCss;
-const getTranslate = function ($element) {
-  let result = $element.length ? (0, _element_data.data)($element.get(0), TRANSLATOR_DATA_KEY) : null;
-  if (!result) {
-    const transformValue = $element.css('transform') || getTranslateCss({
-      x: 0,
-      y: 0
-    });
-    let matrix = transformValue.match(TRANSFORM_MATRIX_REGEX);
-    const is3D = matrix && matrix[1];
-    if (matrix) {
-      matrix = matrix[2].split(',');
-      if (is3D === '3d') {
-        matrix = matrix.slice(12, 15);
-      } else {
-        matrix.push(0);
-        matrix = matrix.slice(4, 7);
-      }
-    } else {
-      matrix = [0, 0, 0];
-    }
-    result = {
-      x: parseFloat(matrix[0]),
-      y: parseFloat(matrix[1]),
-      z: parseFloat(matrix[2])
-    };
-    cacheTranslate($element, result);
+}));
+Object.defineProperty(exports, "getTranslateCss", ({
+  enumerable: true,
+  get: function () {
+    return _translator.getTranslateCss;
   }
-  return result;
-};
-exports.getTranslate = getTranslate;
-const move = function ($element, position) {
-  $element = (0, _renderer.default)($element);
-  const left = position.left;
-  const top = position.top;
-  let translate;
-  if (left === undefined) {
-    translate = getTranslate($element);
-    translate.y = top || 0;
-  } else if (top === undefined) {
-    translate = getTranslate($element);
-    translate.x = left || 0;
-  } else {
-    translate = {
-      x: left || 0,
-      y: top || 0,
-      z: 0
-    };
-    cacheTranslate($element, translate);
+}));
+Object.defineProperty(exports, "locate", ({
+  enumerable: true,
+  get: function () {
+    return _translator.locate;
   }
-  $element.css({
-    transform: getTranslateCss(translate)
-  });
-  if (isPercentValue(left) || isPercentValue(top)) {
-    clearCache($element);
+}));
+Object.defineProperty(exports, "move", ({
+  enumerable: true,
+  get: function () {
+    return _translator.move;
   }
-};
-exports.move = move;
-const resetPosition = function ($element, finishTransition) {
-  $element = (0, _renderer.default)($element);
-  let originalTransition;
-  const stylesConfig = {
-    left: 0,
-    top: 0,
-    transform: 'none'
-  };
-  if (finishTransition) {
-    originalTransition = $element.css('transition');
-    stylesConfig.transition = 'none';
+}));
+Object.defineProperty(exports, "parseTranslate", ({
+  enumerable: true,
+  get: function () {
+    return _translator.parseTranslate;
   }
-  $element.css(stylesConfig);
-  clearCache($element);
-  if (finishTransition) {
-    $element.get(0).offsetHeight;
-    $element.css('transition', originalTransition);
+}));
+Object.defineProperty(exports, "resetPosition", ({
+  enumerable: true,
+  get: function () {
+    return _translator.resetPosition;
   }
-};
-exports.resetPosition = resetPosition;
-const parseTranslate = function (translateString) {
-  let result = translateString.match(TRANSLATE_REGEX);
-  if (!result || !result[1]) {
-    return;
-  }
-  result = result[1].split(',');
-  result = {
-    x: parseFloat(result[0]),
-    y: parseFloat(result[1]),
-    z: parseFloat(result[2])
-  };
-  return result;
-};
-exports.parseTranslate = parseTranslate;
+}));
+var _translator = __webpack_require__(10469);
 
 /***/ }),
 
@@ -288754,6 +300894,24 @@ module.exports["default"] = exports.default;
 
 /***/ }),
 
+/***/ 76772:
+/***/ (function(module, exports, __webpack_require__) {
+
+
+
+Object.defineProperty(exports, "default", ({
+  enumerable: true,
+  get: function () {
+    return _events_engine.default;
+  }
+}));
+var _events_engine = _interopRequireDefault(__webpack_require__(92774));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+module.exports = exports.default;
+module.exports["default"] = exports.default;
+
+/***/ }),
+
 /***/ 10714:
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -288803,6 +300961,44 @@ Object.defineProperty(exports, "triggerHandler", ({
 }));
 var _events = __webpack_require__(52391);
 var _events2 = __webpack_require__(10714);
+
+/***/ }),
+
+/***/ 92492:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+var _remove = __webpack_require__(28630);
+Object.keys(_remove).forEach(function (key) {
+  if (key === "default" || key === "__esModule") return;
+  if (key in exports && exports[key] === _remove[key]) return;
+  Object.defineProperty(exports, key, {
+    enumerable: true,
+    get: function () {
+      return _remove[key];
+    }
+  });
+});
+
+/***/ }),
+
+/***/ 34356:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+
+var _index = __webpack_require__(98834);
+Object.keys(_index).forEach(function (key) {
+  if (key === "default" || key === "__esModule") return;
+  if (key in exports && exports[key] === _index[key]) return;
+  Object.defineProperty(exports, key, {
+    enumerable: true,
+    get: function () {
+      return _index[key];
+    }
+  });
+});
 
 /***/ }),
 
@@ -290145,377 +302341,7 @@ module.exports["default"] = exports.default;
 
 
 
-var _jquery = _interopRequireDefault(__webpack_require__(10561));
-var _version = __webpack_require__(20142);
-var _error = _interopRequireDefault(__webpack_require__(67264));
-var _use_jquery = _interopRequireDefault(__webpack_require__(97718));
-__webpack_require__(44603);
-__webpack_require__(76054);
-__webpack_require__(5667);
-__webpack_require__(29953);
-__webpack_require__(27465);
-__webpack_require__(24317);
-__webpack_require__(52425);
-__webpack_require__(79382);
-__webpack_require__(52134);
-__webpack_require__(2646);
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-// eslint-disable-next-line no-restricted-imports
-
-const useJQuery = (0, _use_jquery.default)();
-if (useJQuery && (0, _version.compare)(_jquery.default.fn.jquery, [1, 10]) < 0) {
-  throw _error.default.Error('E0012');
-}
-
-/***/ }),
-
-/***/ 2646:
-/***/ (function(__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
-
-
-
-var _jquery = _interopRequireDefault(__webpack_require__(10561));
-var _ajax = _interopRequireDefault(__webpack_require__(78670));
-var _use_jquery = _interopRequireDefault(__webpack_require__(97718));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-// eslint-disable-next-line no-restricted-imports
-
-const useJQuery = (0, _use_jquery.default)();
-if (useJQuery) {
-  _ajax.default.inject({
-    sendRequest: function (options) {
-      if (!options.responseType && !options.upload) {
-        return _jquery.default.ajax(options);
-      }
-      return this.callBase.apply(this, [options]);
-    }
-  });
-}
-
-/***/ }),
-
-/***/ 52134:
-/***/ (function(__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
-
-
-
-var _jquery = _interopRequireDefault(__webpack_require__(10561));
-var _component_registrator_callbacks = _interopRequireDefault(__webpack_require__(55771));
-var _errors = _interopRequireDefault(__webpack_require__(87129));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-// eslint-disable-next-line no-restricted-imports
-
-if (_jquery.default) {
-  const registerJQueryComponent = function (name, componentClass) {
-    _jquery.default.fn[name] = function (options) {
-      const isMemberInvoke = typeof options === 'string';
-      let result;
-      if (isMemberInvoke) {
-        const memberName = options;
-        const memberArgs = [].slice.call(arguments).slice(1);
-        this.each(function () {
-          const instance = componentClass.getInstance(this);
-          if (!instance) {
-            throw _errors.default.Error('E0009', name);
-          }
-          const member = instance[memberName];
-          const memberValue = member.apply(instance, memberArgs);
-          if (result === undefined) {
-            result = memberValue;
-          }
-        });
-      } else {
-        this.each(function () {
-          const instance = componentClass.getInstance(this);
-          if (instance) {
-            instance.option(options);
-          } else {
-            new componentClass(this, options);
-          }
-        });
-        result = this;
-      }
-      return result;
-    };
-  };
-  _component_registrator_callbacks.default.add(registerJQueryComponent);
-}
-
-/***/ }),
-
-/***/ 5667:
-/***/ (function(__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
-
-
-
-var _jquery = _interopRequireDefault(__webpack_require__(10561));
-var _deferred = __webpack_require__(87739);
-var _version = __webpack_require__(20142);
-var _use_jquery = _interopRequireDefault(__webpack_require__(97718));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-// eslint-disable-next-line no-restricted-imports
-
-const useJQuery = (0, _use_jquery.default)();
-if (useJQuery) {
-  const Deferred = _jquery.default.Deferred;
-  const strategy = {
-    Deferred: Deferred
-  };
-  strategy.when = (0, _version.compare)(_jquery.default.fn.jquery, [3]) < 0 ? _jquery.default.when : function (singleArg) {
-    if (arguments.length === 0) {
-      return new Deferred().resolve();
-    } else if (arguments.length === 1) {
-      return singleArg && singleArg.then ? singleArg : new Deferred().resolve(singleArg);
-    } else {
-      return _jquery.default.when.apply(_jquery.default, arguments);
-    }
-  };
-  (0, _deferred.setStrategy)(strategy);
-}
-
-/***/ }),
-
-/***/ 24317:
-/***/ (function(__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
-
-
-
-var _jquery = _interopRequireDefault(__webpack_require__(10561));
-var _easing = __webpack_require__(88424);
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-// eslint-disable-next-line no-restricted-imports
-
-if (_jquery.default) {
-  (0, _easing.setEasing)(_jquery.default.easing);
-}
-
-/***/ }),
-
-/***/ 79382:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-
-exports.getPublicElementJQuery = getPublicElementJQuery;
-var _element = __webpack_require__(61404);
-var _use_jquery = _interopRequireDefault(__webpack_require__(97718));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const useJQuery = (0, _use_jquery.default)();
-function getPublicElementJQuery($element) {
-  return $element;
-}
-if (useJQuery) {
-  (0, _element.setPublicElementWrapper)(getPublicElementJQuery);
-}
-
-/***/ }),
-
-/***/ 52425:
-/***/ (function(__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
-
-
-
-var _jquery = _interopRequireDefault(__webpack_require__(10561));
-var _element_data = __webpack_require__(74663);
-var _use_jquery = _interopRequireDefault(__webpack_require__(97718));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-// eslint-disable-next-line no-restricted-imports
-
-const useJQuery = (0, _use_jquery.default)();
-if (useJQuery) {
-  (0, _element_data.setDataStrategy)(_jquery.default);
-}
-
-/***/ }),
-
-/***/ 27465:
-/***/ (function(__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
-
-
-
-var _jquery = _interopRequireDefault(__webpack_require__(10561));
-var _events_engine = _interopRequireDefault(__webpack_require__(92774));
-var _use_jquery = _interopRequireDefault(__webpack_require__(97718));
-var _event_registrator_callbacks = _interopRequireDefault(__webpack_require__(85030));
-var _dom_adapter = _interopRequireDefault(__webpack_require__(64960));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-// eslint-disable-next-line no-restricted-imports
-
-const useJQuery = (0, _use_jquery.default)();
-if (useJQuery) {
-  _event_registrator_callbacks.default.add(function (name, eventObject) {
-    _jquery.default.event.special[name] = eventObject;
-  });
-  if (_events_engine.default.passiveEventHandlersSupported()) {
-    _events_engine.default.forcePassiveFalseEventNames.forEach(function (eventName) {
-      _jquery.default.event.special[eventName] = {
-        setup: function (data, namespaces, handler) {
-          _dom_adapter.default.listen(this, eventName, handler, {
-            passive: false
-          });
-        }
-      };
-    });
-  }
-  _events_engine.default.set({
-    on: function (element) {
-      (0, _jquery.default)(element).on.apply((0, _jquery.default)(element), Array.prototype.slice.call(arguments, 1));
-    },
-    one: function (element) {
-      (0, _jquery.default)(element).one.apply((0, _jquery.default)(element), Array.prototype.slice.call(arguments, 1));
-    },
-    off: function (element) {
-      (0, _jquery.default)(element).off.apply((0, _jquery.default)(element), Array.prototype.slice.call(arguments, 1));
-    },
-    trigger: function (element) {
-      (0, _jquery.default)(element).trigger.apply((0, _jquery.default)(element), Array.prototype.slice.call(arguments, 1));
-    },
-    triggerHandler: function (element) {
-      (0, _jquery.default)(element).triggerHandler.apply((0, _jquery.default)(element), Array.prototype.slice.call(arguments, 1));
-    },
-    Event: _jquery.default.Event
-  });
-}
-
-/***/ }),
-
-/***/ 29953:
-/***/ (function(__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
-
-
-
-var _jquery = _interopRequireDefault(__webpack_require__(10561));
-var _themes_callback = __webpack_require__(88737);
-var _ready_callbacks = _interopRequireDefault(__webpack_require__(3122));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-// eslint-disable-next-line no-restricted-imports
-
-if (_jquery.default && !_themes_callback.themeReadyCallback.fired()) {
-  const holdReady = _jquery.default.holdReady || _jquery.default.fn.holdReady;
-  holdReady(true);
-  _themes_callback.themeReadyCallback.add(function () {
-    _ready_callbacks.default.add(function () {
-      holdReady(false);
-    });
-  });
-}
-
-/***/ }),
-
-/***/ 76054:
-/***/ (function(__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
-
-
-
-var _jquery = _interopRequireDefault(__webpack_require__(10561));
-var _use_jquery = _interopRequireDefault(__webpack_require__(97718));
-var _version = __webpack_require__(20142);
-var _iterator = __webpack_require__(21274);
-var _type = __webpack_require__(11528);
-var _index = __webpack_require__(98834);
-var _event_registrator = _interopRequireDefault(__webpack_require__(15273));
-var _hook_touch_props = _interopRequireDefault(__webpack_require__(65462));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-// eslint-disable-next-line no-restricted-imports
-
-const useJQuery = (0, _use_jquery.default)();
-if (useJQuery) {
-  if ((0, _version.compare)(_jquery.default.fn.jquery, [3]) < 0) {
-    const POINTER_TYPE_MAP = {
-      2: 'touch',
-      3: 'pen',
-      4: 'mouse'
-    };
-    (0, _iterator.each)(['MSPointerDown', 'MSPointerMove', 'MSPointerUp', 'MSPointerCancel', 'MSPointerOver', 'MSPointerOut', 'mouseenter', 'mouseleave', 'pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'pointerover', 'pointerout', 'pointerenter', 'pointerleave'], function () {
-      _jquery.default.event.fixHooks[this] = {
-        filter: function (event, originalEvent) {
-          const pointerType = originalEvent.pointerType;
-          if ((0, _type.isNumeric)(pointerType)) {
-            event.pointerType = POINTER_TYPE_MAP[pointerType];
-          }
-          return event;
-        },
-        props: _jquery.default.event.mouseHooks.props.concat(['pointerId', 'pointerType', 'originalTarget', 'width', 'height', 'pressure', 'result', 'tiltX', 'charCode', 'tiltY', 'detail', 'isPrimary', 'prevValue'])
-      };
-    });
-    (0, _iterator.each)(['touchstart', 'touchmove', 'touchend', 'touchcancel'], function () {
-      _jquery.default.event.fixHooks[this] = {
-        filter: function (event, originalEvent) {
-          (0, _hook_touch_props.default)(function (name, hook) {
-            event[name] = hook(originalEvent);
-          });
-          return event;
-        },
-        props: _jquery.default.event.mouseHooks.props.concat(['touches', 'changedTouches', 'targetTouches', 'detail', 'result', 'originalTarget', 'charCode', 'prevValue'])
-      };
-    });
-    _jquery.default.event.fixHooks['wheel'] = _jquery.default.event.mouseHooks;
-    const DX_EVENT_HOOKS = {
-      props: _jquery.default.event.mouseHooks.props.concat(['pointerType', 'pointerId', 'pointers'])
-    };
-    _event_registrator.default.callbacks.add(function (name) {
-      _jquery.default.event.fixHooks[name] = DX_EVENT_HOOKS;
-    });
-    const fix = function (event, originalEvent) {
-      const fixHook = _jquery.default.event.fixHooks[originalEvent.type] || _jquery.default.event.mouseHooks;
-      const props = fixHook.props ? _jquery.default.event.props.concat(fixHook.props) : _jquery.default.event.props;
-      let propIndex = props.length;
-      while (propIndex--) {
-        const prop = props[propIndex];
-        event[prop] = originalEvent[prop];
-      }
-      return fixHook.filter ? fixHook.filter(event, originalEvent) : event;
-    };
-    (0, _index.setEventFixMethod)(fix);
-  } else {
-    (0, _hook_touch_props.default)(function (name, hook) {
-      _jquery.default.event.addProp(name, hook);
-    });
-  }
-}
-
-/***/ }),
-
-/***/ 44603:
-/***/ (function(__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
-
-
-
-var _jquery = _interopRequireDefault(__webpack_require__(10561));
-var _renderer_base = _interopRequireDefault(__webpack_require__(21681));
-var _use_jquery = _interopRequireDefault(__webpack_require__(97718));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-// eslint-disable-next-line no-restricted-imports
-
-const useJQuery = (0, _use_jquery.default)();
-if (useJQuery) {
-  _renderer_base.default.set(_jquery.default);
-}
-
-/***/ }),
-
-/***/ 97718:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = _default;
-var _jquery = _interopRequireDefault(__webpack_require__(10561));
-var _config = _interopRequireDefault(__webpack_require__(66636));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-// eslint-disable-next-line no-restricted-imports
-
-const useJQuery = (0, _config.default)().useJQuery;
-if (_jquery.default && useJQuery !== false) {
-  (0, _config.default)({
-    useJQuery: true
-  });
-}
-function _default() {
-  return _jquery.default && (0, _config.default)().useJQuery;
-}
-module.exports = exports.default;
-module.exports["default"] = exports.default;
+__webpack_require__(24595);
 
 /***/ }),
 
@@ -292107,2114 +303933,6 @@ module.exports["default"] = exports.default;
 
 /***/ }),
 
-/***/ 35629:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _diagram = __webpack_require__(11744);
-class DiagramBar {
-  constructor(owner) {
-    const {
-      EventDispatcher
-    } = (0, _diagram.getDiagram)();
-    this.onChanged = new EventDispatcher(); // IBar.onChanged: EventDispatcher<IBarListener>
-    this._owner = owner;
-  }
-  raiseBarCommandExecuted(key, parameter) {
-    this.onChanged.raise('notifyBarCommandExecuted', parseInt(key), parameter);
-  }
-  getCommandKeys() {
-    // IBar.getCommandKeys(): DiagramCommand[]
-    throw 'Not Implemented';
-  }
-  setItemValue(key, value) {// IBar.setItemValue(key: DiagramCommand, value: any)
-  }
-  setItemEnabled(key, enabled) {// IBar.setItemEnabled(key: DiagramCommand, enabled: boolean)
-  }
-  setItemVisible(key, enabled) {// IBar.setItemVisible(key: DiagramCommand, visible: boolean)
-  }
-  setEnabled(enabled) {// IBar.setEnabled(enabled: boolean)
-  }
-  setItemSubItems(key, items) {// IBar.setItemSubItems(key: DiagramCommand, items: any[])
-  }
-  isVisible() {
-    // IBar.isVisible(): boolean
-    return true;
-  }
-  _getKeys(items) {
-    const keys = items.reduce((commands, item) => {
-      if (item.command !== undefined) {
-        commands.push(item.command);
-      }
-      if (item.items) {
-        commands = commands.concat(this._getKeys(item.items));
-      }
-      return commands;
-    }, []);
-    return keys;
-  }
-}
-var _default = exports["default"] = DiagramBar;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 43304:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _diagram = __webpack_require__(11744);
-var _file_saver = __webpack_require__(47486);
-var _type = __webpack_require__(11528);
-var _window = __webpack_require__(3104);
-var _extend = __webpack_require__(52576);
-var _message = _interopRequireDefault(__webpack_require__(4671));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const SEPARATOR = 'separator';
-const SEPARATOR_COMMAND = {
-  widget: SEPARATOR
-};
-const CSS_CLASSES = {
-  SMALL_EDITOR_ITEM: 'dx-diagram-sm-edit-item',
-  MEDIUM_EDITOR_ITEM: 'dx-diagram-md-edit-item',
-  LARGE_EDITOR_ITEM: 'dx-diagram-lg-edit-item',
-  IMAGE_DROPDOWN_ITEM: 'dx-diagram-image-dropdown-item',
-  COLOR_EDITOR_ITEM: 'dx-diagram-color-edit-item',
-  LARGE_ICON_ITEM: 'dx-diagram-lg-icon-item'
-};
-const DiagramCommandsManager = {
-  SHOW_TOOLBOX_COMMAND_NAME: 'toolbox',
-  SHOW_PROPERTIES_PANEL_COMMAND_NAME: 'propertiesPanel',
-  getAllCommands: function () {
-    const {
-      DiagramCommand
-    } = (0, _diagram.getDiagram)();
-    return this._allCommands || (this._allCommands = {
-      separator: SEPARATOR_COMMAND,
-      exportSvg: {
-        command: DiagramCommand.ExportSvg,
-        text: _message.default.format('dxDiagram-commandExportToSvg'),
-        getParameter: widget => {
-          return dataURI => this._exportTo(widget, dataURI, 'SVG', 'image/svg+xml');
-        }
-      },
-      exportPng: {
-        command: DiagramCommand.ExportPng,
-        text: _message.default.format('dxDiagram-commandExportToPng'),
-        getParameter: widget => {
-          return dataURI => this._exportTo(widget, dataURI, 'PNG', 'image/png');
-        }
-      },
-      exportJpg: {
-        command: DiagramCommand.ExportJpg,
-        text: _message.default.format('dxDiagram-commandExportToJpg'),
-        getParameter: widget => {
-          return dataURI => this._exportTo(widget, dataURI, 'JPEG', 'image/jpeg');
-        }
-      },
-      undo: {
-        command: DiagramCommand.Undo,
-        hint: _message.default.format('dxDiagram-commandUndo'),
-        text: _message.default.format('dxDiagram-commandUndo'),
-        icon: 'undo',
-        menuIcon: 'undo'
-      },
-      redo: {
-        command: DiagramCommand.Redo,
-        hint: _message.default.format('dxDiagram-commandRedo'),
-        text: _message.default.format('dxDiagram-commandRedo'),
-        icon: 'redo',
-        menuIcon: 'redo'
-      },
-      cut: {
-        command: DiagramCommand.Cut,
-        hint: _message.default.format('dxDiagram-commandCut'),
-        text: _message.default.format('dxDiagram-commandCut'),
-        icon: 'cut',
-        menuIcon: 'cut'
-      },
-      copy: {
-        command: DiagramCommand.Copy,
-        hint: _message.default.format('dxDiagram-commandCopy'),
-        text: _message.default.format('dxDiagram-commandCopy'),
-        icon: 'copy',
-        menuIcon: 'copy'
-      },
-      paste: {
-        command: DiagramCommand.PasteInPosition,
-        hint: _message.default.format('dxDiagram-commandPaste'),
-        text: _message.default.format('dxDiagram-commandPaste'),
-        icon: 'paste',
-        menuIcon: 'paste'
-      },
-      selectAll: {
-        command: DiagramCommand.SelectAll,
-        hint: _message.default.format('dxDiagram-commandSelectAll'),
-        text: _message.default.format('dxDiagram-commandSelectAll'),
-        icon: 'dx-diagram-i-button-select-all dx-diagram-i',
-        menuIcon: 'dx-diagram-i-menu-select-all dx-diagram-i'
-      },
-      delete: {
-        command: DiagramCommand.Delete,
-        hint: _message.default.format('dxDiagram-commandDelete'),
-        text: _message.default.format('dxDiagram-commandDelete'),
-        icon: 'remove',
-        menuIcon: 'remove'
-      },
-      fontName: {
-        command: DiagramCommand.FontName,
-        hint: _message.default.format('dxDiagram-commandFontName'),
-        text: _message.default.format('dxDiagram-commandFontName'),
-        widget: 'dxSelectBox',
-        items: ['Arial', 'Arial Black', 'Helvetica', 'Times New Roman', 'Courier New', 'Courier', 'Verdana', 'Georgia', 'Comic Sans MS', 'Trebuchet MS'].map(item => {
-          return {
-            text: item,
-            value: item
-          };
-        }),
-        cssClass: CSS_CLASSES.MEDIUM_EDITOR_ITEM
-      },
-      fontSize: {
-        command: DiagramCommand.FontSize,
-        hint: _message.default.format('dxDiagram-commandFontSize'),
-        text: _message.default.format('dxDiagram-commandFontSize'),
-        widget: 'dxSelectBox',
-        items: [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72].map(item => {
-          return {
-            text: item + 'pt',
-            value: item + 'pt'
-          };
-        }),
-        cssClass: CSS_CLASSES.SMALL_EDITOR_ITEM
-      },
-      bold: {
-        command: DiagramCommand.Bold,
-        hint: _message.default.format('dxDiagram-commandBold'),
-        text: _message.default.format('dxDiagram-commandBold'),
-        icon: 'bold',
-        menuIcon: 'bold'
-      },
-      italic: {
-        command: DiagramCommand.Italic,
-        hint: _message.default.format('dxDiagram-commandItalic'),
-        text: _message.default.format('dxDiagram-commandItalic'),
-        icon: 'italic',
-        menuIcon: 'italic'
-      },
-      underline: {
-        command: DiagramCommand.Underline,
-        hint: _message.default.format('dxDiagram-commandUnderline'),
-        text: _message.default.format('dxDiagram-commandUnderline'),
-        icon: 'underline',
-        menuIcon: 'underline'
-      },
-      fontColor: {
-        command: DiagramCommand.FontColor,
-        text: _message.default.format('dxDiagram-commandTextColor'),
-        hint: _message.default.format('dxDiagram-commandTextColor'),
-        widget: 'dxColorBox',
-        icon: 'dx-icon dx-icon-color',
-        menuIcon: 'dx-icon dx-icon-color',
-        cssClass: CSS_CLASSES.COLOR_EDITOR_ITEM
-      },
-      lineColor: {
-        command: DiagramCommand.StrokeColor,
-        text: _message.default.format('dxDiagram-commandLineColor'),
-        hint: _message.default.format('dxDiagram-commandLineColor'),
-        widget: 'dxColorBox',
-        icon: 'dx-icon dx-icon-background',
-        menuIcon: 'dx-icon dx-icon-background',
-        cssClass: CSS_CLASSES.COLOR_EDITOR_ITEM
-      },
-      lineWidth: {
-        command: DiagramCommand.StrokeWidth,
-        text: _message.default.format('dxDiagram-commandLineWidth'),
-        hint: _message.default.format('dxDiagram-commandLineWidth'),
-        widget: 'dxSelectBox',
-        items: [1, 2, 3, 4, 5, 6, 7, 8].map(item => {
-          return {
-            text: item + 'px',
-            value: item.toString()
-          };
-        }),
-        cssClass: CSS_CLASSES.SMALL_EDITOR_ITEM
-      },
-      lineStyle: {
-        command: DiagramCommand.StrokeStyle,
-        text: _message.default.format('dxDiagram-commandLineStyle'),
-        hint: _message.default.format('dxDiagram-commandLineStyle'),
-        widget: 'dxSelectBox',
-        items: [{
-          value: '',
-          menuIcon: 'dx-diagram-i-line-solid dx-diagram-i',
-          hint: _message.default.format('dxDiagram-commandLineStyleSolid')
-        }, {
-          value: '2,2',
-          menuIcon: 'dx-diagram-i-line-dotted dx-diagram-i',
-          hint: _message.default.format('dxDiagram-commandLineStyleDotted')
-        }, {
-          value: '6,2',
-          menuIcon: 'dx-diagram-i-line-dashed dx-diagram-i',
-          hint: _message.default.format('dxDiagram-commandLineStyleDashed')
-        }],
-        cssClass: CSS_CLASSES.IMAGE_DROPDOWN_ITEM
-      },
-      fillColor: {
-        command: DiagramCommand.FillColor,
-        text: _message.default.format('dxDiagram-commandFillColor'),
-        hint: _message.default.format('dxDiagram-commandFillColor'),
-        widget: 'dxColorBox',
-        icon: 'dx-diagram-i dx-diagram-i-button-fill',
-        menuIcon: 'dx-diagram-i dx-diagram-i-menu-fill',
-        cssClass: CSS_CLASSES.COLOR_EDITOR_ITEM
-      },
-      textAlignLeft: {
-        command: DiagramCommand.TextLeftAlign,
-        hint: _message.default.format('dxDiagram-commandAlignLeft'),
-        text: _message.default.format('dxDiagram-commandAlignLeft'),
-        icon: 'alignleft',
-        menuIcon: 'alignleft'
-      },
-      textAlignCenter: {
-        command: DiagramCommand.TextCenterAlign,
-        hint: _message.default.format('dxDiagram-commandAlignCenter'),
-        text: _message.default.format('dxDiagram-commandAlignCenter'),
-        icon: 'aligncenter',
-        menuIcon: 'aligncenter'
-      },
-      textAlignRight: {
-        command: DiagramCommand.TextRightAlign,
-        hint: _message.default.format('dxDiagram-commandAlignRight'),
-        text: _message.default.format('dxDiagram-commandAlignRight'),
-        icon: 'alignright',
-        menuIcon: 'alignright'
-      },
-      lock: {
-        command: DiagramCommand.Lock,
-        hint: _message.default.format('dxDiagram-commandLock'),
-        text: _message.default.format('dxDiagram-commandLock'),
-        icon: 'dx-diagram-i-button-lock dx-diagram-i',
-        menuIcon: 'dx-diagram-i-menu-lock dx-diagram-i'
-      },
-      unlock: {
-        command: DiagramCommand.Unlock,
-        hint: _message.default.format('dxDiagram-commandUnlock'),
-        text: _message.default.format('dxDiagram-commandUnlock'),
-        icon: 'dx-diagram-i-button-unlock dx-diagram-i',
-        menuIcon: 'dx-diagram-i-menu-unlock dx-diagram-i'
-      },
-      bringToFront: {
-        command: DiagramCommand.BringToFront,
-        hint: _message.default.format('dxDiagram-commandBringToFront'),
-        text: _message.default.format('dxDiagram-commandBringToFront'),
-        icon: 'dx-diagram-i-button-bring-to-front dx-diagram-i',
-        menuIcon: 'dx-diagram-i-menu-bring-to-front dx-diagram-i'
-      },
-      sendToBack: {
-        command: DiagramCommand.SendToBack,
-        hint: _message.default.format('dxDiagram-commandSendToBack'),
-        text: _message.default.format('dxDiagram-commandSendToBack'),
-        icon: 'dx-diagram-i-button-send-to-back dx-diagram-i',
-        menuIcon: 'dx-diagram-i-menu-send-to-back dx-diagram-i'
-      },
-      insertShapeImage: {
-        command: DiagramCommand.InsertShapeImage,
-        text: _message.default.format('dxDiagram-commandInsertShapeImage'),
-        icon: 'dx-diagram-i-button-image-insert dx-diagram-i',
-        menuIcon: 'dx-diagram-i-menu-image-insert dx-diagram-i'
-      },
-      editShapeImage: {
-        command: DiagramCommand.EditShapeImage,
-        text: _message.default.format('dxDiagram-commandEditShapeImage'),
-        icon: 'dx-diagram-i-button-image-edit dx-diagram-i',
-        menuIcon: 'dx-diagram-i-menu-image-edit dx-diagram-i'
-      },
-      deleteShapeImage: {
-        command: DiagramCommand.DeleteShapeImage,
-        text: _message.default.format('dxDiagram-commandDeleteShapeImage'),
-        icon: 'dx-diagram-i-button-image-delete dx-diagram-i',
-        menuIcon: 'dx-diagram-i-menu-image-delete dx-diagram-i'
-      },
-      connectorLineType: {
-        command: DiagramCommand.ConnectorLineOption,
-        widget: 'dxSelectBox',
-        hint: _message.default.format('dxDiagram-commandConnectorLineType'),
-        text: _message.default.format('dxDiagram-commandConnectorLineType'),
-        items: [{
-          value: 0,
-          menuIcon: 'dx-diagram-i-connector-straight dx-diagram-i',
-          hint: _message.default.format('dxDiagram-commandConnectorLineStraight'),
-          text: _message.default.format('dxDiagram-commandConnectorLineStraight')
-        }, {
-          value: 1,
-          menuIcon: 'dx-diagram-i-connector-orthogonal dx-diagram-i',
-          hint: _message.default.format('dxDiagram-commandConnectorLineOrthogonal'),
-          text: _message.default.format('dxDiagram-commandConnectorLineOrthogonal')
-        }],
-        cssClass: CSS_CLASSES.IMAGE_DROPDOWN_ITEM
-      },
-      connectorLineStart: {
-        command: DiagramCommand.ConnectorStartLineEnding,
-        widget: 'dxSelectBox',
-        items: [{
-          value: 0,
-          menuIcon: 'dx-diagram-i-connector-begin-none dx-diagram-i',
-          hint: _message.default.format('dxDiagram-commandConnectorLineNone'),
-          text: _message.default.format('dxDiagram-commandConnectorLineNone')
-        }, {
-          value: 1,
-          menuIcon: 'dx-diagram-i-connector-begin-arrow dx-diagram-i',
-          hint: _message.default.format('dxDiagram-commandConnectorLineArrow'),
-          text: _message.default.format('dxDiagram-commandConnectorLineArrow')
-        }, {
-          value: 2,
-          menuIcon: 'dx-diagram-i-connector-begin-outlined-triangle dx-diagram-i',
-          hint: _message.default.format('dxDiagram-commandConnectorLineArrow'),
-          text: _message.default.format('dxDiagram-commandConnectorLineArrow')
-        }, {
-          value: 3,
-          menuIcon: 'dx-diagram-i-connector-begin-filled-triangle dx-diagram-i',
-          hint: _message.default.format('dxDiagram-commandConnectorLineArrow'),
-          text: _message.default.format('dxDiagram-commandConnectorLineArrow')
-        }],
-        hint: _message.default.format('dxDiagram-commandConnectorLineStart'),
-        text: _message.default.format('dxDiagram-commandConnectorLineStart'),
-        cssClass: CSS_CLASSES.IMAGE_DROPDOWN_ITEM
-      },
-      connectorLineEnd: {
-        command: DiagramCommand.ConnectorEndLineEnding,
-        widget: 'dxSelectBox',
-        items: [{
-          value: 0,
-          menuIcon: 'dx-diagram-i-connector-end-none dx-diagram-i',
-          hint: _message.default.format('dxDiagram-commandConnectorLineNone'),
-          text: _message.default.format('dxDiagram-commandConnectorLineNone')
-        }, {
-          value: 1,
-          menuIcon: 'dx-diagram-i-connector-end-arrow dx-diagram-i',
-          hint: _message.default.format('dxDiagram-commandConnectorLineArrow'),
-          text: _message.default.format('dxDiagram-commandConnectorLineArrow')
-        }, {
-          value: 2,
-          menuIcon: 'dx-diagram-i-connector-end-outlined-triangle dx-diagram-i',
-          hint: _message.default.format('dxDiagram-commandConnectorLineArrow'),
-          text: _message.default.format('dxDiagram-commandConnectorLineArrow')
-        }, {
-          value: 3,
-          menuIcon: 'dx-diagram-i-connector-end-filled-triangle dx-diagram-i',
-          hint: _message.default.format('dxDiagram-commandConnectorLineArrow'),
-          text: _message.default.format('dxDiagram-commandConnectorLineArrow')
-        }],
-        hint: _message.default.format('dxDiagram-commandConnectorLineEnd'),
-        text: _message.default.format('dxDiagram-commandConnectorLineEnd'),
-        cssClass: CSS_CLASSES.IMAGE_DROPDOWN_ITEM
-      },
-      layoutTreeTopToBottom: {
-        command: DiagramCommand.AutoLayoutTreeVertical,
-        text: _message.default.format('dxDiagram-commandLayoutTopToBottom'),
-        hint: _message.default.format('dxDiagram-commandLayoutTopToBottom'),
-        icon: 'dx-diagram-i-button-layout-tree-tb dx-diagram-i',
-        cssClass: CSS_CLASSES.LARGE_ICON_ITEM
-      },
-      layoutTreeBottomToTop: {
-        command: DiagramCommand.AutoLayoutTreeVerticalBottomToTop,
-        text: _message.default.format('dxDiagram-commandLayoutBottomToTop'),
-        hint: _message.default.format('dxDiagram-commandLayoutBottomToTop'),
-        icon: 'dx-diagram-i-button-layout-tree-bt dx-diagram-i',
-        cssClass: CSS_CLASSES.LARGE_ICON_ITEM
-      },
-      layoutTreeLeftToRight: {
-        command: DiagramCommand.AutoLayoutTreeHorizontal,
-        text: _message.default.format('dxDiagram-commandLayoutLeftToRight'),
-        hint: _message.default.format('dxDiagram-commandLayoutLeftToRight'),
-        icon: 'dx-diagram-i-button-layout-tree-lr dx-diagram-i',
-        cssClass: CSS_CLASSES.LARGE_ICON_ITEM
-      },
-      layoutTreeRightToLeft: {
-        command: DiagramCommand.AutoLayoutTreeHorizontalRightToLeft,
-        text: _message.default.format('dxDiagram-commandLayoutRightToLeft'),
-        hint: _message.default.format('dxDiagram-commandLayoutRightToLeft'),
-        icon: 'dx-diagram-i-button-layout-tree-rl dx-diagram-i',
-        cssClass: CSS_CLASSES.LARGE_ICON_ITEM
-      },
-      layoutLayeredTopToBottom: {
-        command: DiagramCommand.AutoLayoutLayeredVertical,
-        text: _message.default.format('dxDiagram-commandLayoutTopToBottom'),
-        hint: _message.default.format('dxDiagram-commandLayoutTopToBottom'),
-        icon: 'dx-diagram-i-button-layout-layered-tb dx-diagram-i',
-        cssClass: CSS_CLASSES.LARGE_ICON_ITEM
-      },
-      layoutLayeredBottomToTop: {
-        command: DiagramCommand.AutoLayoutLayeredVerticalBottomToTop,
-        text: _message.default.format('dxDiagram-commandLayoutBottomToTop'),
-        hint: _message.default.format('dxDiagram-commandLayoutBottomToTop'),
-        icon: 'dx-diagram-i-button-layout-layered-bt dx-diagram-i',
-        cssClass: CSS_CLASSES.LARGE_ICON_ITEM
-      },
-      layoutLayeredLeftToRight: {
-        command: DiagramCommand.AutoLayoutLayeredHorizontal,
-        text: _message.default.format('dxDiagram-commandLayoutLeftToRight'),
-        hint: _message.default.format('dxDiagram-commandLayoutLeftToRight'),
-        icon: 'dx-diagram-i-button-layout-layered-lr dx-diagram-i',
-        cssClass: CSS_CLASSES.LARGE_ICON_ITEM
-      },
-      layoutLayeredRightToLeft: {
-        command: DiagramCommand.AutoLayoutLayeredHorizontalRightToLeft,
-        text: _message.default.format('dxDiagram-commandLayoutRightToLeft'),
-        hint: _message.default.format('dxDiagram-commandLayoutRightToLeft'),
-        icon: 'dx-diagram-i-button-layout-layered-rl dx-diagram-i',
-        cssClass: CSS_CLASSES.LARGE_ICON_ITEM
-      },
-      fullScreen: {
-        command: DiagramCommand.Fullscreen,
-        hint: _message.default.format('dxDiagram-commandFullscreen'),
-        text: _message.default.format('dxDiagram-commandFullscreen'),
-        icon: 'dx-diagram-i dx-diagram-i-button-fullscreen',
-        menuIcon: 'dx-diagram-i dx-diagram-i-menu-fullscreen',
-        cssClass: CSS_CLASSES.COLOR_EDITOR_ITEM
-      },
-      units: {
-        command: DiagramCommand.ViewUnits,
-        hint: _message.default.format('dxDiagram-commandUnits'),
-        text: _message.default.format('dxDiagram-commandUnits'),
-        widget: 'dxSelectBox'
-      },
-      simpleView: {
-        command: DiagramCommand.ToggleSimpleView,
-        hint: _message.default.format('dxDiagram-commandSimpleView'),
-        text: _message.default.format('dxDiagram-commandSimpleView'),
-        widget: 'dxCheckBox'
-      },
-      showGrid: {
-        command: DiagramCommand.ShowGrid,
-        hint: _message.default.format('dxDiagram-commandShowGrid'),
-        text: _message.default.format('dxDiagram-commandShowGrid'),
-        widget: 'dxCheckBox'
-      },
-      snapToGrid: {
-        command: DiagramCommand.SnapToGrid,
-        hint: _message.default.format('dxDiagram-commandSnapToGrid'),
-        text: _message.default.format('dxDiagram-commandSnapToGrid'),
-        widget: 'dxCheckBox'
-      },
-      gridSize: {
-        command: DiagramCommand.GridSize,
-        hint: _message.default.format('dxDiagram-commandGridSize'),
-        text: _message.default.format('dxDiagram-commandGridSize'),
-        widget: 'dxSelectBox'
-      },
-      pageSize: {
-        command: DiagramCommand.PageSize,
-        hint: _message.default.format('dxDiagram-commandPageSize'),
-        text: _message.default.format('dxDiagram-commandPageSize'),
-        widget: 'dxSelectBox',
-        cssClass: CSS_CLASSES.LARGE_EDITOR_ITEM,
-        getCommandValue: v => JSON.parse(v),
-        getEditorValue: v => JSON.stringify(v)
-      },
-      pageOrientation: {
-        command: DiagramCommand.PageLandscape,
-        hint: _message.default.format('dxDiagram-commandPageOrientation'),
-        text: _message.default.format('dxDiagram-commandPageOrientation'),
-        widget: 'dxSelectBox',
-        items: [{
-          value: true,
-          text: _message.default.format('dxDiagram-commandPageOrientationLandscape')
-        }, {
-          value: false,
-          text: _message.default.format('dxDiagram-commandPageOrientationPortrait')
-        }],
-        cssClass: CSS_CLASSES.MEDIUM_EDITOR_ITEM
-      },
-      pageColor: {
-        command: DiagramCommand.PageColor,
-        hint: _message.default.format('dxDiagram-commandPageColor'),
-        text: _message.default.format('dxDiagram-commandPageColor'),
-        widget: 'dxColorBox',
-        icon: 'dx-diagram-i dx-diagram-i-button-fill',
-        menuIcon: 'dx-diagram-i dx-diagram-i-menu-fill',
-        cssClass: CSS_CLASSES.COLOR_EDITOR_ITEM
-      },
-      zoomLevel: {
-        command: DiagramCommand.ZoomLevel,
-        hint: _message.default.format('dxDiagram-commandZoomLevel'),
-        text: _message.default.format('dxDiagram-commandZoomLevel'),
-        widget: 'dxTextBox',
-        items: [SEPARATOR_COMMAND, {
-          command: DiagramCommand.FitToScreen,
-          hint: _message.default.format('dxDiagram-commandFitToContent'),
-          text: _message.default.format('dxDiagram-commandFitToContent')
-        }, {
-          command: DiagramCommand.FitToWidth,
-          hint: _message.default.format('dxDiagram-commandFitToWidth'),
-          text: _message.default.format('dxDiagram-commandFitToWidth')
-        }, SEPARATOR_COMMAND, {
-          command: DiagramCommand.AutoZoomToContent,
-          hint: _message.default.format('dxDiagram-commandAutoZoomByContent'),
-          text: _message.default.format('dxDiagram-commandAutoZoomByContent')
-        }, {
-          command: DiagramCommand.AutoZoomToWidth,
-          hint: _message.default.format('dxDiagram-commandAutoZoomByWidth'),
-          text: _message.default.format('dxDiagram-commandAutoZoomByWidth')
-        }],
-        getEditorDisplayValue: v => {
-          return Math.round(v * 100) + '%';
-        },
-        cssClass: CSS_CLASSES.SMALL_EDITOR_ITEM
-      },
-      // Custom commands
-      toolbox: {
-        command: this.SHOW_TOOLBOX_COMMAND_NAME,
-        iconChecked: 'dx-diagram-i dx-diagram-i-button-toolbox-close',
-        iconUnchecked: 'dx-diagram-i dx-diagram-i-button-toolbox-open',
-        hint: _message.default.format('dxDiagram-uiShowToolbox'),
-        text: _message.default.format('dxDiagram-uiShowToolbox')
-      },
-      propertiesPanel: {
-        command: this.SHOW_PROPERTIES_PANEL_COMMAND_NAME,
-        iconChecked: 'close',
-        iconUnchecked: 'dx-diagram-i dx-diagram-i-button-properties-panel-open',
-        hint: _message.default.format('dxDiagram-uiProperties'),
-        text: _message.default.format('dxDiagram-uiProperties')
-      }
-    });
-  },
-  getMainToolbarCommands: function (commands, excludeCommands) {
-    const allCommands = this.getAllCommands();
-    const mainToolbarCommands = commands ? this._getPreparedCommands(allCommands, commands) : this._getDefaultMainToolbarCommands(allCommands);
-    return this._prepareToolbarCommands(mainToolbarCommands, excludeCommands);
-  },
-  _getDefaultMainToolbarCommands: function (allCommands) {
-    return this._defaultMainToolbarCommands || (this._defaultMainToolbarCommands = [allCommands['undo'], allCommands['redo'], allCommands['separator'], allCommands['fontName'], allCommands['fontSize'], allCommands['bold'], allCommands['italic'], allCommands['underline'], allCommands['separator'], allCommands['lineWidth'], allCommands['lineStyle'], allCommands['separator'], allCommands['fontColor'], allCommands['lineColor'], allCommands['fillColor'], allCommands['separator'], allCommands['textAlignLeft'], allCommands['textAlignCenter'], allCommands['textAlignRight'], allCommands['separator'], allCommands['connectorLineType'], allCommands['connectorLineStart'], allCommands['connectorLineEnd'], allCommands['separator'], {
-      text: _message.default.format('dxDiagram-uiLayout'),
-      showText: 'always',
-      items: [{
-        text: _message.default.format('dxDiagram-uiLayoutTree'),
-        items: [allCommands['layoutTreeTopToBottom'], allCommands['layoutTreeBottomToTop'], allCommands['layoutTreeLeftToRight'], allCommands['layoutTreeRightToLeft']]
-      }, {
-        text: _message.default.format('dxDiagram-uiLayoutLayered'),
-        items: [allCommands['layoutLayeredTopToBottom'], allCommands['layoutLayeredBottomToTop'], allCommands['layoutLayeredLeftToRight'], allCommands['layoutLayeredRightToLeft']]
-      }]
-    }]);
-  },
-  getHistoryToolbarCommands: function (commands, excludeCommands) {
-    const allCommands = this.getAllCommands();
-    const historyToolbarCommands = commands ? this._getPreparedCommands(allCommands, commands) : this._getDefaultHistoryToolbarCommands(allCommands);
-    return this._prepareToolbarCommands(historyToolbarCommands, excludeCommands);
-  },
-  _getDefaultHistoryToolbarCommands: function (allCommands) {
-    return this._defaultHistoryToolbarCommands || (this._defaultHistoryToolbarCommands = [allCommands['undo'], allCommands['redo'], allCommands['separator'], allCommands['toolbox']]);
-  },
-  getViewToolbarCommands: function (commands, excludeCommands) {
-    const allCommands = this.getAllCommands();
-    const viewToolbarCommands = commands ? this._getPreparedCommands(allCommands, commands) : this._getDefaultViewToolbarCommands(allCommands);
-    return this._prepareToolbarCommands(viewToolbarCommands, excludeCommands);
-  },
-  _getDefaultViewToolbarCommands: function (allCommands) {
-    return this._defaultViewToolbarCommands || (this._defaultViewToolbarCommands = [allCommands['zoomLevel'], allCommands['separator'], allCommands['fullScreen'], allCommands['separator'], {
-      widget: 'dxButton',
-      icon: 'export',
-      text: _message.default.format('dxDiagram-uiExport'),
-      hint: _message.default.format('dxDiagram-uiExport'),
-      items: [allCommands['exportSvg'], allCommands['exportPng'], allCommands['exportJpg']]
-    }, {
-      icon: 'preferences',
-      hint: _message.default.format('dxDiagram-uiSettings'),
-      text: _message.default.format('dxDiagram-uiSettings'),
-      items: [allCommands['units'], allCommands['separator'], allCommands['showGrid'], allCommands['snapToGrid'], allCommands['gridSize'], allCommands['separator'], allCommands['simpleView'], allCommands['toolbox']]
-    }]);
-  },
-  getPropertiesToolbarCommands: function (commands, excludeCommands) {
-    const allCommands = this.getAllCommands();
-    const propertiesCommands = commands ? this._getPreparedCommands(allCommands, commands) : this._getDefaultPropertiesToolbarCommands(allCommands);
-    return this._prepareToolbarCommands(propertiesCommands, excludeCommands);
-  },
-  _getDefaultPropertiesToolbarCommands: function (allCommands) {
-    return this._defaultPropertiesToolbarCommands || (this._defaultPropertiesToolbarCommands = [allCommands['propertiesPanel']]);
-  },
-  _getDefaultPropertyPanelCommandGroups: function () {
-    return this._defaultPropertyPanelCommandGroups || (this._defaultPropertyPanelCommandGroups = [{
-      title: _message.default.format('dxDiagram-uiStyle'),
-      groups: [{
-        title: _message.default.format('dxDiagram-uiText'),
-        commands: ['fontName', 'fontSize', 'bold', 'italic', 'underline', 'textAlignLeft', 'textAlignCenter', 'textAlignRight', 'fontColor']
-      }, {
-        title: _message.default.format('dxDiagram-uiObject'),
-        commands: ['lineStyle', 'lineWidth', 'lineColor', 'fillColor']
-      }, {
-        title: _message.default.format('dxDiagram-uiConnector'),
-        commands: ['connectorLineType', 'connectorLineStart', 'connectorLineEnd']
-      }]
-    }, {
-      title: _message.default.format('dxDiagram-uiLayout'),
-      groups: [{
-        title: _message.default.format('dxDiagram-uiLayoutLayered'),
-        commands: ['layoutLayeredTopToBottom', 'layoutLayeredBottomToTop', 'layoutLayeredLeftToRight', 'layoutLayeredRightToLeft']
-      }, {
-        title: _message.default.format('dxDiagram-uiLayoutTree'),
-        commands: ['layoutTreeTopToBottom', 'layoutTreeBottomToTop', 'layoutTreeLeftToRight', 'layoutTreeRightToLeft']
-      }]
-    }, {
-      title: _message.default.format('dxDiagram-uiDiagram'),
-      groups: [{
-        title: _message.default.format('dxDiagram-uiPage'),
-        commands: ['pageSize', 'pageOrientation', 'pageColor']
-      }]
-    }]);
-  },
-  _preparePropertyPanelGroups: function (groups) {
-    const allCommands = this.getAllCommands();
-    const result = [];
-    groups.forEach(g => {
-      let commands = g.commands;
-      if (commands) {
-        commands = this._getPreparedCommands(allCommands, commands);
-        commands = this._prepareToolbarCommands(commands);
-      }
-      let subGroups;
-      if (g.groups) {
-        subGroups = [];
-        g.groups.forEach(sg => {
-          let subCommands = sg.commands;
-          if (subCommands) {
-            subCommands = this._getPreparedCommands(allCommands, subCommands);
-            subCommands = this._prepareToolbarCommands(subCommands);
-          }
-          subGroups.push({
-            title: sg.title,
-            commands: subCommands
-          });
-        });
-      }
-      result.push({
-        title: g.title,
-        commands: commands,
-        groups: subGroups
-      });
-    });
-    return result;
-  },
-  getPropertyPanelCommandTabs: function (commandGroups) {
-    commandGroups = commandGroups || this._getDefaultPropertyPanelCommandGroups();
-    return this._preparePropertyPanelGroups(commandGroups);
-  },
-  getContextMenuCommands: function (commands) {
-    const allCommands = this.getAllCommands();
-    const contextMenuCommands = commands ? this._getPreparedCommands(allCommands, commands) : this._getDefaultContextMenuCommands(allCommands);
-    return this._prepareContextMenuCommands(contextMenuCommands);
-  },
-  _getDefaultContextMenuCommands: function (allCommands) {
-    return this._defaultContextMenuCommands || (this._defaultContextMenuCommands = [allCommands['cut'], allCommands['copy'], allCommands['paste'], allCommands['delete'], allCommands['separator'], allCommands['selectAll'], allCommands['separator'], allCommands['bringToFront'], allCommands['sendToBack'], allCommands['separator'], allCommands['lock'], allCommands['unlock'], allCommands['separator'], allCommands['insertShapeImage'], allCommands['editShapeImage'], allCommands['deleteShapeImage']]);
-  },
-  _getPreparedCommands(allCommands, commands) {
-    return commands.map(c => {
-      if (c.widget && c.widget === SEPARATOR) {
-        const command = {
-          command: c,
-          location: c.location
-        };
-        return command;
-      } else if (allCommands[c]) {
-        return allCommands[c];
-      } else if (c.text || c.icon || c.name) {
-        const internalCommand = c.name && allCommands[c.name];
-        const command = {
-          command: internalCommand && internalCommand.command,
-          name: c.name,
-          location: c.location,
-          text: c.text || internalCommand && internalCommand.text,
-          hint: c.text || internalCommand && internalCommand.hint,
-          icon: c.icon || internalCommand && internalCommand.icon,
-          menuIcon: c.icon || internalCommand && internalCommand.menuIcon,
-          widget: internalCommand && internalCommand.widget,
-          cssClass: internalCommand && internalCommand.cssClass,
-          getParameter: internalCommand && internalCommand.getParameter,
-          getCommandValue: internalCommand && internalCommand.getCommandValue,
-          getEditorValue: internalCommand && internalCommand.getEditorValue,
-          getEditorDisplayValue: internalCommand && internalCommand.getEditorDisplayValue,
-          iconChecked: internalCommand && internalCommand.iconChecked,
-          iconUnchecked: internalCommand && internalCommand.iconUnchecked
-        };
-        if (Array.isArray(c.items)) {
-          command.items = this._getPreparedCommands(allCommands, c.items);
-        } else {
-          command.items = internalCommand && internalCommand.items;
-        }
-        return command;
-      }
-    }).filter(c => c);
-  },
-  _prepareContextMenuCommands(commands, excludeCommands, rootCommand) {
-    let beginGroup = false;
-    return commands.map(c => {
-      if (!this._isValidCommand(c, excludeCommands)) return;
-      if (c.widget && c.widget === SEPARATOR) {
-        beginGroup = true;
-      } else {
-        const command = this._cloneCommand(c, excludeCommands);
-        command.icon = command.menuIcon;
-        command.beginGroup = beginGroup;
-        command.rootCommand = !command.command ? rootCommand && rootCommand.command : undefined;
-        beginGroup = false;
-        return command;
-      }
-    }).filter(c => c);
-  },
-  _prepareToolbarCommands(commands, excludeCommands) {
-    return commands.map(c => {
-      if (this._isValidCommand(c, excludeCommands)) {
-        return this._cloneCommand(c, excludeCommands);
-      }
-    }).filter(c => c).filter((c, index, arr) => {
-      if (c.widget === SEPARATOR && index === arr.length - 1) {
-        return false;
-      }
-      return c;
-    });
-  },
-  _cloneCommand(c, excludeCommands) {
-    const command = (0, _extend.extend)({}, c);
-    if (Array.isArray(c.items)) {
-      command.items = this._prepareContextMenuCommands(c.items, excludeCommands, command);
-    }
-    return command;
-  },
-  _isValidCommand(c, excludeCommands) {
-    excludeCommands = excludeCommands || [];
-    return excludeCommands.indexOf(c.command) === -1;
-  },
-  _exportTo(widget, dataURI, format, mimeString) {
-    const window = (0, _window.getWindow)();
-    if (window && window.atob && (0, _type.isFunction)(window.Blob)) {
-      const blob = this._getBlobByDataURI(window, dataURI, mimeString);
-      const options = widget.option('export');
-      _file_saver.fileSaver.saveAs(options.fileName || 'foo', format, blob);
-    }
-  },
-  _getBlobByDataURI(window, dataURI, mimeString) {
-    const byteString = window.atob(dataURI.split(',')[1]);
-    const ia = new Uint8Array(byteString.length);
-    for (let i = 0; i < byteString.length; i++) {
-      ia[i] = byteString.charCodeAt(i);
-    }
-    return new window.Blob([ia.buffer], {
-      type: mimeString
-    });
-  }
-};
-var _default = exports["default"] = DiagramCommandsManager;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 73360:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _diagram = _interopRequireDefault(__webpack_require__(88186));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-class EdgesOption extends _diagram.default {
-  _getKeyExpr() {
-    return this._diagramWidget._createOptionGetter('edges.keyExpr');
-  }
-}
-var _default = exports["default"] = EdgesOption;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 11744:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-
-exports.getDiagram = getDiagram;
-var _ui = _interopRequireDefault(__webpack_require__(35185));
-var _devexpressDiagram = _interopRequireWildcard(__webpack_require__(36761));
-var Diagram = _devexpressDiagram;
-function _getRequireWildcardCache(e) { if ("function" != typeof WeakMap) return null; var r = new WeakMap(), t = new WeakMap(); return (_getRequireWildcardCache = function (e) { return e ? t : r; })(e); }
-function _interopRequireWildcard(e, r) { if (!r && e && e.__esModule) return e; if (null === e || "object" != typeof e && "function" != typeof e) return { default: e }; var t = _getRequireWildcardCache(r); if (t && t.has(e)) return t.get(e); var n = { __proto__: null }, a = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var u in e) if ("default" !== u && {}.hasOwnProperty.call(e, u)) { var i = a ? Object.getOwnPropertyDescriptor(e, u) : null; i && (i.get || i.set) ? Object.defineProperty(n, u, i) : n[u] = e[u]; } return n.default = e, t && t.set(e, n), n; }
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-function getDiagram() {
-  if (!_devexpressDiagram.default) {
-    throw _ui.default.Error('E1041', 'devexpress-diagram');
-  }
-  return Diagram;
-}
-
-/***/ }),
-
-/***/ 88186:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _extend = __webpack_require__(52576);
-var _component = __webpack_require__(17863);
-var _data = __webpack_require__(11036);
-const ItemsOptionBase = _component.Component.inherit({}).include(_data.DataHelperMixin);
-class ItemsOption extends ItemsOptionBase {
-  constructor(diagramWidget) {
-    super();
-    this._diagramWidget = diagramWidget;
-    this._resetCache();
-  }
-  _dataSourceChangedHandler(newItems, e) {
-    this._resetCache();
-    this._items = newItems.map(item => (0, _extend.extend)(true, {}, item));
-    this._dataSourceItems = newItems.slice();
-    if (e && e.changes) {
-      const internalChanges = e.changes.filter(change => change.internalChange);
-      const externalChanges = e.changes.filter(change => !change.internalChange);
-      if (internalChanges.length) {
-        this._reloadContentByChanges(internalChanges, false);
-      }
-      if (externalChanges.length) {
-        this._reloadContentByChanges(externalChanges, true);
-      }
-    } else {
-      this._diagramWidget._onDataSourceChanged();
-    }
-  }
-  _dataSourceLoadingChangedHandler(isLoading) {
-    if (isLoading && !this._dataSource.isLoaded()) {
-      this._diagramWidget._showLoadingIndicator();
-    } else {
-      this._diagramWidget._hideLoadingIndicator();
-    }
-  }
-  _prepareData(dataObj) {
-    for (const key in dataObj) {
-      if (!Object.prototype.hasOwnProperty.call(dataObj, key)) continue;
-      if (dataObj[key] === undefined) {
-        dataObj[key] = null;
-      }
-    }
-    return dataObj;
-  }
-  insert(data, callback, errorCallback) {
-    this._resetCache();
-    const store = this._getStore();
-    store.insert(this._prepareData(data)).done((data, key) => {
-      store.push([{
-        type: 'insert',
-        key,
-        data,
-        internalChange: true
-      }]);
-      if (callback) {
-        callback(data);
-      }
-      this._resetCache();
-    }).fail(error => {
-      if (errorCallback) {
-        errorCallback(error);
-      }
-      this._resetCache();
-    });
-  }
-  update(key, data, callback, errorCallback) {
-    const store = this._getStore();
-    const storeKey = this._getStoreKey(store, key, data);
-    store.update(storeKey, this._prepareData(data)).done((data, key) => {
-      store.push([{
-        type: 'update',
-        key,
-        data,
-        internalChange: true
-      }]);
-      if (callback) {
-        callback(key, data);
-      }
-    }).fail(error => {
-      if (errorCallback) {
-        errorCallback(error);
-      }
-    });
-  }
-  remove(key, data, callback, errorCallback) {
-    this._resetCache();
-    const store = this._getStore();
-    const storeKey = this._getStoreKey(store, key, data);
-    store.remove(storeKey).done(key => {
-      store.push([{
-        type: 'remove',
-        key,
-        internalChange: true
-      }]);
-      if (callback) {
-        callback(key);
-      }
-      this._resetCache();
-    }).fail(error => {
-      if (errorCallback) {
-        errorCallback(error);
-      }
-      this._resetCache();
-    });
-  }
-  findItem(itemKey) {
-    if (!this._items) {
-      return null;
-    }
-    return this._getItemByKey(itemKey);
-  }
-  getItems() {
-    return this._items;
-  }
-  hasItems() {
-    return !!this._items;
-  }
-  _reloadContentByChanges(changes, isExternalChanges) {
-    changes = changes.map(change => (0, _extend.extend)(change, {
-      internalKey: this._getInternalKey(change.key)
-    }));
-    this._diagramWidget._reloadContentByChanges(changes, isExternalChanges);
-  }
-  _getItemByKey(key) {
-    this._ensureCache();
-    const cache = this._cache;
-    const index = this._getIndexByKey(key);
-    return cache.items[index];
-  }
-  _getIndexByKey(key) {
-    this._ensureCache();
-    const cache = this._cache;
-    if (typeof key === 'object') {
-      for (let i = 0, length = cache.keys.length; i < length; i++) {
-        if (cache.keys[i] === key) return i;
-      }
-    } else {
-      const keySet = cache.keySet || cache.keys.reduce((accumulator, key, index) => {
-        accumulator[key] = index;
-        return accumulator;
-      }, {});
-      if (!cache.keySet) {
-        cache.keySet = keySet;
-      }
-      return keySet[key];
-    }
-    return -1;
-  }
-  _ensureCache() {
-    const cache = this._cache;
-    if (!cache.keys) {
-      cache.keys = [];
-      cache.items = [];
-      this._fillCache(cache, this._items);
-    }
-  }
-  _fillCache(cache, items) {
-    if (!items || !items.length) return;
-    const keyExpr = this._getKeyExpr();
-    if (keyExpr) {
-      items.forEach(item => {
-        cache.keys.push(keyExpr(item));
-        cache.items.push(item);
-      });
-    }
-    const itemsExpr = this._getItemsExpr();
-    if (itemsExpr) {
-      items.forEach(item => this._fillCache(cache, itemsExpr(item)));
-    }
-    const containerChildrenExpr = this._getContainerChildrenExpr();
-    if (containerChildrenExpr) {
-      items.forEach(item => this._fillCache(cache, containerChildrenExpr(item)));
-    }
-  }
-  _getKeyExpr() {
-    throw 'Not Implemented';
-  }
-  _getItemsExpr() {}
-  _getContainerChildrenExpr() {}
-  _initDataSource() {
-    super._initDataSource();
-    this._dataSource && this._dataSource.paginate(false);
-  }
-  _dataSourceOptions() {
-    return {
-      paginate: false
-    };
-  }
-  _getStore() {
-    return this._dataSource && this._dataSource.store();
-  }
-  _getStoreKey(store, internalKey, data) {
-    let storeKey = store.keyOf(data);
-    if (storeKey === data) {
-      const keyExpr = this._getKeyExpr();
-      this._dataSourceItems.forEach(item => {
-        if (keyExpr(item) === internalKey) storeKey = item;
-      });
-    }
-    return storeKey;
-  }
-  _getInternalKey(storeKey) {
-    if (typeof storeKey === 'object') {
-      const keyExpr = this._getKeyExpr();
-      return keyExpr(storeKey);
-    }
-    return storeKey;
-  }
-  _resetCache() {
-    this._cache = {};
-  }
-}
-var _default = exports["default"] = ItemsOption;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 96221:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _diagram = _interopRequireDefault(__webpack_require__(88186));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-class NodesOption extends _diagram.default {
-  _getKeyExpr() {
-    return this._diagramWidget._createOptionGetter('nodes.keyExpr');
-  }
-  _getItemsExpr() {
-    return this._diagramWidget._createOptionGetter('nodes.itemsExpr');
-  }
-  _getContainerChildrenExpr() {
-    return this._diagramWidget._createOptionGetter('nodes.containerChildrenExpr');
-  }
-}
-var _default = exports["default"] = NodesOption;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 79892:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _diagram = _interopRequireDefault(__webpack_require__(35629));
-var _diagram2 = __webpack_require__(11744);
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-class DiagramOptionsUpdateBar extends _diagram.default {
-  constructor(owner) {
-    super(owner);
-    const {
-      DiagramCommand
-    } = (0, _diagram2.getDiagram)();
-    this.commandOptions = {};
-    this.commandOptions[DiagramCommand.Fullscreen] = 'fullScreen';
-    this.commandOptions[DiagramCommand.ZoomLevel] = function (value) {
-      if (typeof this._getOption('zoomLevel') === 'object') {
-        this._setOption('zoomLevel.value', value);
-      } else {
-        this._setOption('zoomLevel', value);
-      }
-    };
-    this.commandOptions[DiagramCommand.SwitchAutoZoom] = function (value) {
-      const {
-        AutoZoomMode
-      } = (0, _diagram2.getDiagram)();
-      switch (value) {
-        case AutoZoomMode.FitContent:
-          this._setOption('autoZoomMode', 'fitContent');
-          break;
-        case AutoZoomMode.FitToWidth:
-          this._setOption('autoZoomMode', 'fitWidth');
-          break;
-        case AutoZoomMode.Disabled:
-          this._setOption('autoZoomMode', 'disabled');
-          break;
-      }
-    };
-    this.commandOptions[DiagramCommand.ToggleSimpleView] = 'simpleView';
-    this.commandOptions[DiagramCommand.ShowGrid] = 'showGrid';
-    this.commandOptions[DiagramCommand.SnapToGrid] = 'snapToGrid';
-    this.commandOptions[DiagramCommand.GridSize] = function (value) {
-      if (typeof this._getOption('gridSize') === 'object') {
-        this._setOption('gridSize.value', value);
-      } else {
-        this._setOption('gridSize', value);
-      }
-    };
-    this.commandOptions[DiagramCommand.ViewUnits] = 'viewUnits';
-    this.commandOptions[DiagramCommand.PageSize] = function (value) {
-      const pageSize = this._getOption('pageSize');
-      if (pageSize === undefined || pageSize.width !== value.width || pageSize.height !== value.height) {
-        this._setOption('pageSize', value);
-      }
-    };
-    this.commandOptions[DiagramCommand.PageLandscape] = function (value) {
-      this._setOption('pageOrientation', value ? 'landscape' : 'portrait');
-    };
-    this.commandOptions[DiagramCommand.ViewUnits] = function (value) {
-      const {
-        DiagramUnit
-      } = (0, _diagram2.getDiagram)();
-      switch (value) {
-        case DiagramUnit.In:
-          this._setOption('viewUnits', 'in');
-          break;
-        case DiagramUnit.Cm:
-          this._setOption('viewUnits', 'cm');
-          break;
-        case DiagramUnit.Px:
-          this._setOption('viewUnits', 'px');
-          break;
-      }
-    };
-    this.commandOptions[DiagramCommand.PageColor] = 'pageColor';
-    this._updateLock = 0;
-  }
-  getCommandKeys() {
-    return Object.keys(this.commandOptions).map(function (key) {
-      return parseInt(key);
-    });
-  }
-  setItemValue(key, value) {
-    if (this.isUpdateLocked()) return;
-    this.beginUpdate();
-    try {
-      if (typeof this.commandOptions[key] === 'function') {
-        this.commandOptions[key].call(this, value);
-      } else {
-        this._setOption(this.commandOptions[key], value);
-      }
-    } finally {
-      this.endUpdate();
-    }
-  }
-  beginUpdate() {
-    this._updateLock++;
-  }
-  endUpdate() {
-    this._updateLock--;
-  }
-  isUpdateLocked() {
-    return this._updateLock > 0;
-  }
-  _getOption(name) {
-    return this._owner.option(name);
-  }
-  _setOption(name, value) {
-    this._owner.option(name, value);
-  }
-}
-var _default = exports["default"] = DiagramOptionsUpdateBar;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 74611:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _message = _interopRequireDefault(__webpack_require__(4671));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const DiagramToolboxManager = {
-  getDefaultGroups() {
-    return this._groups || (this._groups = {
-      general: {
-        category: 'general',
-        title: _message.default.format('dxDiagram-categoryGeneral')
-      },
-      flowchart: {
-        category: 'flowchart',
-        title: _message.default.format('dxDiagram-categoryFlowchart')
-      },
-      orgChart: {
-        category: 'orgChart',
-        title: _message.default.format('dxDiagram-categoryOrgChart')
-      },
-      containers: {
-        category: 'containers',
-        title: _message.default.format('dxDiagram-categoryContainers')
-      },
-      custom: {
-        category: 'custom',
-        title: _message.default.format('dxDiagram-categoryCustom')
-      }
-    });
-  },
-  getGroups: function (groups) {
-    const defaultGroups = this.getDefaultGroups();
-    if (groups) {
-      return groups.map(function (g) {
-        if (typeof g === 'string') {
-          return {
-            category: g,
-            title: defaultGroups[g] && defaultGroups[g].title || g
-          };
-        }
-        return g;
-      }).filter(function (g) {
-        return g;
-      });
-    }
-    return [defaultGroups['general'], defaultGroups['flowchart'], defaultGroups['orgChart'], defaultGroups['containers']];
-  }
-};
-var _default = exports["default"] = DiagramToolboxManager;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 48941:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _ui = _interopRequireDefault(__webpack_require__(11118));
-var _context_menu = _interopRequireDefault(__webpack_require__(34378));
-var _diagram = _interopRequireDefault(__webpack_require__(43304));
-var _uiDiagram = _interopRequireDefault(__webpack_require__(8708));
-var _diagram2 = _interopRequireDefault(__webpack_require__(35629));
-var _diagram3 = __webpack_require__(11744);
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const DIAGRAM_TOUCHBAR_CLASS = 'dx-diagram-touchbar';
-const DIAGRAM_TOUCHBAR_OVERLAY_CLASS = 'dx-diagram-touchbar-overlay';
-const DIAGRAM_TOUCHBAR_TARGET_CLASS = 'dx-diagram-touchbar-target';
-const DIAGRAM_TOUCHBAR_MIN_UNWRAPPED_WIDTH = 800;
-const DIAGRAM_TOUCHBAR_Y_OFFSET = 32;
-class DiagramContextMenuWrapper extends _ui.default {
-  _init() {
-    super._init();
-    this._createOnVisibilityChangingAction();
-    this._createOnInternalCommand();
-    this._createOnCustomCommand();
-    this._createOnItemClickAction();
-    this._tempState = undefined;
-    this._commands = [];
-    this._commandToIndexMap = {};
-    this.bar = new DiagramContextMenuBar(this);
-  }
-  _initMarkup() {
-    super._initMarkup();
-    this._commands = this._getCommands();
-    this._commandToIndexMap = {};
-    this._fillCommandToIndexMap(this._commands, []);
-    this._$contextMenuTargetElement = (0, _renderer.default)('<div>').addClass(DIAGRAM_TOUCHBAR_TARGET_CLASS).appendTo(this.$element());
-    const $contextMenu = (0, _renderer.default)('<div>').appendTo(this.$element());
-    this._contextMenuInstance = this._createComponent($contextMenu, DiagramContextMenu, {
-      isTouchBarMode: this._isTouchBarMode(),
-      cssClass: this._isTouchBarMode() ? DIAGRAM_TOUCHBAR_CLASS : _uiDiagram.default.getContextMenuCssClass(),
-      hideOnOutsideClick: false,
-      showEvent: '',
-      focusStateEnabled: false,
-      items: this._commands,
-      position: this._isTouchBarMode() ? {
-        my: {
-          x: 'center',
-          y: 'bottom'
-        },
-        at: {
-          x: 'center',
-          y: 'top'
-        },
-        of: this._$contextMenuTargetElement
-      } : {},
-      itemTemplate: function (itemData, itemIndex, itemElement) {
-        _uiDiagram.default.getContextMenuItemTemplate(this, itemData, itemIndex, itemElement);
-      },
-      onItemClick: _ref => {
-        let {
-          itemData
-        } = _ref;
-        return this._onItemClick(itemData);
-      },
-      onShowing: e => {
-        if (this._inOnShowing === true) return;
-        this._inOnShowing = true;
-        this._onVisibilityChangingAction({
-          visible: true,
-          component: this
-        });
-        e.component.option('items', e.component.option('items'));
-        delete this._inOnShowing;
-      }
-    });
-  }
-  _show(x, y, selection) {
-    this._contextMenuInstance.hide();
-    if (this._isTouchBarMode()) {
-      this._$contextMenuTargetElement.show();
-      if (!selection) {
-        selection = {
-          x,
-          y,
-          width: 0,
-          height: 0
-        };
-      }
-      const widthCorrection = selection.width > DIAGRAM_TOUCHBAR_MIN_UNWRAPPED_WIDTH ? 0 : (DIAGRAM_TOUCHBAR_MIN_UNWRAPPED_WIDTH - selection.width) / 2;
-      this._$contextMenuTargetElement.css({
-        left: selection.x - widthCorrection,
-        top: selection.y - DIAGRAM_TOUCHBAR_Y_OFFSET,
-        width: selection.width + 2 * widthCorrection,
-        height: selection.height + 2 * DIAGRAM_TOUCHBAR_Y_OFFSET
-      });
-      this._contextMenuInstance.show();
-    } else {
-      this._contextMenuInstance.option('position', {
-        offset: x + ' ' + y
-      });
-      this._contextMenuInstance.show();
-    }
-  }
-  _hide() {
-    this._$contextMenuTargetElement.hide();
-    this._contextMenuInstance.hide();
-  }
-  _isTouchBarMode() {
-    const {
-      Browser
-    } = (0, _diagram3.getDiagram)();
-    return Browser.TouchUI;
-  }
-  _onItemClick(itemData) {
-    let processed = false;
-    if (this._onItemClickAction) {
-      processed = this._onItemClickAction(itemData);
-    }
-    if (!processed) {
-      _uiDiagram.default.onContextMenuItemClick(this, itemData, this._executeCommand.bind(this));
-      this._contextMenuInstance.hide();
-    }
-  }
-  _executeCommand(command, name, value) {
-    if (typeof command === 'number') {
-      this.bar.raiseBarCommandExecuted(command, value);
-    } else if (typeof command === 'string') {
-      this._onInternalCommandAction({
-        command
-      });
-    }
-    if (name !== undefined) {
-      this._onCustomCommandAction({
-        name
-      });
-    }
-  }
-  _createOnInternalCommand() {
-    this._onInternalCommandAction = this._createActionByOption('onInternalCommand');
-  }
-  _createOnCustomCommand() {
-    this._onCustomCommandAction = this._createActionByOption('onCustomCommand');
-  }
-  _getCommands() {
-    return _diagram.default.getContextMenuCommands(this.option('commands'));
-  }
-  _fillCommandToIndexMap(commands, indexPath) {
-    commands.forEach((command, index) => {
-      const commandIndexPath = indexPath.concat([index]);
-      if (command.command !== undefined) {
-        this._commandToIndexMap[command.command] = commandIndexPath;
-      }
-      if (Array.isArray(command.items)) {
-        this._fillCommandToIndexMap(command.items, commandIndexPath);
-      }
-    });
-  }
-  _setItemEnabled(key, enabled) {
-    this._setItemVisible(key, enabled);
-  }
-  _setItemVisible(key, visible) {
-    const itemOptionText = _uiDiagram.default.getItemOptionText(this._contextMenuInstance, this._commandToIndexMap[key]);
-    _uiDiagram.default.updateContextMenuItemVisible(this._contextMenuInstance, itemOptionText, visible);
-  }
-  _setItemValue(key, value) {
-    const itemOptionText = _uiDiagram.default.getItemOptionText(this._contextMenuInstance, this._commandToIndexMap[key]);
-    _uiDiagram.default.updateContextMenuItemValue(this._contextMenuInstance, itemOptionText, key, value);
-  }
-  _setItemSubItems(key, items) {
-    const itemOptionText = _uiDiagram.default.getItemOptionText(this._contextMenuInstance, this._commandToIndexMap[key]);
-    _uiDiagram.default.updateContextMenuItems(this._contextMenuInstance, itemOptionText, key, items);
-  }
-  _setEnabled(enabled) {
-    this._contextMenuInstance.option('disabled', !enabled);
-  }
-  isVisible() {
-    return this._inOnShowing;
-  }
-  _createOnVisibilityChangingAction() {
-    this._onVisibilityChangingAction = this._createActionByOption('onVisibilityChanging');
-  }
-  _createOnItemClickAction() {
-    this._onItemClickAction = this._createActionByOption('onItemClick');
-  }
-  _optionChanged(args) {
-    switch (args.name) {
-      case 'onVisibilityChanging':
-        this._createOnVisibilityChangingAction();
-        break;
-      case 'onInternalCommand':
-        this._createOnInternalCommand();
-        break;
-      case 'onCustomCommand':
-        this._createOnCustomCommand();
-        break;
-      case 'onItemClick':
-        this._createOnItemClickAction();
-        break;
-      case 'commands':
-        this._invalidate();
-        break;
-      case 'export':
-        break;
-      default:
-        super._optionChanged(args);
-    }
-  }
-}
-class DiagramContextMenu extends _context_menu.default {
-  _renderContextMenuOverlay() {
-    super._renderContextMenuOverlay();
-    if (this._overlay && this.option('isTouchBarMode')) {
-      this._overlay && this._overlay.option('onShown', () => {
-        const $content = (0, _renderer.default)(this._overlay.$content());
-        $content.parent().addClass(DIAGRAM_TOUCHBAR_OVERLAY_CLASS);
-      });
-    }
-  }
-}
-class DiagramContextMenuBar extends _diagram2.default {
-  constructor(owner) {
-    super(owner);
-  }
-  getCommandKeys() {
-    return this._getKeys(this._owner._commands);
-  }
-  setItemValue(key, value) {
-    this._owner._setItemValue(key, value);
-  }
-  setItemEnabled(key, enabled) {
-    this._owner._setItemEnabled(key, enabled);
-  }
-  setItemVisible(key, visible) {
-    this._owner._setItemVisible(key, visible);
-  }
-  setItemSubItems(key, items) {
-    this._owner._setItemSubItems(key, items);
-  }
-  setEnabled(enabled) {
-    this._owner._setEnabled(enabled);
-  }
-  isVisible() {
-    return this._owner.isVisible();
-  }
-}
-var _default = exports["default"] = {
-  DiagramContextMenuWrapper,
-  DiagramContextMenu
-};
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 13815:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _ui = _interopRequireDefault(__webpack_require__(11118));
-var _ui2 = _interopRequireDefault(__webpack_require__(98894));
-var _diagram = __webpack_require__(11744);
-var _window = __webpack_require__(3104);
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const DIAGRAM_CONTEXT_TOOLBOX_TARGET_CLASS = 'dx-diagram-context-toolbox-target';
-const DIAGRAM_CONTEXT_TOOLBOX_CLASS = 'dx-diagram-context-toolbox';
-const DIAGRAM_TOUCH_CONTEXT_TOOLBOX_CLASS = 'dx-diagram-touch-context-toolbox';
-const DIAGRAM_CONTEXT_TOOLBOX_CONTENT_CLASS = 'dx-diagram-context-toolbox-content';
-const DIAGRAM_CONTEXT_TOOLBOX_MINHEIGHT = 150;
-class DiagramContextToolbox extends _ui.default {
-  _init() {
-    super._init();
-    this._onShownAction = this._createActionByOption('onShown');
-    const window = (0, _window.getWindow)();
-    this._popoverPositionData = [{
-      my: {
-        x: 'center',
-        y: 'top'
-      },
-      at: {
-        x: 'center',
-        y: 'bottom'
-      },
-      offset: {
-        x: 0,
-        y: 5
-      },
-      calcMaxHeight: rect => Math.max(DIAGRAM_CONTEXT_TOOLBOX_MINHEIGHT, window.innerHeight - rect.bottom - 6)
-    }, {
-      my: {
-        x: 'right',
-        y: 'center'
-      },
-      at: {
-        x: 'left',
-        y: 'center'
-      },
-      offset: {
-        x: -5,
-        y: 0
-      },
-      calcMaxHeight: rect => Math.max(DIAGRAM_CONTEXT_TOOLBOX_MINHEIGHT, Math.min(rect.top, window.innerHeight - rect.bottom) * 2 - 2)
-    }, {
-      my: {
-        x: 'center',
-        y: 'bottom'
-      },
-      at: {
-        x: 'center',
-        y: 'top'
-      },
-      offset: {
-        x: 0,
-        y: -5
-      },
-      calcMaxHeight: rect => Math.max(DIAGRAM_CONTEXT_TOOLBOX_MINHEIGHT, rect.top - 6)
-    }, {
-      my: {
-        x: 'left',
-        y: 'center'
-      },
-      at: {
-        x: 'right',
-        y: 'center'
-      },
-      offset: {
-        x: 5,
-        y: 0
-      },
-      calcMaxHeight: rect => Math.max(DIAGRAM_CONTEXT_TOOLBOX_MINHEIGHT, Math.min(rect.top, window.innerHeight - rect.bottom) * 2 - 2)
-    }];
-  }
-  _initMarkup() {
-    super._initMarkup();
-    this._$popoverTargetElement = (0, _renderer.default)('<div>').addClass(DIAGRAM_CONTEXT_TOOLBOX_TARGET_CLASS).appendTo(this.$element());
-    const $popoverElement = (0, _renderer.default)('<div>').addClass(DIAGRAM_CONTEXT_TOOLBOX_CLASS).appendTo(this.$element());
-    if (this._isTouchMode()) {
-      $popoverElement.addClass(DIAGRAM_TOUCH_CONTEXT_TOOLBOX_CLASS);
-    }
-    this._popoverInstance = this._createComponent($popoverElement, _ui2.default, {
-      hideOnOutsideClick: false,
-      container: this.$element()
-    });
-  }
-  _isTouchMode() {
-    const {
-      Browser
-    } = (0, _diagram.getDiagram)();
-    return Browser.TouchUI;
-  }
-  _show(x, y, side, category, callback) {
-    this._popoverInstance.hide();
-    this._$popoverTargetElement.css({
-      left: x + this._popoverPositionData[side].offset.x,
-      top: y + this._popoverPositionData[side].offset.y
-    }).show();
-
-    // correct offset when parent has position absolute, relative, etc (T1010677)
-    const window = (0, _window.getWindow)();
-    const targetDiv = this._$popoverTargetElement.get(0);
-    this._$popoverTargetElement.css({
-      left: targetDiv.offsetLeft - (targetDiv.getBoundingClientRect().left + window.scrollX - targetDiv.offsetLeft),
-      top: targetDiv.offsetTop - (targetDiv.getBoundingClientRect().top + window.scrollY - targetDiv.offsetTop)
-    });
-    const posRect = targetDiv.getBoundingClientRect();
-    this._popoverInstance.option({
-      maxHeight: this._popoverPositionData[side].calcMaxHeight(posRect),
-      width: this.option('toolboxWidth') !== undefined ? this.option('toolboxWidth') : undefined,
-      position: {
-        my: this._popoverPositionData[side].my,
-        at: this._popoverPositionData[side].at,
-        of: this._$popoverTargetElement
-      },
-      contentTemplate: () => {
-        return (0, _renderer.default)('<div>').append((0, _renderer.default)('<div>').addClass(DIAGRAM_CONTEXT_TOOLBOX_CONTENT_CLASS)).dxScrollView({
-          width: '100%',
-          height: '100%'
-        });
-      },
-      onContentReady: () => {
-        const $element = this.$element().find('.' + DIAGRAM_CONTEXT_TOOLBOX_CONTENT_CLASS);
-        this._onShownAction({
-          category,
-          callback,
-          $element,
-          hide: () => this._popoverInstance.hide()
-        });
-      }
-    });
-    this._popoverInstance.show();
-  }
-  _hide() {
-    this._$popoverTargetElement.hide();
-    this._popoverInstance.hide();
-  }
-}
-var _default = exports["default"] = DiagramContextToolbox;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 57846:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _diagram = __webpack_require__(11744);
-var _message = _interopRequireDefault(__webpack_require__(4671));
-var _file_uploader = _interopRequireDefault(__webpack_require__(26980));
-var _window = __webpack_require__(3104);
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const DiagramDialogManager = {
-  getConfigurations: function () {
-    const {
-      DiagramCommand
-    } = (0, _diagram.getDiagram)();
-    return this.dialogList || (this.dialogList = [{
-      command: DiagramCommand.InsertShapeImage,
-      title: _message.default.format('dxDiagram-dialogInsertShapeImageTitle'),
-      onGetContent: this.getChangeImageDialogContent
-    }, {
-      command: DiagramCommand.EditShapeImage,
-      title: _message.default.format('dxDiagram-dialogEditShapeImageTitle'),
-      onGetContent: this.getChangeImageDialogContent
-    }]);
-  },
-  getChangeImageDialogContent: function (args) {
-    const $uploader = (0, _renderer.default)('<div>');
-    args.component._createComponent($uploader, _file_uploader.default, {
-      selectButtonText: _message.default.format('dxDiagram-dialogEditShapeImageSelectButton'),
-      accept: 'image/*',
-      uploadMode: 'useForm',
-      onValueChanged: function (e) {
-        const window = (0, _window.getWindow)();
-        const reader = new window.FileReader();
-        reader.onload = function (e) {
-          args.component._commandParameter = e.target.result;
-        };
-        reader.readAsDataURL(e.value[0]);
-      }
-    });
-    return $uploader;
-  },
-  getDialogParameters(command) {
-    const commandIndex = this.getConfigurations().map(c => c.command).indexOf(command);
-    if (commandIndex >= 0) {
-      return this.getConfigurations()[commandIndex];
-    } else {
-      return null;
-    }
-  }
-};
-var _default = exports["default"] = DiagramDialogManager;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 55485:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _ui = _interopRequireDefault(__webpack_require__(11118));
-var _message = _interopRequireDefault(__webpack_require__(4671));
-var _ui2 = _interopRequireDefault(__webpack_require__(10720));
-var _extend = __webpack_require__(52576);
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-class DiagramDialog extends _ui.default {
-  _init() {
-    super._init();
-    this._command = undefined;
-    this._isShown = false;
-    this._createOnGetContentOption();
-    this._createOnHiddenOption();
-  }
-  _initMarkup() {
-    super._initMarkup();
-    this._command = this.option('command');
-    this._$popupElement = (0, _renderer.default)('<div>').appendTo(this.$element());
-    this._popup = this._createComponent(this._$popupElement, _ui2.default, {
-      title: this.option('title'),
-      maxWidth: this.option('maxWidth'),
-      height: this.option('height'),
-      toolbarItems: this.option('toolbarItems'),
-      onHidden: this._onHiddenAction
-    });
-  }
-  _clean() {
-    delete this._popup;
-    this._$popupElement && this._$popupElement.remove();
-  }
-  _getDefaultOptions() {
-    return (0, _extend.extend)(super._getDefaultOptions(), {
-      title: '',
-      maxWidth: 500,
-      height: 'auto',
-      toolbarItems: this._getToolbarItems()
-    });
-  }
-  _getToolbarItems() {
-    return [this._getOkToolbarItem(), this._getCancelToolbarItem()];
-  }
-  _getOkToolbarItem() {
-    return {
-      widget: 'dxButton',
-      location: 'after',
-      toolbar: 'bottom',
-      options: {
-        text: _message.default.format('dxDiagram-dialogButtonOK'),
-        onClick: function () {
-          this._command.execute(this._commandParameter);
-          this._hide();
-        }.bind(this)
-      }
-    };
-  }
-  _getCancelToolbarItem() {
-    return {
-      widget: 'dxButton',
-      location: 'after',
-      toolbar: 'bottom',
-      options: {
-        text: _message.default.format('dxDiagram-dialogButtonCancel'),
-        onClick: this._hide.bind(this)
-      }
-    };
-  }
-  _optionChanged(args) {
-    switch (args.name) {
-      case 'title':
-      case 'maxWidth':
-      case 'height':
-      case 'toolbarItems':
-        this._popup.option(args.name, args.value);
-        break;
-      case 'command':
-        this._command = args.value;
-        break;
-      case 'onGetContent':
-        this._createOnGetContentOption();
-        break;
-      case 'onHidden':
-        this._createOnHiddenOption();
-        break;
-      default:
-        super._optionChanged(args);
-    }
-  }
-  _createOnGetContentOption() {
-    this._onGetContentAction = this._createActionByOption('onGetContent');
-  }
-  _createOnHiddenOption() {
-    this._onHiddenAction = this._createActionByOption('onHidden');
-  }
-  _hide() {
-    this._popup.hide();
-    this._isShown = false;
-  }
-  _show() {
-    this._popup.$content().empty().append(this._onGetContentAction());
-    this._popup.show();
-    this._isShown = true;
-  }
-  isVisible() {
-    return this._isShown;
-  }
-}
-var _default = exports["default"] = DiagramDialog;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 80209:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _size = __webpack_require__(57653);
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _extend = __webpack_require__(52576);
-var _window = __webpack_require__(3104);
-var _ui = _interopRequireDefault(__webpack_require__(10720));
-var _uiDiagram = _interopRequireDefault(__webpack_require__(29738));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const DIAGRAM_MOBILE_POPUP_CLASS = 'dx-diagram-mobile-popup';
-class DiagramFloatingPanel extends _uiDiagram.default {
-  _init() {
-    super._init();
-    this._createOnVisibilityChangingAction();
-    this._createOnVisibilityChangedAction();
-  }
-  isVisible() {
-    return this.option('isVisible');
-  }
-  isMobileView() {
-    return this.option('isMobileView');
-  }
-  _initMarkup() {
-    super._initMarkup();
-    const $parent = this.$element();
-    const $popupElement = (0, _renderer.default)('<div>').addClass(this._getPopupClass()).addClass(this.isMobileView() && DIAGRAM_MOBILE_POPUP_CLASS).appendTo($parent);
-    this._popup = this._createComponent($popupElement, _ui.default, this._getPopupOptions());
-    this._updatePopupVisible();
-  }
-  show() {
-    this.option('isVisible', true);
-  }
-  hide() {
-    this.option('isVisible', false);
-  }
-  toggle() {
-    this.option('isVisible', !this.isVisible());
-  }
-  repaint() {
-    this._popup.repaint();
-  }
-  _getPopupContent() {
-    return this._popup.content();
-  }
-  _getPopupTitle() {
-    const $content = (0, _renderer.default)(this._getPopupContent());
-    return $content.parent().find('.dx-popup-title');
-  }
-  _getPointerUpElements() {
-    return [this._getPopupContent(), this._getPopupTitle()];
-  }
-  _getVerticalPaddingsAndBorders() {
-    const $content = (0, _renderer.default)(this._getPopupContent());
-    return (0, _size.getOuterHeight)($content) - (0, _size.getHeight)($content);
-  }
-  _getHorizontalPaddingsAndBorders() {
-    const $content = (0, _renderer.default)(this._getPopupContent());
-    return (0, _size.getOuterWidth)($content) - (0, _size.getWidth)($content);
-  }
-  _getPopupClass() {
-    return '';
-  }
-  _getPopupWidth() {
-    return this.option('width') || 'auto';
-  }
-  _getPopupMaxWidth() {
-    return this.option('maxWidth');
-  }
-  _getPopupMinWidth() {
-    return this.option('minWidth');
-  }
-  _getPopupHeight() {
-    return this.option('height') || 'auto';
-  }
-  _getPopupMaxHeight() {
-    return this.option('maxHeight');
-  }
-  _getPopupMinHeight() {
-    return this.option('minHeight');
-  }
-  _getPopupPosition() {
-    return {};
-  }
-  _getPopupContainer() {
-    return this.option('container');
-  }
-  _getPopupSlideAnimationObject(properties) {
-    return (0, _extend.extend)({
-      type: 'slide',
-      start: () => {
-        (0, _renderer.default)('body').css('overflow', 'hidden');
-      },
-      complete: () => {
-        (0, _renderer.default)('body').css('overflow', '');
-      }
-    }, properties);
-  }
-  _getPopupAnimation() {
-    return {
-      hide: {
-        type: 'fadeOut'
-      },
-      show: {
-        type: 'fadeIn'
-      }
-    };
-  }
-  _getPopupOptions() {
-    const that = this;
-    let wrapperClass = this._getPopupClass();
-    if (this.isMobileView()) {
-      wrapperClass += ` ${DIAGRAM_MOBILE_POPUP_CLASS}`;
-    }
-    return {
-      animation: (0, _window.hasWindow)() ? this._getPopupAnimation() : null,
-      shading: false,
-      showTitle: false,
-      focusStateEnabled: false,
-      container: this._getPopupContainer(),
-      width: this._getPopupWidth(),
-      height: this._getPopupHeight(),
-      maxWidth: this._getPopupMaxWidth(),
-      maxHeight: this._getPopupMaxHeight(),
-      minWidth: this._getPopupMinWidth(),
-      minHeight: this._getPopupMinHeight(),
-      position: this._getPopupPosition(),
-      showCloseButton: true,
-      wrapperAttr: {
-        class: wrapperClass
-      },
-      onContentReady: function () {
-        that._renderPopupContent(that._popup.content());
-      },
-      onShowing: () => {
-        this._onVisibilityChangingAction({
-          visible: true,
-          component: this
-        });
-      },
-      onShown: () => {
-        this.option('isVisible', true);
-        this._onVisibilityChangedAction({
-          visible: true,
-          component: this
-        });
-      },
-      onHiding: () => {
-        this._onVisibilityChangingAction({
-          visible: false,
-          component: this
-        });
-      },
-      onHidden: () => {
-        this.option('isVisible', false);
-        this._onVisibilityChangedAction({
-          visible: false,
-          component: this
-        });
-      }
-    };
-  }
-  _renderPopupContent($parent) {}
-  _updatePopupVisible() {
-    this._popup.option('visible', this.isVisible());
-  }
-  _createOnVisibilityChangingAction() {
-    this._onVisibilityChangingAction = this._createActionByOption('onVisibilityChanging');
-  }
-  _createOnVisibilityChangedAction() {
-    this._onVisibilityChangedAction = this._createActionByOption('onVisibilityChanged');
-  }
-  _optionChanged(args) {
-    switch (args.name) {
-      case 'onVisibilityChanging':
-        this._createOnVisibilityChangingAction();
-        break;
-      case 'onVisibilityChanged':
-        this._createOnVisibilityChangedAction();
-        break;
-      case 'container':
-        this._popup.option('container', this._getPopupContainer());
-        break;
-      case 'width':
-        this._popup.option('width', this._getPopupWidth());
-        break;
-      case 'height':
-        this._popup.option('height', this._getPopupHeight());
-        break;
-      case 'maxWidth':
-        this._popup.option('maxWidth', this._getPopupMaxWidth());
-        break;
-      case 'maxHeight':
-        this._popup.option('maxHeight', this._getPopupMaxHeight());
-        break;
-      case 'minWidth':
-        this._popup.option('minWidth', this._getPopupMinWidth());
-        break;
-      case 'minHeight':
-        this._popup.option('minHeight', this._getPopupMinHeight());
-        break;
-      case 'isMobileView':
-        this._invalidate();
-        break;
-      case 'isVisible':
-        this._updatePopupVisible();
-        break;
-      default:
-        super._optionChanged(args);
-    }
-  }
-  _getDefaultOptions() {
-    return (0, _extend.extend)(super._getDefaultOptions(), {
-      isVisible: true,
-      isMobileView: false,
-      offsetX: 0,
-      offsetY: 0
-    });
-  }
-}
-var _default = exports["default"] = DiagramFloatingPanel;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 98580:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _uiDiagram = _interopRequireDefault(__webpack_require__(29339));
-var _diagram = _interopRequireDefault(__webpack_require__(43304));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-class DiagramHistoryToolbar extends _uiDiagram.default {
-  _getCommands() {
-    return _diagram.default.getHistoryToolbarCommands(this.option('commands'), this._getExcludeCommands());
-  }
-  _getExcludeCommands() {
-    const commands = [].concat(this.option('excludeCommands'));
-    if (!this.option('isMobileView')) {
-      commands.push(_diagram.default.SHOW_TOOLBOX_COMMAND_NAME);
-    }
-    return commands;
-  }
-}
-var _default = exports["default"] = DiagramHistoryToolbar;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
 /***/ 14006:
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -294252,1533 +303970,6 @@ var _default = exports["default"] = _ui.default; // STYLE diagram
  * @name dxDiagram.registerKeyHandler(key, handler)
  * @hidden true
  */
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 41499:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _uiDiagram = _interopRequireDefault(__webpack_require__(29339));
-var _diagram = _interopRequireDefault(__webpack_require__(43304));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-class DiagramMainToolbar extends _uiDiagram.default {
-  _getCommands() {
-    return _diagram.default.getMainToolbarCommands(this.option('commands'), this.option('excludeCommands'));
-  }
-}
-var _default = exports["default"] = DiagramMainToolbar;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 8708:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _icon = __webpack_require__(69629);
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const DIAGRAM_CONTEXT_MENU_CLASS = 'dx-diagram-contextmenu';
-const DiagramMenuHelper = {
-  getContextMenuItemTemplate(contextMenu, itemData, itemIndex, itemElement) {
-    const $itemElement = (0, _renderer.default)(itemElement);
-    $itemElement.empty();
-    const itemKey = itemData.rootCommand !== undefined ? itemData.rootCommand : -1;
-    if (itemData.icon && !itemData.checked) {
-      const $iconElement = (0, _icon.getImageContainer)(itemData.icon);
-      $itemElement.append($iconElement);
-    } else if (contextMenu._menuHasCheckedItems && contextMenu._menuHasCheckedItems[itemKey] === true) {
-      const $checkElement = (0, _icon.getImageContainer)('check');
-      $checkElement.css('visibility', !itemData.checked ? 'hidden' : 'visible');
-      $itemElement.append($checkElement);
-    }
-    $itemElement.append('<span class="dx-menu-item-text">' + itemData.text + '</span>');
-    if (Array.isArray(itemData.items) && itemData.items.length > 0) {
-      $itemElement.append('<span class="dx-menu-item-popout-container"><div class="dx-menu-item-popout"></div></span>');
-    }
-  },
-  getContextMenuCssClass() {
-    return DIAGRAM_CONTEXT_MENU_CLASS;
-  },
-  onContextMenuItemClick(widget, itemData, actionHandler) {
-    if ((itemData.command !== undefined || itemData.name !== undefined) && (!Array.isArray(itemData.items) || !itemData.items.length)) {
-      const parameter = DiagramMenuHelper.getItemCommandParameter(widget, itemData);
-      actionHandler.call(this, itemData.command, itemData.name, parameter);
-    } else if (itemData.rootCommand !== undefined && itemData.value !== undefined) {
-      const parameter = DiagramMenuHelper.getItemCommandParameter(widget, itemData, itemData.value);
-      actionHandler.call(this, itemData.rootCommand, undefined, parameter);
-    }
-  },
-  getItemValue(item) {
-    return typeof item.value === 'object' ? JSON.stringify(item.value) : item.value;
-  },
-  getItemOptionText(contextMenu, indexPath) {
-    if (contextMenu) {
-      indexPath = indexPath.slice();
-      const parentItemOptionText = this._getParentItemOptionText(indexPath);
-      if (contextMenu._originalItemsInfo && contextMenu._originalItemsInfo[parentItemOptionText]) {
-        indexPath[indexPath.length - 1] += contextMenu._originalItemsInfo[parentItemOptionText].indexPathCorrection;
-      }
-    }
-    return this._getItemOptionTextCore(indexPath);
-  },
-  _getParentItemOptionText(indexPath) {
-    const parentIndexPath = indexPath.slice(0, indexPath.length - 1);
-    return this._getItemOptionTextCore(parentIndexPath);
-  },
-  _getItemOptionTextCore(indexPath) {
-    return indexPath.reduce((r, i) => {
-      return r + `items[${i}].`;
-    }, '');
-  },
-  getItemCommandParameter(widget, item, value) {
-    if (item.getParameter) {
-      return item.getParameter(widget);
-    }
-    return value;
-  },
-  updateContextMenuItems(contextMenu, itemOptionText, rootCommandKey, items) {
-    if (!contextMenu._originalItemsInfo) {
-      contextMenu._originalItemsInfo = {};
-    }
-    if (!contextMenu._originalItemsInfo[itemOptionText]) {
-      contextMenu._originalItemsInfo[itemOptionText] = {
-        items: contextMenu.option(itemOptionText + 'items') || []
-      };
-    }
-    items = items.map(item => {
-      return {
-        'value': this.getItemValue(item),
-        'text': item.text,
-        'checked': item.checked,
-        'widget': contextMenu,
-        'rootCommand': rootCommandKey
-      };
-    });
-    const originalItems = contextMenu._originalItemsInfo[itemOptionText].items;
-    contextMenu.option(itemOptionText + 'items', items.concat(originalItems));
-    if (contextMenu._originalItemsInfo[itemOptionText] && originalItems.length) {
-      contextMenu._originalItemsInfo[itemOptionText].indexPathCorrection = items.length;
-    }
-  },
-  updateContextMenuItemVisible(contextMenu, itemOptionText, visible) {
-    contextMenu.option(itemOptionText + 'visible', visible);
-  },
-  updateContextMenuItemValue(contextMenu, itemOptionText, rootCommandKey, value) {
-    const items = contextMenu.option(itemOptionText + 'items');
-    if (typeof value === 'boolean' && (!items || !items.length)) {
-      this._setContextMenuHasCheckedItems(contextMenu, -1);
-      contextMenu.option(itemOptionText + 'checked', value);
-    } else if (value !== undefined) {
-      this._setContextMenuHasCheckedItems(contextMenu, rootCommandKey);
-      if (Array.isArray(items)) {
-        items.forEach((item, index) => {
-          item.checked = item.value === value;
-        });
-      }
-    }
-  },
-  _setContextMenuHasCheckedItems(contextMenu, key) {
-    if (!contextMenu._menuHasCheckedItems) {
-      contextMenu._menuHasCheckedItems = {};
-    }
-    contextMenu._menuHasCheckedItems[key] = true;
-  }
-};
-var _default = exports["default"] = DiagramMenuHelper;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 29738:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _ui = _interopRequireDefault(__webpack_require__(11118));
-var _events_engine = _interopRequireDefault(__webpack_require__(92774));
-var _index = __webpack_require__(98834);
-var _pointer = _interopRequireDefault(__webpack_require__(89797));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const POINTERUP_EVENT_NAME = (0, _index.addNamespace)(_pointer.default.up, 'dxDiagramPanel');
-const PREVENT_REFOCUS_SELECTOR = '.dx-textbox';
-class DiagramPanel extends _ui.default {
-  _init() {
-    super._init();
-    this._createOnPointerUpAction();
-  }
-  _render() {
-    super._render();
-    this._attachPointerUpEvent();
-  }
-  _getPointerUpElements() {
-    return [this.$element()];
-  }
-  _attachPointerUpEvent() {
-    const elements = this._getPointerUpElements();
-    elements.forEach(element => {
-      _events_engine.default.off(element, POINTERUP_EVENT_NAME);
-      _events_engine.default.on(element, POINTERUP_EVENT_NAME, e => {
-        if (!(0, _renderer.default)(e.target).closest(PREVENT_REFOCUS_SELECTOR).length) {
-          this._onPointerUpAction();
-        }
-      });
-    });
-  }
-  _createOnPointerUpAction() {
-    this._onPointerUpAction = this._createActionByOption('onPointerUp');
-  }
-  _optionChanged(args) {
-    switch (args.name) {
-      case 'onPointerUp':
-        this._createOnPointerUpAction();
-        break;
-      default:
-        super._optionChanged(args);
-    }
-  }
-}
-var _default = exports["default"] = DiagramPanel;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 27574:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _size = __webpack_require__(57653);
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _extend = __webpack_require__(52576);
-var _scroll_view = _interopRequireDefault(__webpack_require__(91374));
-var _tab_panel = _interopRequireDefault(__webpack_require__(78175));
-var _uiDiagram = _interopRequireDefault(__webpack_require__(80209));
-var _diagram = _interopRequireDefault(__webpack_require__(43304));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const DIAGRAM_PROPERTIES_POPUP_WIDTH = 420;
-const DIAGRAM_PROPERTIES_POPUP_HEIGHT = 340;
-const DIAGRAM_PROPERTIES_POPUP_CLASS = 'dx-diagram-properties-popup';
-const DIAGRAM_PROPERTIES_POPUP_NOTABS_CLASS = 'dx-diagram-properties-popup-notabs';
-const DIAGRAM_PROPERTIES_PANEL_CLASS = 'dx-diagram-properties-panel';
-const DIAGRAM_PROPERTIES_PANEL_GROUP_TITLE_CLASS = 'dx-diagram-properties-panel-group-title';
-const DIAGRAM_PROPERTIES_PANEL_GROUP_TOOLBAR_CLASS = 'dx-diagram-properties-panel-group-toolbar';
-class DiagramPropertiesPanel extends _uiDiagram.default {
-  _init() {
-    super._init();
-    this._commandTabs = _diagram.default.getPropertyPanelCommandTabs(this.option('propertyTabs'));
-    this._createOnCreateToolbar();
-    this._createOnSelectedGroupChanged();
-  }
-  _initMarkup() {
-    this._toolbars = [];
-    this._selectedToolbar = undefined;
-    super._initMarkup();
-  }
-  _getPopupClass() {
-    let className = DIAGRAM_PROPERTIES_POPUP_CLASS;
-    if (!this._hasTabPanel()) {
-      className += ' ' + DIAGRAM_PROPERTIES_POPUP_NOTABS_CLASS;
-    }
-    return className;
-  }
-  _getPopupWidth() {
-    return this.isMobileView() ? '100%' : DIAGRAM_PROPERTIES_POPUP_WIDTH;
-  }
-  _getPopupHeight() {
-    return DIAGRAM_PROPERTIES_POPUP_HEIGHT;
-  }
-  _getPopupPosition() {
-    const $parent = this.option('offsetParent');
-    if (this.isMobileView()) {
-      return {
-        my: 'left bottom',
-        at: 'left bottom',
-        of: $parent
-      };
-    }
-    return {
-      my: 'right bottom',
-      at: 'right bottom',
-      of: $parent,
-      offset: '-' + this.option('offsetX') + ' -' + this.option('offsetY')
-    };
-  }
-  _getPopupAnimation() {
-    const $parent = this.option('offsetParent');
-    if (this.isMobileView()) {
-      return {
-        hide: this._getPopupSlideAnimationObject({
-          direction: 'bottom',
-          from: {
-            position: {
-              my: 'left bottom',
-              at: 'left bottom',
-              of: $parent
-            }
-          },
-          to: {
-            position: {
-              my: 'left top',
-              at: 'left bottom',
-              of: $parent
-            }
-          }
-        }),
-        show: this._getPopupSlideAnimationObject({
-          direction: 'top',
-          from: {
-            position: {
-              my: 'left top',
-              at: 'left bottom',
-              of: $parent
-            }
-          },
-          to: {
-            position: {
-              my: 'left bottom',
-              at: 'left bottom',
-              of: $parent
-            }
-          }
-        })
-      };
-    }
-    return super._getPopupAnimation();
-  }
-  _getPopupOptions() {
-    return (0, _extend.extend)(super._getPopupOptions(), {
-      showTitle: this.isMobileView(),
-      showCloseButton: this.isMobileView()
-    });
-  }
-  _renderPopupContent($parent) {
-    if (!this._commandTabs.length) return;
-    const $panel = (0, _renderer.default)('<div>').addClass(DIAGRAM_PROPERTIES_PANEL_CLASS).appendTo($parent);
-    if (this._hasTabPanel()) {
-      this._renderTabPanel($panel);
-    } else {
-      this._renderTabContent($panel, this._commandTabs[0], 0, true);
-    }
-  }
-  _hasTabPanel() {
-    return this._commandTabs.length > 1;
-  }
-  _renderTabPanel($parent) {
-    const $tabPanel = (0, _renderer.default)('<div>').appendTo($parent);
-    this._tabPanel = this._createComponent($tabPanel, _tab_panel.default, {
-      focusStateEnabled: false,
-      dataSource: this._commandTabs,
-      itemTemplate: (data, index, $element) => {
-        this._renderTabContent($element, data, index);
-      },
-      onSelectionChanged: e => {
-        this._onSelectedGroupChangedAction();
-        this._onPointerUpAction();
-      },
-      onContentReady: e => {
-        this._popup.option('height', (0, _size.getHeight)(e.component.$element()) + this._getVerticalPaddingsAndBorders());
-        if (this._firstScrollView) {
-          this._scrollViewHeight = (0, _size.getOuterHeight)(this._firstScrollView.$element());
-          this._firstScrollView.option('height', this._scrollViewHeight);
-        }
-      }
-    });
-  }
-  _renderTabContent($parent, tab, index, isSingleTab) {
-    const $scrollViewWrapper = (0, _renderer.default)('<div>').appendTo($parent);
-    const scrollView = this._createComponent($scrollViewWrapper, _scroll_view.default, {
-      height: this._scrollViewHeight
-    });
-    this._renderTabInnerContent(scrollView.content(), tab, index);
-    if (isSingleTab) {
-      this._popup.option('height', (0, _size.getHeight)(scrollView.$element()) + this._getVerticalPaddingsAndBorders());
-    } else {
-      this._firstScrollView = this._firstScrollView || scrollView;
-    }
-  }
-  _renderTabInnerContent($parent, group, index) {
-    if (group.groups) {
-      group.groups.forEach((sg, si) => {
-        this._renderTabGroupContent($parent, index, sg.title, sg.commands);
-      });
-    } else if (group.commands) {
-      this._renderTabGroupContent($parent, index, undefined, group.commands);
-    }
-  }
-  _renderTabGroupContent($parent, index, title, commands) {
-    if (title) {
-      (0, _renderer.default)('<div>').addClass(DIAGRAM_PROPERTIES_PANEL_GROUP_TITLE_CLASS).appendTo($parent).text(title);
-    }
-    const $toolbar = (0, _renderer.default)('<div>').addClass(DIAGRAM_PROPERTIES_PANEL_GROUP_TOOLBAR_CLASS).appendTo($parent);
-    const args = {
-      $parent: $toolbar,
-      commands: commands
-    };
-    this._onCreateToolbarAction(args);
-    if (!this._toolbars[index]) {
-      this._toolbars[index] = [];
-    }
-    this._toolbars[index].push(args.toolbar);
-    this._selectedToolbar = args.toolbar;
-  }
-  getActiveToolbars() {
-    const index = this._tabPanel ? this._tabPanel.option('selectedIndex') : 0;
-    return this._toolbars[index];
-  }
-  _createOnCreateToolbar() {
-    this._onCreateToolbarAction = this._createActionByOption('onCreateToolbar');
-  }
-  _createOnSelectedGroupChanged() {
-    this._onSelectedGroupChangedAction = this._createActionByOption('onSelectedGroupChanged');
-  }
-  _optionChanged(args) {
-    switch (args.name) {
-      case 'onCreateToolbar':
-        this._createOnCreateToolbar();
-        break;
-      case 'onSelectedGroupChanged':
-        this._createOnSelectedGroupChanged();
-        break;
-      case 'propertyTabs':
-        this._invalidate();
-        break;
-      default:
-        super._optionChanged(args);
-    }
-  }
-}
-var _default = exports["default"] = DiagramPropertiesPanel;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 81567:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _uiDiagram = _interopRequireDefault(__webpack_require__(29339));
-var _diagram = _interopRequireDefault(__webpack_require__(43304));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-class DiagramPropertiesToolbar extends _uiDiagram.default {
-  _getCommands() {
-    return _diagram.default.getPropertiesToolbarCommands();
-  }
-}
-var _default = exports["default"] = DiagramPropertiesToolbar;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 4559:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _size = __webpack_require__(57653);
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _ui = _interopRequireDefault(__webpack_require__(11118));
-var _scroll_view = _interopRequireDefault(__webpack_require__(91374));
-var _m_widget_utils = __webpack_require__(12062);
-var _diagram = __webpack_require__(11744);
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-// TODO: Can we get rid of this dependency of the PivotGrid here?
-
-class DiagramScrollView extends _ui.default {
-  _init() {
-    super._init();
-    const {
-      EventDispatcher
-    } = (0, _diagram.getDiagram)();
-    this.onScroll = new EventDispatcher();
-    this._createOnCreateDiagramAction();
-  }
-  _initMarkup() {
-    super._initMarkup();
-    const $scrollViewWrapper = (0, _renderer.default)('<div>').appendTo(this.$element());
-    const options = {
-      direction: 'both',
-      bounceEnabled: false,
-      scrollByContent: false,
-      onScroll: _ref => {
-        let {
-          scrollOffset
-        } = _ref;
-        this._raiseOnScroll(scrollOffset.left, scrollOffset.top);
-      }
-    };
-    const useNativeScrolling = this.option('useNativeScrolling');
-    if (useNativeScrolling !== undefined) {
-      options.useNative = useNativeScrolling;
-    }
-    this._scrollView = this._createComponent($scrollViewWrapper, _scroll_view.default, options);
-    this._onCreateDiagramAction({
-      $parent: (0, _renderer.default)(this._scrollView.content()),
-      scrollView: this
-    });
-  }
-  setScroll(left, top) {
-    this._scrollView.scrollTo({
-      left,
-      top
-    });
-    this._raiseOnScrollWithoutPoint();
-  }
-  offsetScroll(left, top) {
-    this._scrollView.scrollBy({
-      left,
-      top
-    });
-    this._raiseOnScrollWithoutPoint();
-  }
-  getSize() {
-    const {
-      Size
-    } = (0, _diagram.getDiagram)();
-    const $element = this._scrollView.$element();
-    return new Size(Math.floor((0, _size.getWidth)($element)), Math.floor((0, _size.getHeight)($element)));
-  }
-  getScrollContainer() {
-    return this._scrollView.$element()[0];
-  }
-  getScrollBarWidth() {
-    return this.option('useNativeScrolling') ? (0, _m_widget_utils.calculateScrollbarWidth)() : 0;
-  }
-  detachEvents() {}
-  _raiseOnScroll(left, top) {
-    const {
-      Point
-    } = (0, _diagram.getDiagram)();
-    this.onScroll.raise('notifyScrollChanged', () => {
-      return new Point(left, top);
-    });
-  }
-  _raiseOnScrollWithoutPoint() {
-    const {
-      Point
-    } = (0, _diagram.getDiagram)();
-    this.onScroll.raise('notifyScrollChanged', () => {
-      return new Point(this._scrollView.scrollLeft(), this._scrollView.scrollTop());
-    });
-  }
-  _createOnCreateDiagramAction() {
-    this._onCreateDiagramAction = this._createActionByOption('onCreateDiagram');
-  }
-  _optionChanged(args) {
-    switch (args.name) {
-      case 'onCreateDiagram':
-        this._createOnCreateDiagramAction();
-        break;
-      case 'useNativeScrolling':
-        break;
-      default:
-        super._optionChanged(args);
-    }
-  }
-}
-var _default = exports["default"] = DiagramScrollView;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 29339:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _size = __webpack_require__(57653);
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _toolbar = _interopRequireDefault(__webpack_require__(2850));
-var _context_menu = _interopRequireDefault(__webpack_require__(34378));
-var _diagram = _interopRequireDefault(__webpack_require__(35629));
-var _extend = __webpack_require__(52576);
-var _window = __webpack_require__(3104);
-var _uiDiagram = _interopRequireDefault(__webpack_require__(29738));
-var _uiDiagram2 = _interopRequireDefault(__webpack_require__(8708));
-var _diagram2 = __webpack_require__(11744);
-__webpack_require__(60695);
-__webpack_require__(87928);
-__webpack_require__(94319);
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const ACTIVE_FORMAT_CLASS = 'dx-format-active';
-const DIAGRAM_TOOLBAR_CLASS = 'dx-diagram-toolbar';
-const DIAGRAM_TOOLBAR_SEPARATOR_CLASS = 'dx-diagram-toolbar-separator';
-const DIAGRAM_TOOLBAR_MENU_SEPARATOR_CLASS = 'dx-diagram-toolbar-menu-separator';
-const DIAGRAM_MOBILE_TOOLBAR_COLOR_BOX_OPENED_CLASS = 'dx-diagram-mobile-toolbar-color-box-opened';
-class DiagramToolbar extends _uiDiagram.default {
-  _init() {
-    this._commands = [];
-    this._itemHelpers = {};
-    this._commandContextMenus = {};
-    this._contextMenuList = [];
-    this._valueConverters = {};
-    this.bar = new DiagramToolbarBar(this);
-    this._createOnInternalCommand();
-    this._createOnCustomCommand();
-    this._createOnSubMenuVisibilityChangingAction();
-    super._init();
-  }
-  _initMarkup() {
-    super._initMarkup();
-    const isServerSide = !(0, _window.hasWindow)();
-    if (!this.option('skipAdjustSize') && !isServerSide) {
-      (0, _size.setWidth)(this.$element(), '');
-    }
-    this._commands = this._getCommands();
-    this._itemHelpers = {};
-    this._commandContextMenus = {};
-    this._contextMenuList = [];
-    const $toolbar = this._createMainElement();
-    this._renderToolbar($toolbar);
-    if (!this.option('skipAdjustSize') && !isServerSide) {
-      const $toolbarContent = this.$element().find('.dx-toolbar-before');
-      (0, _size.setWidth)(this.$element(), (0, _size.getWidth)($toolbarContent));
-    }
-  }
-  _createMainElement() {
-    return (0, _renderer.default)('<div>').addClass(DIAGRAM_TOOLBAR_CLASS).appendTo(this._$element);
-  }
-  _getCommands() {
-    return this.option('commands') || [];
-  }
-  _renderToolbar($toolbar) {
-    const beforeCommands = this._commands.filter(command => ['after', 'center'].indexOf(command.location) === -1);
-    const centerCommands = this._commands.filter(command => command.location === 'center');
-    const afterCommands = this._commands.filter(command => command.location === 'after');
-    const dataSource = [].concat(this._prepareToolbarItems(beforeCommands, 'before', this._executeCommand)).concat(this._prepareToolbarItems(centerCommands, 'center', this._executeCommand)).concat(this._prepareToolbarItems(afterCommands, 'after', this._executeCommand));
-    this._toolbarInstance = this._createComponent($toolbar, _toolbar.default, {
-      dataSource
-    });
-  }
-  _prepareToolbarItems(items, location, actionHandler) {
-    return items.map(item => (0, _extend.extend)(true, {
-      location: location,
-      locateInMenu: this.option('locateInMenu')
-    }, this._createItem(item, location, actionHandler), this._createItemOptions(item), this._createItemActionOptions(item, actionHandler)));
-  }
-  _createItem(item, location, actionHandler) {
-    if (item.getCommandValue || item.getEditorValue || item.getEditorDisplayValue) {
-      this._valueConverters[item.command] = {
-        getCommandValue: item.getCommandValue,
-        getEditorValue: item.getEditorValue,
-        getEditorDisplayValue: item.getEditorDisplayValue
-      };
-    }
-    if (item.widget === 'separator') {
-      return {
-        template: (data, index, element) => {
-          (0, _renderer.default)(element).addClass(DIAGRAM_TOOLBAR_SEPARATOR_CLASS);
-        },
-        menuItemTemplate: (data, index, element) => {
-          (0, _renderer.default)(element).addClass(DIAGRAM_TOOLBAR_MENU_SEPARATOR_CLASS);
-        }
-      };
-    }
-    return {
-      widget: item.widget || 'dxButton',
-      cssClass: item.cssClass,
-      options: {
-        stylingMode: this.option('buttonStylingMode'),
-        type: this.option('buttonType'),
-        text: item.text,
-        hint: item.hint,
-        icon: item.icon || item.iconUnchecked || item.iconChecked,
-        iconChecked: item.iconChecked,
-        iconUnchecked: item.iconUnchecked,
-        onInitialized: e => this._onItemInitialized(e.component, item),
-        onContentReady: e => this._onItemContentReady(e.component, item, actionHandler)
-      }
-    };
-  }
-  _createItemOptions(_ref) {
-    let {
-      widget,
-      command,
-      items,
-      valueExpr,
-      displayExpr,
-      showText,
-      hint,
-      icon
-    } = _ref;
-    if (widget === 'dxSelectBox') {
-      return this._createSelectBoxItemOptions(command, hint, items, valueExpr, displayExpr);
-    } else if (widget === 'dxTextBox') {
-      return this._createTextBoxItemOptions(command, hint);
-    } else if (widget === 'dxColorBox') {
-      return this._createColorBoxItemOptions(command, hint, icon);
-    } else if (!widget || widget === 'dxButton') {
-      return {
-        showText: showText || 'inMenu'
-      };
-    }
-  }
-  _createSelectBoxItemOptions(command, hint, items, valueExpr, displayExpr) {
-    let options = this._createTextEditorItemOptions(hint);
-    options = (0, _extend.extend)(true, options, {
-      options: {
-        dataSource: items,
-        displayExpr: displayExpr || 'text',
-        valueExpr: valueExpr || 'value'
-      }
-    });
-    const isSelectButton = items && items.every(i => i.icon !== undefined);
-    const nullIconClass = 'dx-diagram-i-selectbox-null-icon dx-diagram-i';
-    if (isSelectButton) {
-      options = (0, _extend.extend)(true, options, {
-        options: {
-          fieldAddons: {
-            beforeTemplate: (data, container) => {
-              (0, _renderer.default)('<i>').addClass(data && data.icon || nullIconClass).appendTo(container);
-            }
-          },
-          itemTemplate: (data, index, container) => {
-            (0, _renderer.default)(container).attr('title', data.hint);
-            return `<i class="${data.icon}"></i>`;
-          }
-        }
-      });
-    }
-    return options;
-  }
-  _createTextBoxItemOptions(command, hint) {
-    let options = this._createTextEditorItemOptions(hint);
-    options = (0, _extend.extend)(true, options, {
-      options: {
-        readOnly: true,
-        focusStateEnabled: false,
-        hoverStateEnabled: false,
-        buttons: [{
-          name: 'dropDown',
-          location: 'after',
-          options: {
-            icon: 'spindown',
-            disabled: false,
-            stylingMode: 'text',
-            onClick: e => {
-              const contextMenu = this._commandContextMenus[command];
-              if (contextMenu) {
-                this._toggleContextMenu(contextMenu);
-              }
-            }
-          }
-        }]
-      }
-    });
-    return options;
-  }
-  _createColorBoxItemOptions(command, hint, icon) {
-    let options = this._createTextEditorItemOptions(hint);
-    if (icon) {
-      options = (0, _extend.extend)(true, options, {
-        options: {
-          openOnFieldClick: true,
-          fieldAddons: {
-            beforeTemplate: (data, container) => {
-              (0, _renderer.default)('<i>').addClass(icon).css('borderBottomColor', data).appendTo(container);
-            }
-          }
-        }
-      });
-    }
-    options = (0, _extend.extend)(true, options, {
-      options: {
-        onOpened: () => {
-          if (this.option('isMobileView')) {
-            (0, _renderer.default)('body').addClass(DIAGRAM_MOBILE_TOOLBAR_COLOR_BOX_OPENED_CLASS);
-          }
-        },
-        onClosed: () => {
-          (0, _renderer.default)('body').removeClass(DIAGRAM_MOBILE_TOOLBAR_COLOR_BOX_OPENED_CLASS);
-        }
-      }
-    });
-    return options;
-  }
-  _createTextEditorItemOptions(hint) {
-    return {
-      options: {
-        stylingMode: this.option('editorStylingMode'),
-        hint: hint
-      }
-    };
-  }
-  _createItemActionOptions(item, handler) {
-    switch (item.widget) {
-      case 'dxSelectBox':
-      case 'dxColorBox':
-      case 'dxCheckBox':
-        return {
-          options: {
-            onValueChanged: e => {
-              const parameter = _uiDiagram2.default.getItemCommandParameter(this, item, e.component.option('value'));
-              handler.call(this, item.command, item.name, parameter);
-            }
-          }
-        };
-      case 'dxTextBox':
-        return {};
-      default:
-        return {
-          options: {
-            onClick: e => {
-              if (!item.items) {
-                const parameter = _uiDiagram2.default.getItemCommandParameter(this, item);
-                handler.call(this, item.command, item.name, parameter);
-              } else {
-                const contextMenu = e.component._contextMenu;
-                if (contextMenu) {
-                  this._toggleContextMenu(contextMenu);
-                }
-              }
-            }
-          }
-        };
-    }
-  }
-  _toggleContextMenu(contextMenu) {
-    this._contextMenuList.forEach(cm => {
-      if (contextMenu !== cm) {
-        cm.hide();
-      }
-    });
-    contextMenu.toggle();
-  }
-  _onItemInitialized(widget, item) {
-    this._addItemHelper(item.command, new DiagramToolbarItemHelper(widget));
-  }
-  _onItemContentReady(widget, item, actionHandler) {
-    if ((widget.NAME === 'dxButton' || widget.NAME === 'dxTextBox') && item.items) {
-      const isTouchMode = this._isTouchMode();
-      const $menuContainer = (0, _renderer.default)('<div>').appendTo(this.$element());
-      widget._contextMenu = this._createComponent($menuContainer, _context_menu.default, {
-        items: item.items,
-        target: widget.$element(),
-        cssClass: _uiDiagram2.default.getContextMenuCssClass(),
-        showEvent: '',
-        hideOnOutsideClick: e => {
-          return !isTouchMode && (0, _renderer.default)(e.target).closest(widget._contextMenu._dropDownButtonElement).length === 0;
-        },
-        focusStateEnabled: false,
-        position: {
-          at: 'left bottom'
-        },
-        itemTemplate: function (itemData, itemIndex, itemElement) {
-          _uiDiagram2.default.getContextMenuItemTemplate(this, itemData, itemIndex, itemElement);
-        },
-        onItemClick: _ref2 => {
-          let {
-            component,
-            itemData
-          } = _ref2;
-          _uiDiagram2.default.onContextMenuItemClick(this, itemData, actionHandler.bind(this));
-          if (!itemData.items || !itemData.items.length) {
-            component.hide();
-          }
-        },
-        onShowing: e => {
-          if (this._showingSubMenu) return;
-          this._showingSubMenu = e.component;
-          this._onSubMenuVisibilityChangingAction({
-            visible: true,
-            component: this
-          });
-          e.component.option('items', e.component.option('items'));
-          delete this._showingSubMenu;
-        },
-        onInitialized: _ref3 => {
-          let {
-            component
-          } = _ref3;
-          return this._onContextMenuInitialized(component, item, widget);
-        },
-        onDisposing: _ref4 => {
-          let {
-            component
-          } = _ref4;
-          return this._onContextMenuDisposing(component, item);
-        }
-      });
-
-      // prevent showing context menu by toggle "close" click
-      if (!isTouchMode) {
-        widget._contextMenu._dropDownButtonElement = widget.$element(); // i.e. widget.NAME === 'dxButton'
-        if (widget.NAME === 'dxTextBox') {
-          widget._contextMenu._dropDownButtonElement = widget.getButton('dropDown').element();
-        }
-      }
-    }
-  }
-  _isTouchMode() {
-    const {
-      Browser
-    } = (0, _diagram2.getDiagram)();
-    return Browser.TouchUI;
-  }
-  _onContextMenuInitialized(widget, item, rootWidget) {
-    this._contextMenuList.push(widget);
-    if (item.command) {
-      this._commandContextMenus[item.command] = widget;
-    }
-    this._addContextMenuHelper(item, widget, [], rootWidget);
-  }
-  _addItemHelper(command, helper) {
-    if (command !== undefined) {
-      if (this._itemHelpers[command]) {
-        throw new Error('Toolbar cannot contain duplicated commands.');
-      }
-      this._itemHelpers[command] = helper;
-    }
-  }
-  _addContextMenuHelper(item, widget, indexPath, rootWidget) {
-    if (item.items) {
-      item.items.forEach((subItem, index) => {
-        const itemIndexPath = indexPath.concat(index);
-        this._addItemHelper(subItem.command, new DiagramToolbarSubItemHelper(widget, itemIndexPath, subItem.command, rootWidget));
-        this._addContextMenuHelper(subItem, widget, itemIndexPath, rootWidget);
-      });
-    }
-  }
-  _onContextMenuDisposing(widget, item) {
-    this._contextMenuList.splice(this._contextMenuList.indexOf(widget), 1);
-    delete this._commandContextMenus[item.command];
-  }
-  _executeCommand(command, name, value) {
-    if (this._updateLocked) return;
-    if (typeof command === 'number') {
-      const valueConverter = this._valueConverters[command];
-      if (valueConverter && valueConverter.getCommandValue) {
-        value = valueConverter.getCommandValue(value);
-      }
-      this.bar.raiseBarCommandExecuted(command, value);
-    } else if (typeof command === 'string') {
-      this._onInternalCommandAction({
-        command
-      });
-    }
-    if (name !== undefined) {
-      this._onCustomCommandAction({
-        name
-      });
-    }
-  }
-  _createOnInternalCommand() {
-    this._onInternalCommandAction = this._createActionByOption('onInternalCommand');
-  }
-  _createOnCustomCommand() {
-    this._onCustomCommandAction = this._createActionByOption('onCustomCommand');
-  }
-  _setItemEnabled(command, enabled) {
-    if (command in this._itemHelpers) {
-      const helper = this._itemHelpers[command];
-      if (helper.canUpdate(this._showingSubMenu)) {
-        helper.setEnabled(enabled);
-      }
-    }
-  }
-  _setEnabled(enabled) {
-    this._toolbarInstance.option('disabled', !enabled);
-    this._contextMenuList.forEach(contextMenu => {
-      contextMenu.option('disabled', !enabled);
-    });
-  }
-  _setItemValue(command, value) {
-    try {
-      this._updateLocked = true;
-      if (command in this._itemHelpers) {
-        const helper = this._itemHelpers[command];
-        if (helper.canUpdate(this._showingSubMenu)) {
-          const valueConverter = this._valueConverters[command];
-          if (valueConverter && valueConverter.getEditorValue) {
-            value = valueConverter.getEditorValue(value);
-          }
-          let displayValue;
-          if (valueConverter && valueConverter.getEditorDisplayValue) {
-            displayValue = valueConverter.getEditorDisplayValue(value);
-          }
-          const contextMenu = this._commandContextMenus[command];
-          helper.setValue(value, displayValue, contextMenu, contextMenu && command);
-        }
-      }
-    } finally {
-      this._updateLocked = false;
-    }
-  }
-  _setItemSubItems(command, items) {
-    this._updateLocked = true;
-    if (command in this._itemHelpers) {
-      const helper = this._itemHelpers[command];
-      if (helper.canUpdate(this._showingSubMenu)) {
-        const contextMenu = this._commandContextMenus[command];
-        helper.setItems(items, contextMenu, contextMenu && command);
-      }
-    }
-    this._updateLocked = false;
-  }
-  _createOnSubMenuVisibilityChangingAction() {
-    this._onSubMenuVisibilityChangingAction = this._createActionByOption('onSubMenuVisibilityChanging');
-  }
-  _optionChanged(args) {
-    switch (args.name) {
-      case 'isMobileView':
-        (0, _renderer.default)('body').removeClass(DIAGRAM_MOBILE_TOOLBAR_COLOR_BOX_OPENED_CLASS);
-        this._invalidate();
-        break;
-      case 'onSubMenuVisibilityChanging':
-        this._createOnSubMenuVisibilityChangingAction();
-        break;
-      case 'onInternalCommand':
-        this._createOnInternalCommand();
-        break;
-      case 'onCustomCommand':
-        this._createOnCustomCommand();
-        break;
-      case 'container':
-      case 'commands':
-        this._invalidate();
-        break;
-      case 'export':
-        break;
-      default:
-        super._optionChanged(args);
-    }
-  }
-  _getDefaultOptions() {
-    return (0, _extend.extend)(super._getDefaultOptions(), {
-      isMobileView: false,
-      export: {
-        fileName: 'Diagram'
-      },
-      locateInMenu: 'auto',
-      buttonStylingMode: 'text',
-      buttonType: 'normal',
-      editorStylingMode: 'filled',
-      skipAdjustSize: false
-    });
-  }
-  setCommandChecked(command, checked) {
-    this._setItemValue(command, checked);
-  }
-  setCommandEnabled(command, enabled) {
-    this._setItemEnabled(command, enabled);
-  }
-}
-class DiagramToolbarBar extends _diagram.default {
-  getCommandKeys() {
-    return this._getKeys(this._owner._commands);
-  }
-  setItemValue(key, value) {
-    this._owner._setItemValue(key, value);
-  }
-  setItemEnabled(key, enabled) {
-    this._owner._setItemEnabled(key, enabled);
-  }
-  setEnabled(enabled) {
-    this._owner._setEnabled(enabled);
-  }
-  setItemSubItems(key, items) {
-    this._owner._setItemSubItems(key, items);
-  }
-}
-class DiagramToolbarItemHelper {
-  constructor(widget) {
-    this._widget = widget;
-  }
-  canUpdate(showingSubMenu) {
-    return showingSubMenu === undefined;
-  }
-  setEnabled(enabled) {
-    this._widget.option('disabled', !enabled);
-  }
-  setValue(value, displayValue, contextMenu, rootCommandKey) {
-    if ('value' in this._widget.option()) {
-      this._updateEditorValue(value, displayValue);
-    } else if (value !== undefined) {
-      this._updateButtonValue(value);
-    }
-    if (contextMenu) {
-      this._updateContextMenuItemValue(contextMenu, '', rootCommandKey, value);
-    }
-  }
-  setItems(items, contextMenu, rootCommandKey) {
-    if (contextMenu) {
-      this._updateContextMenuItems(contextMenu, '', rootCommandKey, items);
-    } else {
-      this._updateEditorItems(items);
-    }
-  }
-  _updateContextMenuItems(contextMenu, itemOptionText, rootCommandKey, items) {
-    _uiDiagram2.default.updateContextMenuItems(contextMenu, itemOptionText, rootCommandKey, items);
-  }
-  _updateEditorItems(items) {
-    if ('items' in this._widget.option()) {
-      this._widget.option('items', items.map(item => {
-        return {
-          'value': _uiDiagram2.default.getItemValue(item),
-          'text': item.text
-        };
-      }));
-    }
-  }
-  _updateEditorValue(value, displayValue) {
-    this._widget.option('value', value);
-    if (!this._widget.option('selectedItem') && displayValue) {
-      this._widget.option('value', displayValue);
-    }
-  }
-  _updateButtonValue(value) {
-    if (this._widget.option('iconChecked') && this._widget.option('iconUnchecked')) {
-      this._widget.option('icon', value ? this._widget.option('iconChecked') : this._widget.option('iconUnchecked'));
-    } else {
-      this._widget.$element().toggleClass(ACTIVE_FORMAT_CLASS, value);
-    }
-  }
-  _updateContextMenuItemValue(contextMenu, itemOptionText, rootCommandKey, value) {
-    _uiDiagram2.default.updateContextMenuItemValue(contextMenu, itemOptionText, rootCommandKey, value);
-  }
-}
-class DiagramToolbarSubItemHelper extends DiagramToolbarItemHelper {
-  constructor(widget, indexPath, rootCommandKey, rootWidget) {
-    super(widget);
-    this._indexPath = indexPath;
-    this._rootCommandKey = rootCommandKey;
-    this._rootWidget = rootWidget;
-  }
-  canUpdate(showingSubMenu) {
-    return super.canUpdate(showingSubMenu) || showingSubMenu === this._widget;
-  }
-  setEnabled(enabled) {
-    this._widget.option(this._getItemOptionText() + 'disabled', !enabled);
-    const rootEnabled = this._hasEnabledCommandItems(this._widget.option('items'));
-    this._rootWidget.option('disabled', !rootEnabled);
-  }
-  _hasEnabledCommandItems(items) {
-    if (items) {
-      return items.some(item => item.command !== undefined && !item.disabled || this._hasEnabledCommandItems(item.items));
-    }
-    return false;
-  }
-  setValue(value) {
-    this._updateContextMenuItemValue(this._widget, this._getItemOptionText(), this._rootCommandKey, value);
-  }
-  setItems(items) {
-    this._updateContextMenuItems(this._widget, this._getItemOptionText(), this._rootCommandKey, items);
-  }
-  _getItemOptionText() {
-    return _uiDiagram2.default.getItemOptionText(this._widget, this._indexPath);
-  }
-}
-var _default = exports["default"] = DiagramToolbar;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 50427:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _size = __webpack_require__(57653);
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _extend = __webpack_require__(52576);
-var _window = __webpack_require__(3104);
-var _deferred = __webpack_require__(87739);
-var _message = _interopRequireDefault(__webpack_require__(4671));
-var _text_box = _interopRequireDefault(__webpack_require__(20780));
-var _accordion = _interopRequireDefault(__webpack_require__(30543));
-var _scroll_view = _interopRequireDefault(__webpack_require__(91374));
-var _tooltip = _interopRequireDefault(__webpack_require__(93370));
-var _diagram = __webpack_require__(11744);
-var _uiDiagram = _interopRequireDefault(__webpack_require__(80209));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const DIAGRAM_TOOLBOX_MIN_HEIGHT = 130;
-const DIAGRAM_TOOLBOX_POPUP_CLASS = 'dx-diagram-toolbox-popup';
-const DIAGRAM_TOOLBOX_PANEL_CLASS = 'dx-diagram-toolbox-panel';
-const DIAGRAM_TOOLBOX_INPUT_CONTAINER_CLASS = 'dx-diagram-toolbox-input-container';
-const DIAGRAM_TOOLBOX_INPUT_CLASS = 'dx-diagram-toolbox-input';
-const DIAGRAM_TOOLTIP_DATATOGGLE = 'shape-toolbox-tooltip';
-const DIAGRAM_TOOLBOX_START_DRAG_CLASS = '.dxdi-tb-start-drag-flag';
-class DiagramToolbox extends _uiDiagram.default {
-  _init() {
-    super._init();
-    this._toolboxes = [];
-    this._filterText = '';
-    this._createOnShapeCategoryRenderedAction();
-    this._createOnFilterChangedAction();
-  }
-  _getPopupClass() {
-    return DIAGRAM_TOOLBOX_POPUP_CLASS;
-  }
-  _getPopupHeight() {
-    return this.isMobileView() ? '100%' : super._getPopupHeight();
-  }
-  _getPopupMaxHeight() {
-    return this.isMobileView() ? '100%' : super._getPopupMaxHeight();
-  }
-  _getPopupMinHeight() {
-    return DIAGRAM_TOOLBOX_MIN_HEIGHT;
-  }
-  _getPopupPosition() {
-    const $parent = this.option('offsetParent');
-    const position = {
-      my: 'left top',
-      at: 'left top',
-      of: $parent
-    };
-    if (!this.isMobileView()) {
-      return (0, _extend.extend)(position, {
-        offset: this.option('offsetX') + ' ' + this.option('offsetY')
-      });
-    }
-    return position;
-  }
-  _getPopupAnimation() {
-    const $parent = this.option('offsetParent');
-    if (this.isMobileView()) {
-      return {
-        hide: this._getPopupSlideAnimationObject({
-          direction: 'left',
-          from: {
-            position: {
-              my: 'left top',
-              at: 'left top',
-              of: $parent
-            }
-          },
-          to: {
-            position: {
-              my: 'right top',
-              at: 'left top',
-              of: $parent
-            }
-          }
-        }),
-        show: this._getPopupSlideAnimationObject({
-          direction: 'right',
-          from: {
-            position: {
-              my: 'right top',
-              at: 'left top',
-              of: $parent
-            }
-          },
-          to: {
-            position: {
-              my: 'left top',
-              at: 'left top',
-              of: $parent
-            }
-          }
-        })
-      };
-    }
-    return super._getPopupAnimation();
-  }
-  _getPopupOptions() {
-    const options = super._getPopupOptions();
-    if (!this.isMobileView()) {
-      return (0, _extend.extend)(options, {
-        showTitle: true,
-        toolbarItems: [{
-          widget: 'dxButton',
-          location: 'center',
-          options: {
-            activeStateEnabled: false,
-            focusStateEnabled: false,
-            hoverStateEnabled: false,
-            icon: 'diagram-toolbox-drag',
-            stylingMode: 'outlined',
-            type: 'normal'
-          }
-        }]
-      });
-    }
-    return options;
-  }
-  _renderPopupContent($parent) {
-    let panelHeight = '100%';
-    if (this.option('showSearch')) {
-      const $inputContainer = (0, _renderer.default)('<div>').addClass(DIAGRAM_TOOLBOX_INPUT_CONTAINER_CLASS).appendTo($parent);
-      this._updateElementWidth($inputContainer);
-      this._renderSearchInput($inputContainer);
-      if ((0, _window.hasWindow)()) {
-        panelHeight = 'calc(100% - ' + (0, _size.getHeight)(this._searchInput.$element()) + 'px)';
-      }
-    }
-    const $panel = (0, _renderer.default)('<div>').addClass(DIAGRAM_TOOLBOX_PANEL_CLASS).appendTo($parent);
-    (0, _size.setHeight)($panel, panelHeight);
-    this._updateElementWidth($panel);
-    this._renderScrollView($panel);
-  }
-  _updateElementWidth($element) {
-    if (this.option('toolboxWidth') !== undefined) {
-      $element.css('width', this.option('toolboxWidth'));
-    }
-  }
-  updateMaxHeight() {
-    if (this.isMobileView()) return;
-    let maxHeight = 6;
-    if (this._popup) {
-      const $title = this._getPopupTitle();
-      maxHeight += (0, _size.getOuterHeight)($title);
-    }
-    if (this._accordion) {
-      maxHeight += (0, _size.getOuterHeight)(this._accordion.$element());
-    }
-    if (this._searchInput) {
-      maxHeight += (0, _size.getOuterHeight)(this._searchInput.$element());
-    }
-    this.option('maxHeight', maxHeight);
-  }
-  _renderSearchInput($parent) {
-    const $input = (0, _renderer.default)('<div>').addClass(DIAGRAM_TOOLBOX_INPUT_CLASS).appendTo($parent);
-    this._searchInput = this._createComponent($input, _text_box.default, {
-      stylingMode: 'outlined',
-      placeholder: _message.default.format('dxDiagram-uiSearch'),
-      onValueChanged: data => {
-        this._onInputChanged(data.value);
-      },
-      valueChangeEvent: 'keyup',
-      buttons: [{
-        name: 'search',
-        location: 'after',
-        options: {
-          activeStateEnabled: false,
-          focusStateEnabled: false,
-          hoverStateEnabled: false,
-          icon: 'search',
-          stylingMode: 'outlined',
-          type: 'normal',
-          onClick: () => {
-            this._searchInput.focus();
-          }
-        }
-      }]
-    });
-  }
-  _renderScrollView($parent) {
-    const $scrollViewWrapper = (0, _renderer.default)('<div>').appendTo($parent);
-    this._scrollView = this._createComponent($scrollViewWrapper, _scroll_view.default);
-
-    // Prevent scroll toolbox content for dragging vertically
-    const _moveIsAllowed = this._scrollView._moveIsAllowed.bind(this._scrollView);
-    this._scrollView._moveIsAllowed = e => {
-      for (let i = 0; i < this._toolboxes.length; i++) {
-        const $element = this._toolboxes[i];
-        if ((0, _renderer.default)($element).children(DIAGRAM_TOOLBOX_START_DRAG_CLASS).length) {
-          return false;
-        }
-      }
-      return _moveIsAllowed(e);
-    };
-    const $accordion = (0, _renderer.default)('<div>').appendTo(this._scrollView.content());
-    this._updateElementWidth($accordion);
-    this._renderAccordion($accordion);
-  }
-  _getAccordionDataSource() {
-    const result = [];
-    const toolboxGroups = this.option('toolboxGroups');
-    for (let i = 0; i < toolboxGroups.length; i++) {
-      const category = toolboxGroups[i].category;
-      const title = toolboxGroups[i].title;
-      const groupObj = {
-        category,
-        title: title || category,
-        expanded: toolboxGroups[i].expanded,
-        displayMode: toolboxGroups[i].displayMode,
-        shapes: toolboxGroups[i].shapes,
-        onTemplate: (widget, $element, data) => {
-          const $toolboxElement = (0, _renderer.default)($element);
-          this._onShapeCategoryRenderedAction({
-            category: data.category,
-            displayMode: data.displayMode,
-            dataToggle: DIAGRAM_TOOLTIP_DATATOGGLE,
-            shapes: data.shapes,
-            $element: $toolboxElement
-          });
-          this._toolboxes.push($toolboxElement);
-          if (this._filterText !== '') {
-            this._onFilterChangedAction({
-              text: this._filterText,
-              filteringToolboxes: this._toolboxes.length - 1
-            });
-          }
-          this._createTooltips($toolboxElement);
-        }
-      };
-      result.push(groupObj);
-    }
-    return result;
-  }
-  _createTooltips($toolboxElement) {
-    if (this._isTouchMode()) return;
-    const targets = $toolboxElement.find('[data-toggle="' + DIAGRAM_TOOLTIP_DATATOGGLE + '"]');
-    const $container = this.$element();
-    targets.each((index, element) => {
-      const $target = (0, _renderer.default)(element);
-      const title = $target.attr('title');
-      if (title) {
-        const $tooltip = (0, _renderer.default)('<div>').text(title).appendTo($container);
-        this._createComponent($tooltip, _tooltip.default, {
-          target: $target.get(0),
-          showEvent: 'mouseenter',
-          hideEvent: 'mouseleave',
-          position: 'top',
-          animation: {
-            show: {
-              type: 'fade',
-              from: 0,
-              to: 1,
-              delay: 500
-            },
-            hide: {
-              type: 'fade',
-              from: 1,
-              to: 0,
-              delay: 100
-            }
-          }
-        });
-      }
-    });
-  }
-  _isTouchMode() {
-    const {
-      Browser
-    } = (0, _diagram.getDiagram)();
-    return Browser.TouchUI;
-  }
-  _renderAccordion($container) {
-    this._accordion = this._createComponent($container, _accordion.default, {
-      multiple: true,
-      animationDuration: 0,
-      activeStateEnabled: false,
-      focusStateEnabled: false,
-      hoverStateEnabled: false,
-      collapsible: true,
-      displayExpr: 'title',
-      dataSource: this._getAccordionDataSource(),
-      disabled: this.option('disabled'),
-      itemTemplate: (data, index, $element) => {
-        data.onTemplate(this, $element, data);
-      },
-      onSelectionChanged: e => {
-        this._updateScrollAnimateSubscription(e.component);
-      },
-      onContentReady: e => {
-        e.component.option('selectedItems', []);
-        const items = e.component.option('dataSource');
-        for (let i = 0; i < items.length; i++) {
-          if (items[i].expanded === false) {
-            e.component.collapseItem(i);
-          } else if (items[i].expanded === true) {
-            e.component.expandItem(i);
-          }
-        }
-        // expand first group
-        if (items.length && items[0].expanded === undefined) {
-          e.component.expandItem(0);
-        }
-        this._updateScrollAnimateSubscription(e.component);
-      }
-    });
-  }
-  _updateScrollAnimateSubscription(component) {
-    component._deferredAnimate = new _deferred.Deferred();
-    component._deferredAnimate.done(() => {
-      this.updateMaxHeight();
-      this._scrollView.update();
-      this._updateScrollAnimateSubscription(component);
-    });
-  }
-  _onInputChanged(text) {
-    this._filterText = text;
-    this._onFilterChangedAction({
-      text: this._filterText,
-      filteringToolboxes: this._toolboxes.map(($element, index) => index)
-    });
-    this.updateTooltips();
-    this.updateMaxHeight();
-    this._scrollView.update();
-  }
-  updateFilter() {
-    this._onInputChanged(this._filterText);
-  }
-  updateTooltips() {
-    this._toolboxes.forEach($element => {
-      const $tooltipContainer = (0, _renderer.default)($element);
-      this._createTooltips($tooltipContainer);
-    });
-  }
-  _createOnShapeCategoryRenderedAction() {
-    this._onShapeCategoryRenderedAction = this._createActionByOption('onShapeCategoryRendered');
-  }
-  _createOnFilterChangedAction() {
-    this._onFilterChangedAction = this._createActionByOption('onFilterChanged');
-  }
-  _optionChanged(args) {
-    switch (args.name) {
-      case 'onShapeCategoryRendered':
-        this._createOnShapeCategoryRenderedAction();
-        break;
-      case 'onFilterChanged':
-        this._createOnFilterChangedAction();
-        break;
-      case 'showSearch':
-      case 'toolboxWidth':
-        this._invalidate();
-        break;
-      case 'toolboxGroups':
-        this._accordion.option('dataSource', this._getAccordionDataSource());
-        break;
-      default:
-        super._optionChanged(args);
-    }
-  }
-}
-var _default = exports["default"] = DiagramToolbox;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 89771:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _uiDiagram = _interopRequireDefault(__webpack_require__(29339));
-var _diagram = _interopRequireDefault(__webpack_require__(43304));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-class DiagramViewToolbar extends _uiDiagram.default {
-  _getCommands() {
-    return _diagram.default.getViewToolbarCommands(this.option('commands'), this.option('excludeCommands'));
-  }
-}
-var _default = exports["default"] = DiagramViewToolbar;
 module.exports = exports.default;
 module.exports["default"] = exports.default;
 
@@ -296062,7 +304253,7 @@ module.exports["default"] = exports.default;
 
 
 exports["default"] = void 0;
-var _ui = _interopRequireDefault(__webpack_require__(85186));
+var _ui = _interopRequireDefault(__webpack_require__(8324));
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 var _default = exports["default"] = _ui.default; // STYLE fileManager
 /**
@@ -296075,1277 +304266,6 @@ var _default = exports["default"] = _ui.default; // STYLE fileManager
  */
 module.exports = exports.default;
 module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 27018:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-
-exports.OPERATIONS = exports.FileItemsController = void 0;
-var _provider_base = _interopRequireDefault(__webpack_require__(65266));
-var _file_system_item = _interopRequireDefault(__webpack_require__(53093));
-var _object_provider = _interopRequireDefault(__webpack_require__(76856));
-var _remote_provider = _interopRequireDefault(__webpack_require__(80175));
-var _custom_provider = _interopRequireDefault(__webpack_require__(85096));
-var _error = _interopRequireDefault(__webpack_require__(46327));
-var _error_codes = _interopRequireDefault(__webpack_require__(54950));
-var _utils = __webpack_require__(56536);
-var _uiFile_manager = __webpack_require__(57011);
-var _deferred = __webpack_require__(87739);
-var _extend = __webpack_require__(52576);
-var _common = __webpack_require__(17781);
-var _type = __webpack_require__(11528);
-var _guid = _interopRequireDefault(__webpack_require__(19427));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const DEFAULT_ROOT_FILE_SYSTEM_ITEM_NAME = 'Files';
-const OPERATIONS = exports.OPERATIONS = {
-  NAVIGATION: 'navigation',
-  REFRESH: 'refresh'
-};
-class FileItemsController {
-  constructor(options) {
-    options = options || {};
-    this._options = (0, _extend.extend)({}, options);
-    this._isInitialized = false;
-    this._dataLoading = false;
-    this._dataLoadingDeferred = null;
-    this._rootDirectoryInfo = this._createRootDirectoryInfo(options.rootText);
-    this._currentDirectoryInfo = this._rootDirectoryInfo;
-    this._defaultIconMap = this._createDefaultIconMap();
-    this.startSingleLoad();
-    this._setSecurityController();
-    this._setProvider(options.fileProvider);
-    this._initialize();
-  }
-  _initialize() {
-    const result = this._options.currentPathKeys && this._options.currentPathKeys.length ? this.setCurrentPathByKeys(this._options.currentPathKeys) : this.setCurrentPath(this._options.currentPath);
-    const completeInitialization = () => {
-      this._isInitialized = true;
-      this._raiseInitialized();
-    };
-    if (result) {
-      (0, _deferred.when)(result).always(completeInitialization);
-    } else {
-      completeInitialization();
-    }
-  }
-  _setSecurityController() {
-    this._securityController = new FileSecurityController({
-      allowedFileExtensions: this._options.allowedFileExtensions,
-      maxFileSize: this._options.uploadMaxFileSize
-    });
-    this._resetState();
-  }
-  setAllowedFileExtensions(allowedFileExtensions) {
-    if ((0, _type.isDefined)(allowedFileExtensions)) {
-      this._options.allowedFileExtensions = allowedFileExtensions;
-    }
-    this._setSecurityController();
-    this.refresh();
-  }
-  setUploadOptions(_ref) {
-    let {
-      maxFileSize,
-      chunkSize
-    } = _ref;
-    if ((0, _type.isDefined)(chunkSize)) {
-      this._options.uploadChunkSize = chunkSize;
-    }
-    if ((0, _type.isDefined)(maxFileSize)) {
-      this._options.uploadMaxFileSize = maxFileSize;
-      this._setSecurityController();
-      this.refresh();
-    }
-  }
-  _setProvider(fileProvider) {
-    this._fileProvider = this._createFileProvider(fileProvider);
-    this._resetState();
-  }
-  updateProvider(fileProvider, currentPathKeys) {
-    if (!(0, _type.isDefined)(currentPathKeys)) {
-      return this._updateProviderOnly(fileProvider);
-    }
-    return (0, _deferred.when)(this._getDirectoryByPathParts(this._rootDirectoryInfo, currentPathKeys, true)).then(newDirectory => {
-      if (newDirectory !== this._rootDirectoryInfo) {
-        this._resetCurrentDirectory();
-      }
-      this._setProvider(fileProvider);
-    }).then(() => this.setCurrentPathByKeys(currentPathKeys));
-  }
-  _updateProviderOnly(fileProvider) {
-    this._resetCurrentDirectory();
-    this._setProvider(fileProvider);
-    return (0, _deferred.when)(this.refresh());
-  }
-  _createFileProvider(fileProvider) {
-    if (!fileProvider) {
-      fileProvider = [];
-    }
-    if (Array.isArray(fileProvider)) {
-      return new _object_provider.default({
-        data: fileProvider
-      });
-    }
-    if (fileProvider instanceof _provider_base.default) {
-      return fileProvider;
-    }
-    switch (fileProvider.type) {
-      case 'remote':
-        return new _remote_provider.default(fileProvider);
-      case 'custom':
-        return new _custom_provider.default(fileProvider);
-    }
-    return new _object_provider.default(fileProvider);
-  }
-  setCurrentPath(path) {
-    const pathParts = (0, _utils.getPathParts)(path);
-    const rawPath = (0, _utils.pathCombine)(...pathParts);
-    if (this.getCurrentDirectory().fileItem.relativeName === rawPath) {
-      return new _deferred.Deferred().resolve().promise();
-    }
-    return this._setCurrentDirectoryByPathParts(pathParts);
-  }
-  setCurrentPathByKeys(pathKeys) {
-    if ((0, _common.equalByValue)(this.getCurrentDirectory().fileItem.pathKeys, pathKeys)) {
-      return new _deferred.Deferred().resolve().promise();
-    }
-    return this._setCurrentDirectoryByPathParts(pathKeys, true);
-  }
-  getCurrentPath() {
-    let currentPath = '';
-    let directory = this.getCurrentDirectory();
-    while (directory && !directory.fileItem.isRoot()) {
-      const escapedName = (0, _utils.getEscapedFileName)(directory.fileItem.name);
-      currentPath = (0, _utils.pathCombine)(escapedName, currentPath);
-      directory = directory.parentDirectory;
-    }
-    return currentPath;
-  }
-  getCurrentPathKeys() {
-    return this.getCurrentDirectory().fileItem.pathKeys;
-  }
-  getCurrentDirectory() {
-    return this._currentDirectoryInfo;
-  }
-  setCurrentDirectory(directoryInfo, checkActuality) {
-    if (!directoryInfo) {
-      return;
-    }
-    if (checkActuality) {
-      directoryInfo = this._getActualDirectoryInfo(directoryInfo);
-    }
-    if (this._currentDirectoryInfo && this._currentDirectoryInfo === directoryInfo) {
-      this._raisePathPotentiallyChanged();
-      return;
-    }
-    const requireRaiseSelectedDirectory = this._currentDirectoryInfo.fileItem.key !== directoryInfo.fileItem.key;
-    this._currentDirectoryInfo = directoryInfo;
-    if (requireRaiseSelectedDirectory && this._isInitialized) {
-      if (!this._dataLoading) {
-        this._raiseDataLoading(OPERATIONS.NAVIGATION);
-      }
-      this._raiseSelectedDirectoryChanged(directoryInfo);
-    }
-  }
-  _resetCurrentDirectory() {
-    this._currentDirectoryInfo = this._rootDirectoryInfo;
-  }
-  getCurrentItems(onlyFiles) {
-    return this._dataLoadingDeferred ? this._dataLoadingDeferred.then(() => this._getCurrentItemsInternal(onlyFiles)) : this._getCurrentItemsInternal(onlyFiles);
-  }
-  _getCurrentItemsInternal(onlyFiles) {
-    const currentDirectory = this.getCurrentDirectory();
-    const getItemsPromise = this.getDirectoryContents(currentDirectory);
-    return getItemsPromise.then(items => {
-      const separatedItems = this._separateItemsByType(items);
-      currentDirectory.fileItem.hasSubDirectories = !!separatedItems.folders.length;
-      return onlyFiles ? separatedItems.files : items;
-    });
-  }
-  getDirectories(parentDirectoryInfo, skipNavigationOnError) {
-    return this.getDirectoryContents(parentDirectoryInfo, skipNavigationOnError).then(itemInfos => itemInfos.filter(info => info.fileItem.isDirectory));
-  }
-  _separateItemsByType(itemInfos) {
-    const folders = [];
-    const files = [];
-    itemInfos.forEach(info => info.fileItem.isDirectory ? folders.push(info) : files.push(info));
-    return {
-      folders,
-      files
-    };
-  }
-  getDirectoryContents(parentDirectoryInfo, skipNavigationOnError) {
-    if (!parentDirectoryInfo) {
-      return new _deferred.Deferred().resolve([this._rootDirectoryInfo]).promise();
-    }
-    if (parentDirectoryInfo.itemsLoaded) {
-      return new _deferred.Deferred().resolve(parentDirectoryInfo.items).promise();
-    }
-    if (this._singleOperationLockId && parentDirectoryInfo.itemsSingleLoadErrorId === this._singleOperationLockId) {
-      this._changeDirectoryOnError(parentDirectoryInfo, skipNavigationOnError, true);
-      return new _deferred.Deferred().reject().promise();
-    }
-    const dirKey = parentDirectoryInfo.getInternalKey();
-    let loadItemsDeferred = this._loadedItems[dirKey];
-    if (loadItemsDeferred) {
-      return loadItemsDeferred;
-    }
-    loadItemsDeferred = this._getFileItems(parentDirectoryInfo, skipNavigationOnError).then(fileItems => {
-      fileItems = fileItems || [];
-      parentDirectoryInfo.items = fileItems.map(fileItem => fileItem.isDirectory && this._createDirectoryInfo(fileItem, parentDirectoryInfo) || this._createFileInfo(fileItem, parentDirectoryInfo));
-      parentDirectoryInfo.itemsLoaded = true;
-      return parentDirectoryInfo.items;
-    }, () => {
-      if (this._singleOperationLockId && parentDirectoryInfo.itemsSingleLoadErrorId !== this._singleOperationLockId) {
-        parentDirectoryInfo.itemsSingleLoadErrorId = this._singleOperationLockId;
-      }
-      return [];
-    });
-    this._loadedItems[dirKey] = loadItemsDeferred;
-    loadItemsDeferred.always(() => {
-      delete this._loadedItems[dirKey];
-    });
-    return loadItemsDeferred;
-  }
-  _getFileItems(parentDirectoryInfo, skipNavigationOnError) {
-    let loadItemsDeferred = null;
-    try {
-      loadItemsDeferred = this._fileProvider.getItems(parentDirectoryInfo.fileItem);
-    } catch (error) {
-      return this._handleItemLoadError(parentDirectoryInfo, error, skipNavigationOnError);
-    }
-    return (0, _deferred.when)(loadItemsDeferred).then(fileItems => this._securityController.getAllowedItems(fileItems), errorInfo => this._handleItemLoadError(parentDirectoryInfo, errorInfo, skipNavigationOnError));
-  }
-  createDirectory(parentDirectoryInfo, name) {
-    const parentDirItem = parentDirectoryInfo.fileItem;
-    const tempDirInfo = this._createDirInfoByName(name, parentDirectoryInfo);
-    const actionInfo = this._createEditActionInfo('create', tempDirInfo, parentDirectoryInfo);
-    return this._processEditAction(actionInfo, args => {
-      args.parentDirectory = parentDirItem;
-      args.name = name;
-      this._editingEvents.onDirectoryCreating(args);
-    }, () => this._fileProvider.createDirectory(parentDirItem, name).done(info => {
-      if (!parentDirItem.isRoot()) {
-        parentDirItem.hasSubDirectories = true;
-      }
-      return info;
-    }), () => {
-      const args = {
-        parentDirectory: parentDirItem,
-        name
-      };
-      this._editingEvents.onDirectoryCreated(args);
-    }, () => this._resetDirectoryState(parentDirectoryInfo, true));
-  }
-  renameItem(fileItemInfo, name) {
-    const sourceItem = fileItemInfo.fileItem.createClone();
-    const actionInfo = this._createEditActionInfo('rename', fileItemInfo, fileItemInfo.parentDirectory, {
-      itemNewName: name
-    });
-    return this._processEditAction(actionInfo, (args, itemInfo) => {
-      if (!itemInfo.fileItem.isDirectory) {
-        this._securityController.validateExtension(name);
-      }
-      args.item = sourceItem;
-      args.newName = name;
-      this._editingEvents.onItemRenaming(args);
-    }, item => this._fileProvider.renameItem(item, name), () => {
-      const args = {
-        sourceItem,
-        itemName: name
-      };
-      this._editingEvents.onItemRenamed(args);
-    }, () => {
-      const parentDirectory = this._getActualDirectoryInfo(fileItemInfo.parentDirectory);
-      this._resetDirectoryState(parentDirectory);
-      this.setCurrentDirectory(parentDirectory);
-    });
-  }
-  moveItems(itemInfos, destinationDirectory) {
-    const actionInfo = this._createEditActionInfo('move', itemInfos, destinationDirectory);
-    return this._processEditAction(actionInfo, (args, itemInfo) => {
-      args.item = itemInfo.fileItem;
-      args.destinationDirectory = destinationDirectory.fileItem;
-      this._editingEvents.onItemMoving(args);
-    }, item => this._fileProvider.moveItems([item], destinationDirectory.fileItem), itemInfo => {
-      const args = {
-        sourceItem: itemInfo.fileItem,
-        parentDirectory: destinationDirectory.fileItem,
-        itemName: itemInfo.fileItem.name,
-        itemPath: (0, _utils.pathCombine)(destinationDirectory.fileItem.path, itemInfo.fileItem.name)
-      };
-      this._editingEvents.onItemMoved(args);
-    }, needChangeCurrentDirectory => {
-      itemInfos.forEach(itemInfo => this._resetDirectoryState(itemInfo.parentDirectory, true));
-      if (needChangeCurrentDirectory) {
-        this._resetDirectoryState(destinationDirectory);
-        this.setCurrentPathByKeys(destinationDirectory.fileItem.pathKeys);
-        destinationDirectory.expanded = true;
-      }
-    });
-  }
-  copyItems(itemInfos, destinationDirectory) {
-    const actionInfo = this._createEditActionInfo('copy', itemInfos, destinationDirectory);
-    return this._processEditAction(actionInfo, (args, itemInfo) => {
-      args.item = itemInfo.fileItem;
-      args.destinationDirectory = destinationDirectory.fileItem;
-      this._editingEvents.onItemCopying(args);
-    }, item => this._fileProvider.copyItems([item], destinationDirectory.fileItem), itemInfo => {
-      const args = {
-        sourceItem: itemInfo.fileItem,
-        parentDirectory: destinationDirectory.fileItem,
-        itemName: itemInfo.fileItem.name,
-        itemPath: (0, _utils.pathCombine)(destinationDirectory.fileItem.path, itemInfo.fileItem.name)
-      };
-      this._editingEvents.onItemCopied(args);
-    }, needChangeCurrentDirectory => {
-      if (needChangeCurrentDirectory) {
-        destinationDirectory = this._getActualDirectoryInfo(destinationDirectory);
-        this._resetDirectoryState(destinationDirectory);
-        this.setCurrentDirectory(destinationDirectory);
-        destinationDirectory.expanded = true;
-      }
-    });
-  }
-  deleteItems(itemInfos) {
-    const directory = itemInfos.length > 0 ? itemInfos[0].parentDirectory : null;
-    const actionInfo = this._createEditActionInfo('delete', itemInfos, directory);
-    return this._processEditAction(actionInfo, (args, itemInfo) => {
-      args.item = itemInfo.fileItem;
-      this._editingEvents.onItemDeleting(args);
-    }, item => this._fileProvider.deleteItems([item]), itemInfo => this._editingEvents.onItemDeleted({
-      item: itemInfo.fileItem
-    }), () => {
-      itemInfos.forEach(itemInfo => {
-        const parentDir = this._getActualDirectoryInfo(itemInfo.parentDirectory);
-        this._resetDirectoryState(parentDir);
-        this.setCurrentDirectory(parentDir);
-      });
-    });
-  }
-  processUploadSession(sessionInfo, uploadDirectoryInfo) {
-    const itemInfos = this._getItemInfosForUploaderFiles(sessionInfo.files, uploadDirectoryInfo);
-    const actionInfo = this._createEditActionInfo('upload', itemInfos, uploadDirectoryInfo, {
-      sessionInfo
-    });
-    return this._processEditAction(actionInfo, () => {}, (_, index) => sessionInfo.deferreds[index], () => {}, () => this._resetDirectoryState(uploadDirectoryInfo, true));
-  }
-  uploadFileChunk(fileData, chunksInfo, destinationDirectory) {
-    let startDeferred = null;
-    if (chunksInfo.chunkIndex === 0) {
-      this._securityController.validateMaxFileSize(fileData.size);
-      this._securityController.validateExtension(fileData.name);
-      startDeferred = this._processBeforeItemEditAction(args => {
-        args.fileData = fileData;
-        args.destinationDirectory = destinationDirectory;
-        this._editingEvents.onFileUploading(args);
-      });
-    } else {
-      startDeferred = new _deferred.Deferred().resolve().promise();
-    }
-    let result = startDeferred.then(() => this._fileProvider.uploadFileChunk(fileData, chunksInfo, destinationDirectory));
-    if (chunksInfo.chunkIndex === chunksInfo.chunkCount - 1) {
-      result = result.done(() => {
-        const args = {
-          fileData,
-          parentDirectory: destinationDirectory
-        };
-        this._editingEvents.onFileUploaded(args);
-      });
-    }
-    return result;
-  }
-  abortFileUpload(fileData, chunksInfo, destinationDirectory) {
-    return (0, _deferred.when)(this._fileProvider.abortFileUpload(fileData, chunksInfo, destinationDirectory));
-  }
-  getFileUploadChunkSize() {
-    const chunkSize = this._options.uploadChunkSize;
-    if (chunkSize && chunkSize > 0) {
-      return chunkSize;
-    }
-    return this._fileProvider.getFileUploadChunkSize();
-  }
-  downloadItems(itemInfos) {
-    const deferreds = itemInfos.map(itemInfo => {
-      return this._processBeforeItemEditAction(args => {
-        args.item = itemInfo.fileItem;
-        this._editingEvents.onItemDownloading(args);
-      }, itemInfo);
-    });
-    return (0, _deferred.when)(...deferreds).then(() => {
-      const items = itemInfos.map(i => i.fileItem);
-      return (0, _deferred.when)(this._getItemActionResult(this._fileProvider.downloadItems(items))).then(() => {}, errorInfo => {
-        this._raiseDownloadItemsError(itemInfos, itemInfos[0].parentDirectory, errorInfo);
-      });
-    }, errorInfo => {
-      this._raiseDownloadItemsError(itemInfos, itemInfos[0].parentDirectory, errorInfo);
-    });
-  }
-  getItemContent(itemInfos) {
-    const items = itemInfos.map(i => i.fileItem);
-    return (0, _deferred.when)(this._fileProvider.getItemsContent(items));
-  }
-  _handleItemLoadError(parentDirectoryInfo, errorInfo, skipNavigationOnError) {
-    parentDirectoryInfo = this._getActualDirectoryInfo(parentDirectoryInfo);
-    this._raiseGetItemsError(parentDirectoryInfo, errorInfo);
-    this._changeDirectoryOnError(parentDirectoryInfo, skipNavigationOnError);
-    return new _deferred.Deferred().reject().promise();
-  }
-  _raiseGetItemsError(parentDirectoryInfo, errorInfo) {
-    const actionInfo = this._createEditActionInfo('getItems', parentDirectoryInfo, parentDirectoryInfo);
-    this._raiseEditActionStarting(actionInfo);
-    this._raiseEditActionResultAcquired(actionInfo);
-    this._raiseEditActionError(actionInfo, {
-      errorCode: errorInfo.errorCode,
-      errorText: errorInfo.errorText,
-      fileItem: parentDirectoryInfo.fileItem,
-      index: 0
-    });
-  }
-  _raiseDownloadItemsError(targetFileInfos, directory, errorInfo) {
-    const actionInfo = this._createEditActionInfo('download', targetFileInfos, directory);
-    const itemsLength = targetFileInfos.length;
-    actionInfo.singleRequest = itemsLength === 1;
-    this._raiseEditActionStarting(actionInfo);
-    this._raiseEditActionResultAcquired(actionInfo);
-    for (let index = 0; index < itemsLength - 1; index++) {
-      this._raiseEditActionItemError(actionInfo, {
-        errorCode: errorInfo.errorCode,
-        errorText: errorInfo.errorText,
-        fileItem: targetFileInfos[index].fileItem,
-        index
-      });
-    }
-    this._raiseEditActionError(actionInfo, {
-      errorCode: errorInfo.errorCode,
-      errorText: errorInfo.errorText,
-      fileItem: targetFileInfos[itemsLength - 1].fileItem,
-      index: itemsLength - 1
-    });
-  }
-  _changeDirectoryOnError(dirInfo, skipNavigationOnError, isActualDirectoryRequired) {
-    if (isActualDirectoryRequired) {
-      dirInfo = this._getActualDirectoryInfo(dirInfo);
-    }
-    this._resetDirectoryState(dirInfo);
-    dirInfo.expanded = false;
-    if (!skipNavigationOnError) {
-      this.setCurrentDirectory(dirInfo.parentDirectory);
-    }
-  }
-  _getItemActionResult(actionResult) {
-    return Array.isArray(actionResult) ? actionResult[0] : actionResult;
-  }
-  _processEditAction(actionInfo, beforeAction, action, afterAction, completeAction) {
-    let isAnyOperationSuccessful = false;
-    this._raiseEditActionStarting(actionInfo);
-    const actionResult = actionInfo.itemInfos.map((itemInfo, itemIndex) => {
-      return this._processBeforeItemEditAction(beforeAction, itemInfo).then(() => {
-        const itemActionResult = this._getItemActionResult(action(itemInfo.fileItem, itemIndex));
-        return itemActionResult.done(() => afterAction(itemInfo));
-      });
-    });
-    actionInfo.singleRequest = actionResult.length === 1;
-    this._raiseEditActionResultAcquired(actionInfo);
-    return (0, _uiFile_manager.whenSome)(actionResult, info => {
-      isAnyOperationSuccessful = true;
-      this._raiseCompleteEditActionItem(actionInfo, info);
-    }, errorInfo => this._raiseEditActionItemError(actionInfo, errorInfo)).then(() => {
-      completeAction(isAnyOperationSuccessful);
-      this._raiseCompleteEditAction(actionInfo);
-    });
-  }
-  _createEditActionInfo(name, targetItemInfos, directory, customData) {
-    targetItemInfos = Array.isArray(targetItemInfos) ? targetItemInfos : [targetItemInfos];
-    customData = customData || {};
-    const items = targetItemInfos.map(itemInfo => itemInfo.fileItem);
-    return {
-      name,
-      itemInfos: targetItemInfos,
-      items,
-      directory,
-      customData,
-      singleRequest: true
-    };
-  }
-  _processBeforeItemEditAction(action, itemInfo) {
-    const deferred = new _deferred.Deferred();
-    const args = this._createBeforeActionArgs();
-    try {
-      action(args, itemInfo);
-    } catch (errorInfo) {
-      return deferred.reject(errorInfo).promise();
-    }
-    if (!args.cancel) {
-      deferred.resolve();
-    } else if (args.cancel === true) {
-      return deferred.reject({
-        errorText: args.errorText,
-        errorCode: args.errorCode
-      });
-    } else if ((0, _type.isPromise)(args.cancel)) {
-      (0, _deferred.when)(args.cancel).then(res => {
-        if (res === true) {
-          deferred.reject();
-        } else if ((0, _type.isObject)(res) && res.cancel === true) {
-          deferred.reject({
-            errorText: res.errorText,
-            errorCode: res.errorCode
-          });
-        }
-        deferred.resolve();
-      }, deferred.resolve);
-    }
-    return deferred.promise();
-  }
-  _createBeforeActionArgs() {
-    return {
-      errorCode: undefined,
-      errorText: '',
-      cancel: false
-    };
-  }
-  _getItemInfosForUploaderFiles(files, parentDirectoryInfo) {
-    const pathInfo = this._getPathInfo(parentDirectoryInfo);
-    const result = [];
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const item = new _file_system_item.default(pathInfo, file.name, false);
-      const itemInfo = this._createFileInfo(item, parentDirectoryInfo);
-      result.push(itemInfo);
-    }
-    return result;
-  }
-  refresh() {
-    if (this._lockRefresh) {
-      return this._refreshDeferred;
-    }
-    this._lockRefresh = true;
-    return this._executeDataLoad(() => {
-      return this._refreshDeferred = this._refreshInternal();
-    }, OPERATIONS.REFRESH);
-  }
-  startSingleLoad() {
-    this._singleOperationLockId = new _guid.default().toString();
-  }
-  endSingleLoad() {
-    delete this._singleOperationLockId;
-  }
-  _refreshInternal() {
-    const cachedRootInfo = {
-      items: this._rootDirectoryInfo.items
-    };
-    const selectedKeyParts = this._getDirectoryPathKeyParts(this.getCurrentDirectory());
-    this._resetDirectoryState(this._rootDirectoryInfo);
-    return this._loadItemsRecursive(this._rootDirectoryInfo, cachedRootInfo).then(() => {
-      const dirInfo = this._findDirectoryByPathKeyParts(selectedKeyParts);
-      this.setCurrentDirectory(dirInfo);
-      delete this._lockRefresh;
-    });
-  }
-  _loadItemsRecursive(directoryInfo, cachedDirectoryInfo) {
-    return this.getDirectories(directoryInfo).then(dirInfos => {
-      const itemDeferreds = [];
-      for (let i = 0; i < dirInfos.length; i++) {
-        const cachedItem = cachedDirectoryInfo.items.find(cache => dirInfos[i].fileItem.key === cache.fileItem.key);
-        if (!cachedItem) continue;
-        dirInfos[i].expanded = cachedItem.expanded;
-        if (dirInfos[i].expanded) {
-          itemDeferreds.push(this._loadItemsRecursive(dirInfos[i], cachedItem));
-        }
-      }
-      return (0, _uiFile_manager.whenSome)(itemDeferreds);
-    }, () => null);
-  }
-  _setCurrentDirectoryByPathParts(pathParts, useKeys) {
-    return this._executeDataLoad(() => this._setCurrentDirectoryByPathPartsInternal(pathParts, useKeys), OPERATIONS.NAVIGATION);
-  }
-  _setCurrentDirectoryByPathPartsInternal(pathParts, useKeys) {
-    return this._getDirectoryByPathParts(this._rootDirectoryInfo, pathParts, useKeys).then(directoryInfo => {
-      for (let info = directoryInfo.parentDirectory; info; info = info.parentDirectory) {
-        info.expanded = true;
-      }
-      this.setCurrentDirectory(directoryInfo);
-    }, () => {
-      this._raisePathPotentiallyChanged();
-    });
-  }
-  _executeDataLoad(action, operation) {
-    if (this._dataLoadingDeferred) {
-      return this._dataLoadingDeferred.then(() => this._executeDataLoad(action, operation));
-    }
-    this._dataLoading = true;
-    this._dataLoadingDeferred = new _deferred.Deferred();
-    if (this._isInitialized) {
-      this._raiseDataLoading(operation);
-    }
-    return action().always(() => {
-      const tempDeferred = this._dataLoadingDeferred;
-      this._dataLoadingDeferred = null;
-      this._dataLoading = false;
-      tempDeferred.resolve();
-    });
-  }
-  _getDirectoryByPathParts(parentDirectoryInfo, pathParts, useKeys) {
-    if (pathParts.length < 1) {
-      return new _deferred.Deferred().resolve(parentDirectoryInfo).promise();
-    }
-    const fieldName = useKeys ? 'key' : 'name';
-    return this.getDirectories(parentDirectoryInfo).then(dirInfos => {
-      const subDirInfo = dirInfos.find(d => d.fileItem[fieldName] === pathParts[0]);
-      if (!subDirInfo) {
-        return new _deferred.Deferred().reject().promise();
-      }
-      const restPathParts = [...pathParts].splice(1);
-      return this._getDirectoryByPathParts(subDirInfo, restPathParts, useKeys);
-    });
-  }
-  _getDirectoryPathKeyParts(directoryInfo) {
-    const pathParts = [];
-    while (directoryInfo && directoryInfo.parentDirectory) {
-      pathParts.unshift(directoryInfo.fileItem.key);
-      directoryInfo = directoryInfo.parentDirectory;
-    }
-    return pathParts;
-  }
-  _findDirectoryByPathKeyParts(keyParts) {
-    let selectedDirInfo = this._rootDirectoryInfo;
-    if (keyParts.length === 0) {
-      return selectedDirInfo;
-    }
-    let i = 0;
-    let newSelectedDir = selectedDirInfo;
-    while (newSelectedDir && i < keyParts.length) {
-      newSelectedDir = selectedDirInfo.items.find(info => info.fileItem.key === keyParts[i]);
-      if (newSelectedDir) {
-        selectedDirInfo = newSelectedDir;
-      }
-      i++;
-    }
-    return selectedDirInfo;
-  }
-  _getActualDirectoryInfo(directoryInfo) {
-    const keys = this._getDirectoryPathKeyParts(directoryInfo);
-    return this._findDirectoryByPathKeyParts(keys);
-  }
-  _createDirInfoByName(name, parentDirectoryInfo) {
-    const dirPathInfo = this._getPathInfo(parentDirectoryInfo);
-    const fileItem = new _file_system_item.default(dirPathInfo, name, true);
-    return this._createDirectoryInfo(fileItem, parentDirectoryInfo);
-  }
-  _createDirectoryInfo(fileItem, parentDirectoryInfo) {
-    return (0, _extend.extend)(this._createFileInfo(fileItem, parentDirectoryInfo), {
-      icon: 'folder',
-      expanded: fileItem.isRoot(),
-      items: []
-    });
-  }
-  _createFileInfo(fileItem, parentDirectoryInfo) {
-    return {
-      fileItem,
-      parentDirectory: parentDirectoryInfo,
-      icon: this._getFileItemDefaultIcon(fileItem),
-      getInternalKey() {
-        return `FIK_${this.fileItem.key}`;
-      },
-      getDisplayName() {
-        return this.displayName || this.fileItem.name;
-      }
-    };
-  }
-  _resetDirectoryState(directoryInfo, isActualDirectoryRequired) {
-    if (isActualDirectoryRequired) {
-      directoryInfo = this._getActualDirectoryInfo(directoryInfo);
-    }
-    directoryInfo.itemsLoaded = false;
-    directoryInfo.items = [];
-  }
-  _getFileItemDefaultIcon(fileItem) {
-    if (fileItem.isDirectory) {
-      return 'folder';
-    }
-    const extension = fileItem.getFileExtension();
-    const icon = this._defaultIconMap[extension];
-    return icon || 'doc';
-  }
-  _createDefaultIconMap() {
-    const result = {
-      '.txt': 'txtfile',
-      '.rtf': 'rtffile',
-      '.doc': 'docfile',
-      '.docx': 'docxfile',
-      '.xls': 'xlsfile',
-      '.xlsx': 'xlsxfile',
-      '.ppt': 'pptfile',
-      '.pptx': 'pptxfile',
-      '.pdf': 'pdffile'
-    };
-    ['.png', '.gif', '.jpg', '.jpeg', '.ico', '.bmp'].forEach(extension => {
-      result[extension] = 'image';
-    });
-    return result;
-  }
-  _createRootDirectoryInfo(text) {
-    const rootDirectory = new _file_system_item.default(null, '', true);
-    const result = this._createDirectoryInfo(rootDirectory, null);
-    result.displayName = text || DEFAULT_ROOT_FILE_SYSTEM_ITEM_NAME;
-    return result;
-  }
-  setRootText(rootText) {
-    this._rootDirectoryInfo.displayName = rootText || DEFAULT_ROOT_FILE_SYSTEM_ITEM_NAME;
-  }
-  _raiseInitialized() {
-    this._tryCallAction('onInitialized', {
-      controller: this
-    });
-  }
-  _raiseDataLoading(operation) {
-    this._tryCallAction('onDataLoading', {
-      operation
-    });
-  }
-  _raiseSelectedDirectoryChanged(directoryInfo) {
-    this._tryCallAction('onSelectedDirectoryChanged', {
-      selectedDirectoryInfo: directoryInfo
-    });
-  }
-  _raiseEditActionStarting(actionInfo) {
-    this._tryCallAction('onEditActionStarting', actionInfo);
-  }
-  _raiseEditActionResultAcquired(actionInfo) {
-    this._tryCallAction('onEditActionResultAcquired', actionInfo);
-  }
-  _raiseEditActionError(actionInfo, errorInfo) {
-    this._tryCallAction('onEditActionError', actionInfo, errorInfo);
-  }
-  _raiseEditActionItemError(actionInfo, errorInfo) {
-    this._tryCallAction('onEditActionItemError', actionInfo, errorInfo);
-  }
-  _raiseCompleteEditActionItem(actionInfo, info) {
-    this._tryCallAction('onCompleteEditActionItem', actionInfo, info);
-  }
-  _raiseCompleteEditAction(actionInfo) {
-    this._tryCallAction('onCompleteEditAction', actionInfo);
-  }
-  _raisePathPotentiallyChanged() {
-    this._tryCallAction('onPathPotentiallyChanged');
-  }
-  _tryCallAction(actionName) {
-    const args = Array.prototype.slice.call(arguments, 1);
-    if (this._isInitialized && this._options[actionName]) {
-      this._options[actionName](...args);
-    }
-  }
-  _resetState() {
-    this._selectedDirectory = null;
-    this._rootDirectoryInfo.items = [];
-    this._rootDirectoryInfo.itemsLoaded = false;
-    this._loadedItems = {};
-  }
-  _getPathInfo(directoryInfo) {
-    const pathInfo = [];
-    for (let dirInfo = directoryInfo; dirInfo && !dirInfo.fileItem.isRoot(); dirInfo = dirInfo.parentDirectory) {
-      pathInfo.unshift({
-        key: dirInfo.fileItem.key,
-        name: dirInfo.fileItem.name
-      });
-    }
-    return pathInfo;
-  }
-  on(eventName, eventHandler) {
-    const finalEventName = `on${eventName}`;
-    this._options[finalEventName] = eventHandler;
-  }
-  get _editingEvents() {
-    return this._options.editingEvents;
-  }
-}
-exports.FileItemsController = FileItemsController;
-class FileSecurityController {
-  constructor(options) {
-    const defaultOptions = {
-      allowedFileExtensions: [],
-      maxFileSize: 0
-    };
-    this._options = (0, _extend.extend)(defaultOptions, options);
-    this._extensionsMap = {};
-    this._allowedFileExtensions.forEach(extension => {
-      this._extensionsMap[extension.toUpperCase()] = true;
-    });
-  }
-  getAllowedItems(items) {
-    if (this._allowedFileExtensions.length === 0) {
-      return items;
-    }
-    return items.filter(item => item.isDirectory || this._isValidExtension(item.name));
-  }
-  validateExtension(name) {
-    if (!this._isValidExtension(name)) {
-      throw new _error.default(_error_codes.default.WrongFileExtension, null);
-    }
-  }
-  validateMaxFileSize(size) {
-    if (this._maxFileSize && size > this._maxFileSize) {
-      throw new _error.default(_error_codes.default.MaxFileSizeExceeded, null);
-    }
-  }
-  _isValidExtension(name) {
-    if (this._allowedFileExtensions.length === 0) {
-      return true;
-    }
-    const extension = (0, _utils.getFileExtension)(name).toUpperCase();
-    return this._extensionsMap[extension];
-  }
-  get _allowedFileExtensions() {
-    return this._options.allowedFileExtensions;
-  }
-  get _maxFileSize() {
-    return this._options.maxFileSize;
-  }
-}
-
-/***/ }),
-
-/***/ 74327:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _size = __webpack_require__(57653);
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _extend = __webpack_require__(52576);
-var _type = __webpack_require__(11528);
-var _window = __webpack_require__(3104);
-var _ui = _interopRequireDefault(__webpack_require__(11118));
-var _drawer = _interopRequireDefault(__webpack_require__(7968));
-var _splitter_control = _interopRequireDefault(__webpack_require__(47744));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const window = (0, _window.getWindow)();
-const ADAPTIVE_STATE_SCREEN_WIDTH = 573;
-const FILE_MANAGER_ADAPTIVITY_DRAWER_PANEL_CLASS = 'dx-filemanager-adaptivity-drawer-panel';
-const DRAWER_PANEL_CONTENT_INITIAL = 'dx-drawer-panel-content-initial';
-const DRAWER_PANEL_CONTENT_ADAPTIVE = 'dx-drawer-panel-content-adaptive';
-class FileManagerAdaptivityControl extends _ui.default {
-  _initMarkup() {
-    super._initMarkup();
-    this._initActions();
-    this._isInAdaptiveState = false;
-    const $drawer = (0, _renderer.default)('<div>').appendTo(this.$element());
-    (0, _renderer.default)('<div>').addClass(FILE_MANAGER_ADAPTIVITY_DRAWER_PANEL_CLASS).appendTo($drawer);
-    this._drawer = this._createComponent($drawer, _drawer.default);
-    this._drawer.option({
-      opened: true,
-      template: this._createDrawerTemplate.bind(this)
-    });
-    (0, _renderer.default)(this._drawer.content()).addClass(DRAWER_PANEL_CONTENT_INITIAL);
-    const $drawerContent = $drawer.find(`.${FILE_MANAGER_ADAPTIVITY_DRAWER_PANEL_CLASS}`).first();
-    const contentRenderer = this.option('contentTemplate');
-    if ((0, _type.isFunction)(contentRenderer)) {
-      contentRenderer($drawerContent);
-    }
-    this._updateDrawerMaxSize();
-  }
-  _createDrawerTemplate(container) {
-    this.option('drawerTemplate')(container);
-    this._splitter = this._createComponent('<div>', _splitter_control.default, {
-      container: this.$element(),
-      leftElement: (0, _renderer.default)(this._drawer.content()),
-      rightElement: (0, _renderer.default)(this._drawer.viewContent()),
-      onApplyPanelSize: this._onApplyPanelSize.bind(this),
-      onActiveStateChanged: this._onActiveStateChanged.bind(this)
-    });
-    this._splitter.$element().appendTo(container);
-    this._splitter.disableSplitterCalculation(true);
-  }
-  _render() {
-    super._render();
-    this._checkAdaptiveState();
-  }
-  _onApplyPanelSize(e) {
-    if (!(0, _window.hasWindow)()) {
-      return;
-    }
-    if (!this._splitter.isSplitterMoved()) {
-      this._setDrawerWidth('');
-      return;
-    }
-    (0, _renderer.default)(this._drawer.content()).removeClass(DRAWER_PANEL_CONTENT_INITIAL);
-    this._setDrawerWidth(e.leftPanelWidth);
-  }
-  _onActiveStateChanged(_ref) {
-    let {
-      isActive
-    } = _ref;
-    this._splitter.disableSplitterCalculation(!isActive);
-    !isActive && this._splitter.$element().css('left', 'auto');
-  }
-  _setDrawerWidth(width) {
-    (0, _renderer.default)(this._drawer.content()).css('width', width);
-    this._updateDrawerMaxSize();
-    this._drawer.resizeViewContent();
-  }
-  _updateDrawerMaxSize() {
-    this._drawer.option('maxSize', this._drawer.getRealPanelWidth());
-  }
-  _dimensionChanged(dimension) {
-    if (!dimension || dimension !== 'height') {
-      this._checkAdaptiveState();
-    }
-  }
-  _checkAdaptiveState() {
-    const oldState = this._isInAdaptiveState;
-    this._isInAdaptiveState = this._isSmallScreen();
-    if (oldState !== this._isInAdaptiveState) {
-      this.toggleDrawer(!this._isInAdaptiveState, true);
-      (0, _renderer.default)(this._drawer.content()).toggleClass(DRAWER_PANEL_CONTENT_ADAPTIVE, this._isInAdaptiveState);
-      this._raiseAdaptiveStateChanged(this._isInAdaptiveState);
-    }
-    if (this._isInAdaptiveState && this._isDrawerOpened()) {
-      this._updateDrawerMaxSize();
-    }
-  }
-  _isSmallScreen() {
-    return (0, _size.getWidth)(window) <= ADAPTIVE_STATE_SCREEN_WIDTH;
-  }
-  _isDrawerOpened() {
-    return this._drawer.option('opened');
-  }
-  _initActions() {
-    this._actions = {
-      onAdaptiveStateChanged: this._createActionByOption('onAdaptiveStateChanged')
-    };
-  }
-  _raiseAdaptiveStateChanged(enabled) {
-    this._actions.onAdaptiveStateChanged({
-      enabled
-    });
-  }
-  _getDefaultOptions() {
-    return (0, _extend.extend)(super._getDefaultOptions(), {
-      drawerTemplate: null,
-      contentTemplate: null,
-      onAdaptiveStateChanged: null
-    });
-  }
-  _optionChanged(args) {
-    const name = args.name;
-    switch (name) {
-      case 'drawerTemplate':
-      case 'contentTemplate':
-        this.repaint();
-        break;
-      case 'onAdaptiveStateChanged':
-        this._actions[name] = this._createActionByOption(name);
-        break;
-      default:
-        super._optionChanged(args);
-    }
-  }
-  isInAdaptiveState() {
-    return this._isInAdaptiveState;
-  }
-  toggleDrawer(showing, skipAnimation) {
-    this._updateDrawerMaxSize();
-    this._drawer.option('animationEnabled', !skipAnimation);
-    this._drawer.toggle(showing);
-    const isSplitterActive = this._isDrawerOpened() && !this.isInAdaptiveState();
-    this._splitter.toggleDisabled(!isSplitterActive);
-  }
-  getSplitterElement() {
-    return this._splitter.getSplitterBorderElement().get(0);
-  }
-}
-var _default = exports["default"] = FileManagerAdaptivityControl;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 81606:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _extend = __webpack_require__(52576);
-var _ui = _interopRequireDefault(__webpack_require__(11118));
-var _menu = _interopRequireDefault(__webpack_require__(1614));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const FILE_MANAGER_BREADCRUMBS_CLASS = 'dx-filemanager-breadcrumbs';
-const FILE_MANAGER_BREADCRUMBS_PARENT_FOLDER_ITEM_CLASS = FILE_MANAGER_BREADCRUMBS_CLASS + '-parent-folder-item';
-const FILE_MANAGER_BREADCRUMBS_SEPARATOR_ITEM_CLASS = FILE_MANAGER_BREADCRUMBS_CLASS + '-separator-item';
-const FILE_MANAGER_BREADCRUMBS_PATH_SEPARATOR_ITEM_CLASS = FILE_MANAGER_BREADCRUMBS_CLASS + '-path-separator-item';
-class FileManagerBreadcrumbs extends _ui.default {
-  _init() {
-    super._init();
-    this._currentDirectory = null;
-  }
-  _initMarkup() {
-    super._initMarkup();
-    this._initActions();
-    if (this._currentDirectory) {
-      this._renderMenu();
-    }
-    this.$element().addClass(FILE_MANAGER_BREADCRUMBS_CLASS);
-  }
-  setCurrentDirectory(directory) {
-    if (!this._areDirsEqual(this._currentDirectory, directory)) {
-      this._currentDirectory = directory;
-      this.repaint();
-    }
-  }
-  _renderMenu() {
-    const $menu = (0, _renderer.default)('<div>').appendTo(this.$element());
-    this._menu = this._createComponent($menu, _menu.default, {
-      dataSource: this._getMenuItems(),
-      onItemClick: this._onItemClick.bind(this),
-      onItemRendered: this._onItemRendered.bind(this)
-    });
-  }
-  _getMenuItems() {
-    const dirLine = this._getParentDirsLine();
-    const result = [{
-      icon: 'arrowup',
-      directory: this._currentDirectory.parentDirectory,
-      isPathItem: true,
-      cssClass: FILE_MANAGER_BREADCRUMBS_PARENT_FOLDER_ITEM_CLASS
-    }, {
-      text: ' ',
-      cssClass: FILE_MANAGER_BREADCRUMBS_SEPARATOR_ITEM_CLASS
-    }];
-    dirLine.forEach((dir, index) => {
-      result.push({
-        text: dir.getDisplayName(),
-        directory: dir,
-        isPathItem: true
-      });
-      if (index !== dirLine.length - 1) {
-        result.push({
-          icon: 'spinnext',
-          cssClass: FILE_MANAGER_BREADCRUMBS_PATH_SEPARATOR_ITEM_CLASS
-        });
-      }
-    });
-    return result;
-  }
-  _onItemClick(_ref) {
-    let {
-      itemData
-    } = _ref;
-    if (!itemData.isPathItem) {
-      return;
-    }
-    const newDir = itemData.directory;
-    if (!this._areDirsEqual(newDir, this._currentDirectory)) {
-      this._raiseCurrentDirectoryChanged(newDir);
-    }
-  }
-  _onItemRendered(_ref2) {
-    let {
-      itemElement,
-      itemData
-    } = _ref2;
-    if (itemData.cssClass) {
-      (0, _renderer.default)(itemElement).addClass(itemData.cssClass);
-    }
-  }
-  _getParentDirsLine() {
-    let currentDirectory = this._currentDirectory;
-    const result = [];
-    while (currentDirectory) {
-      result.unshift(currentDirectory);
-      currentDirectory = currentDirectory.parentDirectory;
-    }
-    return result;
-  }
-  _areDirsEqual(dir1, dir2) {
-    return dir1 && dir2 && dir1 === dir2 && dir1.fileItem.key === dir2.fileItem.key;
-  }
-  _initActions() {
-    this._actions = {
-      onCurrentDirectoryChanging: this._createActionByOption('onCurrentDirectoryChanging')
-    };
-  }
-  _raiseCurrentDirectoryChanged(currentDirectory) {
-    this._actions.onCurrentDirectoryChanging({
-      currentDirectory
-    });
-  }
-  _getDefaultOptions() {
-    return (0, _extend.extend)(super._getDefaultOptions(), {
-      rootFolderDisplayName: 'Files',
-      onCurrentDirectoryChanging: null
-    });
-  }
-  _optionChanged(args) {
-    const name = args.name;
-    switch (name) {
-      case 'rootFolderDisplayName':
-        this.repaint();
-        break;
-      case 'onCurrentDirectoryChanging':
-        this._actions[name] = this._createActionByOption(name);
-        break;
-      default:
-        super._optionChanged(args);
-    }
-  }
-}
-var _default = exports["default"] = FileManagerBreadcrumbs;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 59393:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-
-exports.defaultPermissions = exports.FileManagerCommandManager = void 0;
-var _extend = __webpack_require__(52576);
-var _iterator = __webpack_require__(21274);
-var _type = __webpack_require__(11528);
-var _message = _interopRequireDefault(__webpack_require__(4671));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const defaultPermissions = exports.defaultPermissions = {
-  create: false,
-  copy: false,
-  move: false,
-  delete: false,
-  rename: false,
-  upload: false,
-  download: false
-};
-class FileManagerCommandManager {
-  constructor(permissions) {
-    this._actions = {};
-    this._permissions = permissions || {};
-    this._initCommands();
-  }
-  _initCommands() {
-    this._commands = [{
-      name: 'create',
-      text: _message.default.format('dxFileManager-commandCreate'),
-      icon: 'newfolder',
-      enabled: this._permissions.create,
-      noFileItemRequired: true
-    }, {
-      name: 'rename',
-      text: _message.default.format('dxFileManager-commandRename'),
-      icon: 'rename',
-      enabled: this._permissions.rename,
-      isSingleFileItemCommand: true
-    }, {
-      name: 'move',
-      text: _message.default.format('dxFileManager-commandMove'),
-      icon: 'movetofolder',
-      enabled: this._permissions.move
-    }, {
-      name: 'copy',
-      text: _message.default.format('dxFileManager-commandCopy'),
-      icon: 'copy',
-      enabled: this._permissions.copy
-    }, {
-      name: 'delete',
-      text: _message.default.format('dxFileManager-commandDelete'),
-      icon: 'trash',
-      enabled: this._permissions.delete
-    }, {
-      name: 'download',
-      text: _message.default.format('dxFileManager-commandDownload'),
-      icon: 'download',
-      enabled: this._permissions.download
-    }, {
-      name: 'upload',
-      text: _message.default.format('dxFileManager-commandUpload'),
-      icon: 'upload',
-      enabled: this._permissions.upload,
-      noFileItemRequired: true
-    }, {
-      name: 'refresh',
-      text: _message.default.format('dxFileManager-commandRefresh'),
-      icon: 'dx-filemanager-i dx-filemanager-i-refresh',
-      enabled: true,
-      noFileItemRequired: true
-    }, {
-      name: 'thumbnails',
-      text: _message.default.format('dxFileManager-commandThumbnails'),
-      icon: 'mediumiconslayout',
-      enabled: true,
-      noFileItemRequired: true
-    }, {
-      name: 'details',
-      text: _message.default.format('dxFileManager-commandDetails'),
-      icon: 'detailslayout',
-      enabled: true,
-      noFileItemRequired: true
-    }, {
-      name: 'clearSelection',
-      text: _message.default.format('dxFileManager-commandClearSelection'),
-      icon: 'remove',
-      enabled: true
-    }, {
-      name: 'showNavPane',
-      hint: _message.default.format('dxFileManager-commandShowNavPane'),
-      icon: 'menu',
-      enabled: false,
-      noFileItemRequired: true
-    }];
-    this._commandMap = {};
-    this._commands.forEach(command => {
-      this._commandMap[command.name] = command;
-    });
-  }
-  registerActions(actions) {
-    this._actions = (0, _extend.extend)(this._actions, actions);
-  }
-  executeCommand(command, arg) {
-    const commandName = (0, _type.isString)(command) ? command : command.name;
-    const action = this._actions[commandName];
-    if (action) {
-      return action(arg);
-    }
-  }
-  updatePermissions(permissions) {
-    const resultPermissions = (0, _extend.extend)({}, defaultPermissions, permissions);
-    this._permissions = resultPermissions;
-    (0, _iterator.each)(this._permissions, permission => {
-      this._commandMap[permission].enabled = this._permissions[permission];
-    });
-  }
-  setCommandEnabled(commandName, enabled) {
-    const command = this.getCommandByName(commandName);
-    if (command) {
-      command.enabled = enabled;
-    }
-  }
-  getCommandByName(name) {
-    return this._commandMap[name];
-  }
-  isCommandAvailable(commandName, itemInfos) {
-    const command = this.getCommandByName(commandName);
-    if (!command || !command.enabled) {
-      return false;
-    }
-    if (command.noFileItemRequired) {
-      return true;
-    }
-    const itemsLength = itemInfos && itemInfos.length || 0;
-    if (itemsLength === 0 || itemInfos.some(item => item.fileItem.isRoot() || item.fileItem.isParentFolder)) {
-      return false;
-    }
-    if (commandName === 'download') {
-      return itemInfos.every(itemInfo => !itemInfo.fileItem.isDirectory);
-    }
-    return !command.isSingleFileItemCommand || itemsLength === 1;
-  }
-}
-exports.FileManagerCommandManager = FileManagerCommandManager;
 
 /***/ }),
 
@@ -299460,7 +306380,7 @@ var _data_grid = _interopRequireDefault(__webpack_require__(4920));
 var _uiFile_manager2 = _interopRequireDefault(__webpack_require__(84368));
 var _uiFile_manager3 = _interopRequireDefault(__webpack_require__(9787));
 var _deferred = __webpack_require__(87739);
-var _file_items_controller = __webpack_require__(27018);
+var _file_items_controller = __webpack_require__(62492);
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 // NOTE: Using the "public" export here for the theme-builder deps check
 
@@ -300208,7 +307128,7 @@ var _uiFile_manager = __webpack_require__(57011);
 var _message = _interopRequireDefault(__webpack_require__(4671));
 var _uiFile_managerItems_listThumbnails = _interopRequireDefault(__webpack_require__(42530));
 var _uiFile_manager2 = _interopRequireDefault(__webpack_require__(84368));
-var _file_items_controller = __webpack_require__(27018);
+var _file_items_controller = __webpack_require__(62492);
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 const FILE_MANAGER_THUMBNAILS_ITEM_LIST_CLASS = 'dx-filemanager-thumbnails';
 const FILE_MANAGER_THUMBNAILS_ITEM_CLASS = 'dx-filemanager-thumbnails-item';
@@ -300884,757 +307804,6 @@ class ListBoxLayoutUtils {
   }
 }
 var _default = exports["default"] = FileManagerThumbnailListBox;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 85186:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _extend = __webpack_require__(52576);
-var _type = __webpack_require__(11528);
-var _deferred = __webpack_require__(87739);
-var _common = __webpack_require__(17781);
-var _message = _interopRequireDefault(__webpack_require__(4671));
-var _component_registrator = _interopRequireDefault(__webpack_require__(92848));
-var _ui = _interopRequireDefault(__webpack_require__(11118));
-var _notify = _interopRequireDefault(__webpack_require__(93380));
-var _uiFile_manager = __webpack_require__(57011);
-var _file_items_controller = __webpack_require__(27018);
-var _uiFile_manager2 = __webpack_require__(59393);
-var _uiFile_manager3 = _interopRequireDefault(__webpack_require__(40729));
-var _uiFile_manager4 = _interopRequireDefault(__webpack_require__(82724));
-var _uiFile_managerItem_list = _interopRequireDefault(__webpack_require__(17772));
-var _uiFile_managerItem_list2 = _interopRequireDefault(__webpack_require__(65485));
-var _uiFile_manager5 = _interopRequireDefault(__webpack_require__(59679));
-var _uiFile_manager6 = _interopRequireDefault(__webpack_require__(44313));
-var _uiFile_manager7 = _interopRequireDefault(__webpack_require__(9516));
-var _uiFile_manager8 = _interopRequireDefault(__webpack_require__(81606));
-var _uiFile_manager9 = _interopRequireDefault(__webpack_require__(74327));
-var _utils = __webpack_require__(53904);
-var _comparator = __webpack_require__(60648);
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const FILE_MANAGER_CLASS = 'dx-filemanager';
-const FILE_MANAGER_WRAPPER_CLASS = FILE_MANAGER_CLASS + '-wrapper';
-const FILE_MANAGER_CONTAINER_CLASS = FILE_MANAGER_CLASS + '-container';
-const FILE_MANAGER_DIRS_PANEL_CLASS = FILE_MANAGER_CLASS + '-dirs-panel';
-const FILE_MANAGER_EDITING_CONTAINER_CLASS = FILE_MANAGER_CLASS + '-editing-container';
-const FILE_MANAGER_ITEMS_PANEL_CLASS = FILE_MANAGER_CLASS + '-items-panel';
-const FILE_MANAGER_ITEM_CUSTOM_THUMBNAIL_CLASS = FILE_MANAGER_CLASS + '-item-custom-thumbnail';
-const PARENT_DIRECTORY_KEY_PREFIX = '[*DXPDK*]$40F96F03-FBD8-43DF-91BE-F55F4B8BA871$';
-const VIEW_AREAS = {
-  folders: 'navPane',
-  items: 'itemView'
-};
-class FileManager extends _ui.default {
-  _initTemplates() {}
-  _init() {
-    super._init();
-    this._initActions();
-    this._providerUpdateDeferred = null;
-    this._lockCurrentPathProcessing = false;
-    this._wasRendered = false;
-    this._controller = new _file_items_controller.FileItemsController({
-      currentPath: this.option('currentPath'),
-      currentPathKeys: this.option('currentPathKeys'),
-      rootText: this.option('rootFolderName'),
-      fileProvider: this.option('fileSystemProvider'),
-      allowedFileExtensions: this.option('allowedFileExtensions'),
-      uploadMaxFileSize: this.option('upload').maxFileSize,
-      uploadChunkSize: this.option('upload').chunkSize,
-      onInitialized: this._onControllerInitialized.bind(this),
-      onDataLoading: this._onDataLoading.bind(this),
-      onSelectedDirectoryChanged: this._onSelectedDirectoryChanged.bind(this),
-      onPathPotentiallyChanged: this._checkPathActuality.bind(this),
-      editingEvents: this._actions.editing
-    });
-  }
-  _initMarkup() {
-    super._initMarkup();
-    this._firstItemViewLoad = true;
-    this._lockSelectionProcessing = false;
-    this._lockFocusedItemProcessing = false;
-    this._itemKeyToFocus = undefined;
-    this._loadedWidgets = [];
-    this._commandManager = new _uiFile_manager2.FileManagerCommandManager(this.option('permissions'));
-    this.$element().addClass(FILE_MANAGER_CLASS);
-    if (this._wasRendered) {
-      this._prepareToLoad();
-    } else {
-      this._wasRendered = true;
-    }
-    this._createNotificationControl();
-    this._initCommandManager();
-  }
-  _createNotificationControl() {
-    const $notificationControl = (0, _renderer.default)('<div>').addClass('dx-filemanager-notification-container').appendTo(this.$element());
-    this._notificationControl = this._createComponent($notificationControl, _uiFile_manager6.default, {
-      progressPanelContainer: this.$element(),
-      contentTemplate: (container, notificationControl) => this._createWrapper(container, notificationControl),
-      onActionProgress: e => this._onActionProgress(e),
-      positionTargetSelector: `.${FILE_MANAGER_CONTAINER_CLASS}`,
-      showProgressPanel: this.option('notifications.showPanel'),
-      showNotificationPopup: this.option('notifications.showPopup')
-    });
-  }
-  _createWrapper(container, notificationControl) {
-    this._$wrapper = (0, _renderer.default)('<div>').addClass(FILE_MANAGER_WRAPPER_CLASS).appendTo(container);
-    this._createEditing(notificationControl);
-    const $toolbar = (0, _renderer.default)('<div>').appendTo(this._$wrapper);
-    this._toolbar = this._createComponent($toolbar, _uiFile_manager5.default, {
-      commandManager: this._commandManager,
-      generalItems: this.option('toolbar.items'),
-      fileItems: this.option('toolbar.fileSelectionItems'),
-      itemViewMode: this.option('itemView').mode,
-      onItemClick: args => this._actions.onToolbarItemClick(args)
-    });
-    this._createAdaptivityControl();
-  }
-  _createAdaptivityControl() {
-    const $container = (0, _renderer.default)('<div>').addClass(FILE_MANAGER_CONTAINER_CLASS).appendTo(this._$wrapper);
-    this._adaptivityControl = this._createComponent($container, _uiFile_manager9.default, {
-      drawerTemplate: container => this._createFilesTreeView(container),
-      contentTemplate: container => this._createItemsPanel(container),
-      onAdaptiveStateChanged: e => this._onAdaptiveStateChanged(e)
-    });
-    this._editing.setUploaderSplitterElement(this._adaptivityControl.getSplitterElement());
-  }
-  _createEditing(notificationControl) {
-    const $editingContainer = (0, _renderer.default)('<div>').addClass(FILE_MANAGER_EDITING_CONTAINER_CLASS).appendTo(this.$element());
-    this._editing = this._createComponent($editingContainer, _uiFile_manager7.default, {
-      controller: this._controller,
-      model: {
-        getMultipleSelectedItems: this._getSelectedItemInfos.bind(this)
-      },
-      getItemThumbnail: this._getItemThumbnailInfo.bind(this),
-      notificationControl,
-      uploadDropZonePlaceholderContainer: this.$element(),
-      rtlEnabled: this.option('rtlEnabled'),
-      onSuccess: _ref => {
-        let {
-          updatedOnlyFiles
-        } = _ref;
-        return this._redrawComponent(updatedOnlyFiles);
-      },
-      onError: e => this._onEditingError(e)
-    });
-  }
-  _createItemsPanel($container) {
-    this._$itemsPanel = (0, _renderer.default)('<div>').addClass(FILE_MANAGER_ITEMS_PANEL_CLASS).appendTo($container);
-    this._createBreadcrumbs(this._$itemsPanel);
-    this._createItemView(this._$itemsPanel);
-    this._updateUploadDropZone();
-  }
-  _updateUploadDropZone() {
-    const dropZone = this._commandManager.isCommandAvailable('upload') ? this._$itemsPanel : (0, _renderer.default)();
-    this._editing.setUploaderDropZone(dropZone);
-  }
-  _createFilesTreeView(container) {
-    this._filesTreeViewContextMenu = this._createContextMenu(false, VIEW_AREAS.folders);
-    const $filesTreeView = (0, _renderer.default)('<div>').addClass(FILE_MANAGER_DIRS_PANEL_CLASS).appendTo(container);
-    this._filesTreeView = this._createComponent($filesTreeView, _uiFile_manager4.default, {
-      storeExpandedState: true,
-      contextMenu: this._filesTreeViewContextMenu,
-      getDirectories: this.getDirectories.bind(this),
-      getCurrentDirectory: this._getCurrentDirectory.bind(this),
-      onDirectoryClick: _ref2 => {
-        let {
-          itemData
-        } = _ref2;
-        return this._setCurrentDirectory(itemData);
-      },
-      onItemListDataLoaded: () => this._tryEndLoading(VIEW_AREAS.folders)
-    });
-    this._filesTreeView.updateCurrentDirectory();
-  }
-  _createItemView($container, viewMode) {
-    this._itemViewContextMenu = this._createContextMenu(true, VIEW_AREAS.items);
-    const itemViewOptions = this.option('itemView');
-    const options = {
-      selectionMode: this.option('selectionMode'),
-      selectedItemKeys: this.option('selectedItemKeys'),
-      focusedItemKey: this.option('focusedItemKey'),
-      contextMenu: this._itemViewContextMenu,
-      getItems: this._getItemViewItems.bind(this),
-      onError: _ref3 => {
-        let {
-          error
-        } = _ref3;
-        return this._showError(error);
-      },
-      onSelectionChanged: this._onItemViewSelectionChanged.bind(this),
-      onFocusedItemChanged: this._onItemViewFocusedItemChanged.bind(this),
-      onSelectedItemOpened: this._onSelectedItemOpened.bind(this),
-      onContextMenuShowing: e => this._onContextMenuShowing(VIEW_AREAS.items, e),
-      onItemListItemsLoaded: () => this._tryEndLoading(VIEW_AREAS.items),
-      getItemThumbnail: this._getItemThumbnailInfo.bind(this),
-      customizeDetailColumns: this.option('customizeDetailColumns'),
-      detailColumns: this.option('itemView.details.columns')
-    };
-    const $itemView = (0, _renderer.default)('<div>').appendTo($container);
-    viewMode = viewMode || itemViewOptions.mode;
-    const widgetClass = viewMode === 'thumbnails' ? _uiFile_managerItem_list2.default : _uiFile_managerItem_list.default;
-    this._itemView = this._createComponent($itemView, widgetClass, options);
-  }
-  _createBreadcrumbs($container) {
-    const $breadcrumbs = (0, _renderer.default)('<div>').appendTo($container);
-    this._breadcrumbs = this._createComponent($breadcrumbs, _uiFile_manager8.default, {
-      rootFolderDisplayName: this.option('rootFolderName'),
-      onCurrentDirectoryChanging: _ref4 => {
-        let {
-          currentDirectory
-        } = _ref4;
-        return this._setCurrentDirectory(currentDirectory, true);
-      }
-    });
-    this._breadcrumbs.setCurrentDirectory(this._getCurrentDirectory());
-  }
-  _createContextMenu(isolateCreationItemCommands, viewArea) {
-    const $contextMenu = (0, _renderer.default)('<div>').appendTo(this._$wrapper);
-    return this._createComponent($contextMenu, _uiFile_manager3.default, {
-      commandManager: this._commandManager,
-      items: this.option('contextMenu.items'),
-      onItemClick: args => this._actions.onContextMenuItemClick(args),
-      onContextMenuShowing: e => this._onContextMenuShowing(viewArea, e),
-      isolateCreationItemCommands,
-      viewArea
-    });
-  }
-  _initCommandManager() {
-    const actions = (0, _extend.extend)(this._editing.getCommandActions(), {
-      refresh: () => this._refreshAndShowProgress(),
-      thumbnails: () => this.option('itemView.mode', 'thumbnails'),
-      details: () => this.option('itemView.mode', 'details'),
-      clearSelection: () => this._clearSelection(),
-      showNavPane: () => this._adaptivityControl.toggleDrawer()
-    });
-    this._commandManager.registerActions(actions);
-  }
-  _onItemViewSelectionChanged(_ref5) {
-    let {
-      selectedItemInfos,
-      selectedItems,
-      selectedItemKeys,
-      currentSelectedItemKeys,
-      currentDeselectedItemKeys
-    } = _ref5;
-    this._lockSelectionProcessing = true;
-    this.option('selectedItemKeys', selectedItemKeys);
-    this._lockSelectionProcessing = false;
-    this._actions.onSelectionChanged({
-      selectedItems,
-      selectedItemKeys,
-      currentSelectedItemKeys,
-      currentDeselectedItemKeys
-    });
-    this._updateToolbar(selectedItemInfos);
-  }
-  _onItemViewFocusedItemChanged(e) {
-    this._lockFocusedItemProcessing = true;
-    this.option('focusedItemKey', e.itemKey);
-    this._lockFocusedItemProcessing = false;
-    this._actions.onFocusedItemChanged({
-      item: e.item,
-      itemElement: e.itemElement
-    });
-  }
-  _onAdaptiveStateChanged(_ref6) {
-    let {
-      enabled
-    } = _ref6;
-    this._commandManager.setCommandEnabled('showNavPane', enabled);
-    this._updateToolbar();
-  }
-  _onActionProgress(_ref7) {
-    let {
-      message,
-      status
-    } = _ref7;
-    this._toolbar.updateRefreshItem(message, status);
-    this._updateToolbar();
-  }
-  _onEditingError(e) {
-    const args = (0, _uiFile_manager.extendAttributes)({}, e, ['errorCode', 'errorText', 'fileSystemItem']);
-    this._actions.onErrorOccurred(args);
-    e.errorText = args.errorText;
-  }
-  _refreshAndShowProgress() {
-    this._prepareToLoad();
-    return (0, _deferred.when)(this._notificationControl.tryShowProgressPanel(), this._controller.refresh()).then(() => this._filesTreeView.refresh());
-  }
-  _isAllWidgetsLoaded() {
-    return this._loadedWidgets.length === 2 && this._loadedWidgets.indexOf(VIEW_AREAS.folders) !== -1 && this._loadedWidgets.indexOf(VIEW_AREAS.items) !== -1;
-  }
-  _tryEndLoading(area) {
-    this._loadedWidgets.push(area);
-    if (this._isAllWidgetsLoaded()) {
-      this._controller.endSingleLoad();
-    }
-  }
-  _prepareToLoad() {
-    this._loadedWidgets = [];
-    this._controller.startSingleLoad();
-  }
-  _updateToolbar(selectedItems) {
-    const items = selectedItems || this._getSelectedItemInfos();
-    this._toolbar.option('contextItems', (0, _common.ensureDefined)(items, []));
-  }
-  _switchView(viewMode) {
-    this._disposeWidget(this._itemView.option('contextMenu'));
-    this._disposeWidget(this._itemView);
-    this._createItemView(this._$itemsPanel, viewMode);
-    this._toolbar.option({
-      itemViewMode: viewMode
-    });
-  }
-  _disposeWidget(widget) {
-    widget.dispose();
-    widget.$element().remove();
-  }
-  _clearSelection() {
-    this._itemView.clearSelection();
-  }
-  _showError(message) {
-    // TODO use notification control instead of it
-    this._showNotification(message, false);
-  }
-  _showNotification(message, isSuccess) {
-    (0, _notify.default)({
-      message: message,
-      width: 450
-    }, isSuccess ? 'success' : 'error', 5000);
-  }
-  _redrawComponent(onlyFileItemsView) {
-    this._itemView.refresh().then(() => !onlyFileItemsView && this._filesTreeView.refresh());
-  }
-  _getItemViewItems() {
-    const showFolders = this.option('itemView').showFolders;
-    let result = this._controller.getCurrentItems(!showFolders);
-    this._updateToolbarWithSelectionOnFirstLoad(result);
-    if (this.option('itemView.showParentFolder')) {
-      result = (0, _deferred.when)(result).then(items => this._getPreparedItemViewItems(items));
-    }
-    return result;
-  }
-  _updateToolbarWithSelectionOnFirstLoad(itemsResult) {
-    if (!this._firstItemViewLoad) {
-      return;
-    }
-    this._firstItemViewLoad = false;
-    const selectedItemKeys = this.option('selectedItemKeys');
-    if (selectedItemKeys.length > 0) {
-      (0, _deferred.when)(itemsResult).done(items => {
-        const selectedItems = (0, _uiFile_manager.findItemsByKeys)(items, selectedItemKeys);
-        if (selectedItems.length > 0) {
-          this._updateToolbar(selectedItems);
-        }
-      });
-    }
-  }
-  _getPreparedItemViewItems(items) {
-    const selectedDir = this._getCurrentDirectory();
-    if (selectedDir.fileItem.isRoot()) {
-      return items;
-    }
-    const parentDirItem = selectedDir.fileItem.createClone();
-    parentDirItem.isParentFolder = true;
-    parentDirItem.name = '..';
-    parentDirItem.relativeName = '..';
-    parentDirItem.key = `${PARENT_DIRECTORY_KEY_PREFIX}${selectedDir.fileItem.key}`;
-    const itemsCopy = [...items];
-    itemsCopy.unshift({
-      fileItem: parentDirItem,
-      icon: 'parentfolder'
-    });
-    return itemsCopy;
-  }
-  _onContextMenuShowing(viewArea, e) {
-    var _e$itemData;
-    let eventArgs = (0, _uiFile_manager.extendAttributes)({}, e, ['targetElement', 'cancel', 'event']);
-    eventArgs = (0, _extend.extend)(eventArgs, {
-      viewArea,
-      fileSystemItem: (_e$itemData = e.itemData) === null || _e$itemData === void 0 ? void 0 : _e$itemData.fileItem,
-      _isActionButton: e.isActionButton
-    });
-    this._actions.onContextMenuShowing(eventArgs);
-    e.cancel = (0, _common.ensureDefined)(eventArgs.cancel, false);
-  }
-  _getItemThumbnailInfo(fileInfo) {
-    const func = this.option('customizeThumbnail');
-    const thumbnail = (0, _type.isFunction)(func) ? func(fileInfo.fileItem) : fileInfo.fileItem.thumbnail;
-    if (thumbnail) {
-      return {
-        thumbnail,
-        cssClass: FILE_MANAGER_ITEM_CUSTOM_THUMBNAIL_CLASS
-      };
-    }
-    return {
-      thumbnail: fileInfo.icon
-    };
-  }
-  _getDefaultOptions() {
-    return (0, _extend.extend)(super._getDefaultOptions(), {
-      fileSystemProvider: null,
-      currentPath: '',
-      currentPathKeys: [],
-      rootFolderName: _message.default.format('dxFileManager-rootDirectoryName'),
-      selectionMode: 'multiple',
-      // "single"
-
-      selectedItemKeys: [],
-      focusedItemKey: undefined,
-      toolbar: {
-        items: ['showNavPane', 'create', 'upload', 'switchView', {
-          name: 'separator',
-          location: 'after'
-        }, 'refresh'],
-        fileSelectionItems: ['download', 'separator', 'move', 'copy', 'rename', 'separator', 'delete', 'clearSelection', {
-          name: 'separator',
-          location: 'after'
-        }, 'refresh']
-      },
-      contextMenu: {
-        items: ['create', 'upload', 'rename', 'move', 'copy', 'delete', 'refresh', 'download']
-      },
-      itemView: {
-        details: {
-          columns: ['thumbnail', 'name', 'dateModified', 'size']
-        },
-        mode: 'details',
-        // "thumbnails"
-        showFolders: true,
-        showParentFolder: true
-      },
-      customizeThumbnail: null,
-      customizeDetailColumns: null,
-      onContextMenuItemClick: null,
-      onContextMenuShowing: null,
-      onCurrentDirectoryChanged: null,
-      onSelectedFileOpened: null,
-      onSelectionChanged: null,
-      onFocusedItemChanged: null,
-      onToolbarItemClick: null,
-      onErrorOccurred: null,
-      onDirectoryCreating: null,
-      onDirectoryCreated: null,
-      onItemRenaming: null,
-      onItemRenamed: null,
-      onItemDeleting: null,
-      onItemDeleted: null,
-      onItemCopying: null,
-      onItemCopied: null,
-      onItemMoving: null,
-      onItemMoved: null,
-      onFileUploading: null,
-      onFileUploaded: null,
-      onItemDownloading: null,
-      allowedFileExtensions: [],
-      upload: {
-        maxFileSize: 0,
-        chunkSize: 200000
-      },
-      permissions: (0, _extend.extend)({}, _uiFile_manager2.defaultPermissions),
-      notifications: {
-        showPanel: true,
-        showPopup: true
-      }
-    });
-  }
-  option(options, value) {
-    const optionsToCheck = (0, _utils.normalizeOptions)(options, value);
-    const isGetter = arguments.length < 2 && (0, _type.type)(options) !== 'object';
-    const isOptionDefined = name => (0, _type.isDefined)(optionsToCheck[name]);
-    const isOptionValueDiffers = name => {
-      if (!isOptionDefined(name)) {
-        return false;
-      }
-      const previousValue = this.option(name);
-      const value = optionsToCheck[name];
-      return !(0, _comparator.equals)(previousValue, value);
-    };
-    if (!isGetter && isOptionDefined('fileSystemProvider')) {
-      this._providerUpdateDeferred = new _deferred.Deferred();
-      if (isOptionValueDiffers('currentPath') || isOptionValueDiffers('currentPathKeys')) {
-        this._lockCurrentPathProcessing = true;
-      }
-    }
-    return super.option(...arguments);
-  }
-  _optionChanged(args) {
-    const name = args.name;
-    switch (name) {
-      case 'currentPath':
-        {
-          const updateFunc = () => {
-            this._lockCurrentPathProcessing = false;
-            return this._controller.setCurrentPath(args.value);
-          };
-          this._lockCurrentPathProcessing = true;
-          this._providerUpdateDeferred ? this._providerUpdateDeferred.then(updateFunc) : updateFunc();
-        }
-        break;
-      case 'currentPathKeys':
-        {
-          const updateFunc = () => {
-            this._lockCurrentPathProcessing = false;
-            return this._controller.setCurrentPathByKeys(args.value);
-          };
-          this._lockCurrentPathProcessing = true;
-          this._providerUpdateDeferred ? this._providerUpdateDeferred.then(updateFunc) : updateFunc();
-        }
-        break;
-      case 'selectedItemKeys':
-        if (!this._lockSelectionProcessing && this._itemView) {
-          this._itemView.option('selectedItemKeys', args.value);
-        }
-        break;
-      case 'focusedItemKey':
-        if (!this._lockFocusedItemProcessing && this._itemView) {
-          this._itemView.option('focusedItemKey', args.value);
-        }
-        break;
-      case 'rootFolderName':
-        this._controller.setRootText(args.value);
-        this._invalidate();
-        break;
-      case 'fileSystemProvider':
-        {
-          if (!this._lockCurrentPathProcessing) {
-            this._providerUpdateDeferred = new _deferred.Deferred();
-          }
-          const pathKeys = this._lockCurrentPathProcessing ? undefined : this.option('currentPathKeys');
-          this._controller.updateProvider(args.value, pathKeys).then(() => this._providerUpdateDeferred.resolve()).always(() => {
-            this._providerUpdateDeferred = null;
-            this.repaint();
-          });
-          break;
-        }
-      case 'allowedFileExtensions':
-        this._controller.setAllowedFileExtensions(args.value);
-        this._invalidate();
-        break;
-      case 'upload':
-        this._controller.setUploadOptions(this.option('upload'));
-        this._invalidate();
-        break;
-      case 'permissions':
-        this._commandManager.updatePermissions(this.option('permissions'));
-        this._filesTreeViewContextMenu.tryUpdateVisibleContextMenu();
-        this._itemViewContextMenu.tryUpdateVisibleContextMenu();
-        this._toolbar.updateItemPermissions();
-        this._updateUploadDropZone();
-        break;
-      case 'selectionMode':
-      case 'customizeThumbnail':
-      case 'customizeDetailColumns':
-        this._invalidate();
-        break;
-      case 'itemView':
-        if (args.fullName === 'itemView.mode') {
-          this._switchView(args.value);
-        } else {
-          this._invalidate();
-        }
-        break;
-      case 'toolbar':
-        {
-          const toolbarOptions = {};
-          if (args.fullName === 'toolbar') {
-            if (args.value.items) {
-              toolbarOptions.generalItems = args.value.items;
-            }
-            if (args.value.fileSelectionItems) {
-              toolbarOptions.fileItems = args.value.fileSelectionItems;
-            }
-          }
-          if (args.fullName.indexOf('toolbar.items') === 0) {
-            toolbarOptions.generalItems = this.option('toolbar.items');
-          }
-          if (args.fullName.indexOf('toolbar.fileSelectionItems') === 0) {
-            toolbarOptions.fileItems = this.option('toolbar.fileSelectionItems');
-          }
-          this._toolbar.option(toolbarOptions);
-        }
-        break;
-      case 'contextMenu':
-        if (args.fullName === 'contextMenu' && args.value.items || args.fullName.indexOf('contextMenu.items') === 0) {
-          const contextMenuItems = this.option('contextMenu.items');
-          this._filesTreeViewContextMenu.option('items', contextMenuItems);
-          this._itemViewContextMenu.option('items', contextMenuItems);
-        }
-        break;
-      case 'notifications':
-        this._notificationControl.option('showProgressPanel', this.option('notifications.showPanel'));
-        this._notificationControl.option('showNotificationPopup', this.option('notifications.showPopup'));
-        break;
-      case 'onContextMenuItemClick':
-      case 'onContextMenuShowing':
-      case 'onCurrentDirectoryChanged':
-      case 'onSelectedFileOpened':
-      case 'onSelectionChanged':
-      case 'onFocusedItemChanged':
-      case 'onToolbarItemClick':
-      case 'onErrorOccurred':
-        this._actions[name] = this._createActionByOption(name);
-        break;
-      case 'onDirectoryCreating':
-      case 'onDirectoryCreated':
-      case 'onItemRenaming':
-      case 'onItemRenamed':
-      case 'onItemDeleting':
-      case 'onItemDeleted':
-      case 'onItemCopying':
-      case 'onItemCopied':
-      case 'onItemMoving':
-      case 'onItemMoved':
-      case 'onFileUploading':
-      case 'onFileUploaded':
-      case 'onItemDownloading':
-        this._actions.editing[name] = this._createActionByOption(name);
-        break;
-      case 'rtlEnabled':
-        this._editing.updateDialogRtl(args.value);
-        super._optionChanged(args);
-        break;
-      default:
-        super._optionChanged(args);
-    }
-  }
-  _initActions() {
-    this._actions = {
-      onContextMenuItemClick: this._createActionByOption('onContextMenuItemClick'),
-      onContextMenuShowing: this._createActionByOption('onContextMenuShowing'),
-      onCurrentDirectoryChanged: this._createActionByOption('onCurrentDirectoryChanged'),
-      onSelectedFileOpened: this._createActionByOption('onSelectedFileOpened'),
-      onSelectionChanged: this._createActionByOption('onSelectionChanged'),
-      onFocusedItemChanged: this._createActionByOption('onFocusedItemChanged'),
-      onToolbarItemClick: this._createActionByOption('onToolbarItemClick'),
-      onErrorOccurred: this._createActionByOption('onErrorOccurred'),
-      editing: {
-        onDirectoryCreating: this._createActionByOption('onDirectoryCreating'),
-        onDirectoryCreated: this._createActionByOption('onDirectoryCreated'),
-        onItemRenaming: this._createActionByOption('onItemRenaming'),
-        onItemRenamed: this._createActionByOption('onItemRenamed'),
-        onItemDeleting: this._createActionByOption('onItemDeleting'),
-        onItemDeleted: this._createActionByOption('onItemDeleted'),
-        onItemCopying: this._createActionByOption('onItemCopying'),
-        onItemCopied: this._createActionByOption('onItemCopied'),
-        onItemMoving: this._createActionByOption('onItemMoving'),
-        onItemMoved: this._createActionByOption('onItemMoved'),
-        onFileUploading: this._createActionByOption('onFileUploading'),
-        onFileUploaded: this._createActionByOption('onFileUploaded'),
-        onItemDownloading: this._createActionByOption('onItemDownloading')
-      }
-    };
-  }
-  executeCommand(commandName) {
-    return this._commandManager.executeCommand(commandName);
-  }
-  _setCurrentDirectory(directoryInfo, checkActuality) {
-    this._controller.setCurrentDirectory(directoryInfo, checkActuality);
-  }
-  _getCurrentDirectory() {
-    return this._controller.getCurrentDirectory();
-  }
-  _onControllerInitialized(_ref8) {
-    let {
-      controller
-    } = _ref8;
-    this._controller = this._controller || controller;
-    this._syncToCurrentDirectory();
-  }
-  _onDataLoading(_ref9) {
-    let {
-      operation
-    } = _ref9;
-    let options = null;
-    if (operation === _file_items_controller.OPERATIONS.NAVIGATION) {
-      options = {
-        focusedItemKey: this._itemKeyToFocus,
-        selectedItemKeys: this.option('selectedItemKeys')
-      };
-      this._itemKeyToFocus = undefined;
-    }
-    this._itemView.refresh(options, operation);
-  }
-  _onSelectedDirectoryChanged() {
-    const currentDirectory = this._getCurrentDirectory();
-    this._syncToCurrentDirectory();
-    this._actions.onCurrentDirectoryChanged({
-      directory: currentDirectory.fileItem
-    });
-  }
-  _syncToCurrentDirectory() {
-    const currentDirectory = this._getCurrentDirectory();
-    if (this._filesTreeView) {
-      this._filesTreeView.updateCurrentDirectory();
-    }
-    if (this._breadcrumbs) {
-      this._breadcrumbs.setCurrentDirectory(currentDirectory);
-    }
-    this._checkPathActuality();
-  }
-  _checkPathActuality() {
-    if (this._lockCurrentPathProcessing) {
-      return;
-    }
-    const currentPath = this._controller.getCurrentPath();
-    const currentPathKeys = this._controller.getCurrentPathKeys();
-    const options = {};
-    if (this.option('currentPath') !== currentPath) {
-      options.currentPath = currentPath;
-    }
-    if (!(0, _common.equalByValue)(this.option('currentPathKeys'), currentPathKeys)) {
-      options.currentPathKeys = currentPathKeys;
-    }
-    if (!(0, _type.isEmptyObject)(options)) {
-      this.option(options);
-    }
-  }
-  getDirectories(parentDirectoryInfo, skipNavigationOnError) {
-    return this._controller.getDirectories(parentDirectoryInfo, skipNavigationOnError);
-  }
-  _getSelectedItemInfos() {
-    return this._itemView ? this._itemView.getSelectedItems() : [];
-  }
-  refresh() {
-    return this.executeCommand('refresh');
-  }
-  getCurrentDirectory() {
-    const directoryInfo = this._getCurrentDirectory();
-    return directoryInfo && directoryInfo.fileItem || null;
-  }
-  getSelectedItems() {
-    return this._getSelectedItemInfos().map(itemInfo => itemInfo.fileItem);
-  }
-  _onSelectedItemOpened(_ref10) {
-    let {
-      fileItemInfo
-    } = _ref10;
-    const fileItem = fileItemInfo.fileItem;
-    if (!fileItem.isDirectory) {
-      this._actions.onSelectedFileOpened({
-        file: fileItem
-      });
-      return;
-    }
-    if (fileItem.isParentFolder) {
-      this._itemKeyToFocus = this._getCurrentDirectory().fileItem.key;
-    }
-    const newCurrentDirectory = fileItem.isParentFolder ? this._getCurrentDirectory().parentDirectory : fileItemInfo;
-    this._setCurrentDirectory(newCurrentDirectory);
-    if (newCurrentDirectory) {
-      this._filesTreeView.toggleDirectoryExpandedState(newCurrentDirectory.parentDirectory, true);
-    }
-  }
-}
-(0, _component_registrator.default)('dxFileManager', FileManager);
-var _default = exports["default"] = FileManager;
 module.exports = exports.default;
 module.exports["default"] = exports.default;
 
@@ -302543,626 +308712,6 @@ exports.NotificationManager = NotificationManager;
 
 /***/ }),
 
-/***/ 59679:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _size = __webpack_require__(57653);
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _extend = __webpack_require__(52576);
-var _type = __webpack_require__(11528);
-var _common = __webpack_require__(17781);
-var _message = _interopRequireDefault(__webpack_require__(4671));
-var _uiFile_manager = __webpack_require__(57011);
-var _themes = __webpack_require__(52071);
-var _ui = _interopRequireDefault(__webpack_require__(11118));
-var _toolbar = _interopRequireDefault(__webpack_require__(2850));
-__webpack_require__(56582);
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const FILE_MANAGER_TOOLBAR_CLASS = 'dx-filemanager-toolbar';
-const FILE_MANAGER_GENERAL_TOOLBAR_CLASS = 'dx-filemanager-general-toolbar';
-const FILE_MANAGER_FILE_TOOLBAR_CLASS = 'dx-filemanager-file-toolbar';
-const FILE_MANAGER_TOOLBAR_SEPARATOR_ITEM_CLASS = FILE_MANAGER_TOOLBAR_CLASS + '-separator-item';
-const FILE_MANAGER_TOOLBAR_VIEWMODE_ITEM_CLASS = FILE_MANAGER_TOOLBAR_CLASS + '-viewmode-item';
-const FILE_MANAGER_TOOLBAR_HAS_LARGE_ICON_CLASS = FILE_MANAGER_TOOLBAR_CLASS + '-has-large-icon';
-const FILE_MANAGER_VIEW_SWITCHER_POPUP_CLASS = 'dx-filemanager-view-switcher-popup';
-const DEFAULT_ITEM_CONFIGS = {
-  showNavPane: {
-    location: 'before'
-  },
-  create: {
-    location: 'before',
-    compactMode: {
-      showText: 'inMenu',
-      locateInMenu: 'auto'
-    }
-  },
-  upload: {
-    location: 'before',
-    compactMode: {
-      showText: 'inMenu',
-      locateInMenu: 'auto'
-    }
-  },
-  refresh: {
-    location: 'after',
-    showText: 'inMenu',
-    cssClass: FILE_MANAGER_TOOLBAR_HAS_LARGE_ICON_CLASS,
-    compactMode: {
-      showText: 'inMenu',
-      locateInMenu: 'auto'
-    }
-  },
-  switchView: {
-    location: 'after'
-  },
-  download: {
-    location: 'before',
-    compactMode: {
-      showText: 'inMenu',
-      locateInMenu: 'auto'
-    }
-  },
-  move: {
-    location: 'before',
-    compactMode: {
-      showText: 'inMenu',
-      locateInMenu: 'auto'
-    }
-  },
-  copy: {
-    location: 'before',
-    compactMode: {
-      showText: 'inMenu',
-      locateInMenu: 'auto'
-    }
-  },
-  rename: {
-    location: 'before',
-    compactMode: {
-      showText: 'inMenu',
-      locateInMenu: 'auto'
-    }
-  },
-  delete: {
-    location: 'before',
-    compactMode: {
-      showText: 'inMenu'
-    }
-  },
-  clearSelection: {
-    location: 'after',
-    locateInMenu: 'never',
-    compactMode: {
-      showText: 'inMenu'
-    }
-  },
-  separator: {
-    location: 'before'
-  }
-};
-const DEFAULT_ITEM_ALLOWED_PROPERTIES = ['visible', 'location', 'locateInMenu', 'disabled', 'showText'];
-const DEFAULT_ITEM_ALLOWED_OPTION_PROPERTIES = ['accessKey', 'elementAttr', 'height', 'hint', 'icon', 'stylingMode', 'tabIndex', 'text', 'width'];
-const ALWAYS_VISIBLE_TOOLBAR_ITEMS = ['separator', 'switchView'];
-const REFRESH_ICON_MAP = {
-  default: 'dx-filemanager-i dx-filemanager-i-refresh',
-  progress: 'dx-filemanager-i dx-filemanager-i-progress',
-  success: 'dx-filemanager-i dx-filemanager-i-done',
-  error: 'dx-filemanager-i dx-filemanager-i-danger'
-};
-const REFRESH_ITEM_PROGRESS_MESSAGE_DELAY = 500;
-class FileManagerToolbar extends _ui.default {
-  _init() {
-    super._init();
-    this._generalToolbarVisible = true;
-    this._refreshItemState = {
-      message: '',
-      status: 'default'
-    };
-  }
-  _initMarkup() {
-    this._createItemClickedAction();
-    this._$viewSwitcherPopup = (0, _renderer.default)('<div>').addClass(FILE_MANAGER_VIEW_SWITCHER_POPUP_CLASS);
-    this._generalToolbar = this._createToolbar(this.option('generalItems'), !this._generalToolbarVisible);
-    this._fileToolbar = this._createToolbar(this.option('fileItems'), this._generalToolbarVisible);
-    this._$viewSwitcherPopup.appendTo(this.$element());
-    this.$element().addClass(FILE_MANAGER_TOOLBAR_CLASS + ' ' + FILE_MANAGER_GENERAL_TOOLBAR_CLASS);
-  }
-  _render() {
-    super._render();
-    const toolbar = this._getVisibleToolbar();
-    this._checkCompactMode(toolbar);
-  }
-  _clean() {
-    delete this._commandManager;
-    delete this._itemClickedAction;
-    delete this._$viewSwitcherPopup;
-    delete this._generalToolbar;
-    delete this._fileToolbar;
-    super._clean();
-  }
-  _dimensionChanged(dimension) {
-    if (!dimension || dimension !== 'height') {
-      const toolbar = this._getVisibleToolbar();
-      this._checkCompactMode(toolbar);
-    }
-  }
-  _getVisibleToolbar() {
-    return this._generalToolbarVisible ? this._generalToolbar : this._fileToolbar;
-  }
-  _createToolbar(items, hidden) {
-    const toolbarItems = this._getPreparedItems(items);
-    const $toolbar = (0, _renderer.default)('<div>').appendTo(this.$element());
-    const result = this._createComponent($toolbar, _toolbar.default, {
-      items: toolbarItems,
-      visible: !hidden,
-      onItemClick: args => this._raiseItemClicked(args)
-    });
-    result.compactMode = false;
-    return result;
-  }
-  _getPreparedItems(items) {
-    items = items.map(item => {
-      let extendedItem = item;
-      if ((0, _type.isString)(item)) {
-        extendedItem = {
-          name: item
-        };
-      }
-      const commandName = extendedItem.name;
-      const preparedItem = this._configureItemByCommandName(commandName, extendedItem);
-      preparedItem.originalItemData = item;
-      if (commandName !== 'separator') {
-        this._setItemVisibleAvailable(preparedItem);
-      }
-      return preparedItem;
-    });
-    this._updateSeparatorsVisibility(items);
-    return items;
-  }
-  _updateSeparatorsVisibility(items, toolbar) {
-    let hasModifications = false;
-    const menuItems = this._getMenuItems(toolbar);
-    const hasItemsBefore = {
-      before: false,
-      center: false,
-      after: false
-    };
-    const itemGroups = {
-      before: this._getItemsInGroup(items, menuItems, 'before'),
-      center: this._getItemsInGroup(items, menuItems, 'center'),
-      after: this._getItemsInGroup(items, menuItems, 'after')
-    };
-    items.forEach((item, i) => {
-      const itemLocation = item.location;
-      if (item.name === 'separator') {
-        const isSeparatorVisible = hasItemsBefore[itemLocation] && this._groupHasItemsAfter(itemGroups[itemLocation]);
-        if (item.visible !== isSeparatorVisible) {
-          hasModifications = true;
-          item.visible = isSeparatorVisible;
-        }
-        hasItemsBefore[itemLocation] = false;
-      } else {
-        if (!this._isItemInMenu(menuItems, item)) {
-          hasItemsBefore[itemLocation] = hasItemsBefore[itemLocation] || item.visible;
-        }
-        itemGroups[itemLocation].shift();
-      }
-    });
-    if (toolbar && hasModifications) {
-      toolbar.repaint();
-    }
-    return hasModifications;
-  }
-  _getMenuItems(toolbar) {
-    const result = toolbar ? toolbar._getMenuItems() : [];
-    return result.map(menuItem => menuItem.originalItemData);
-  }
-  _isItemInMenu(menuItems, item) {
-    return !!menuItems.length && (0, _common.ensureDefined)(item.locateInMenu, 'never') !== 'never' && menuItems.indexOf(item.originalItemData) !== -1;
-  }
-  _getItemsInGroup(items, menuItems, groupName) {
-    return items.filter(item => item.location === groupName && !this._isItemInMenu(menuItems, item));
-  }
-  _groupHasItemsAfter(items) {
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].name !== 'separator' && items[i].visible) {
-        return true;
-      }
-    }
-    return false;
-  }
-  _configureItemByCommandName(commandName, item) {
-    var _result$options;
-    let result = {};
-    const command = this._commandManager.getCommandByName(commandName);
-    if (command) {
-      result = this._createCommandItem(command);
-    }
-    switch (commandName) {
-      case 'separator':
-        result = this._createSeparatorItem();
-        break;
-      case 'switchView':
-        result = this._createViewModeItem();
-        break;
-    }
-    if (this._isDefaultItem(commandName)) {
-      const defaultConfig = DEFAULT_ITEM_CONFIGS[commandName];
-      (0, _extend.extend)(true, result, defaultConfig);
-      let resultCssClass = result.cssClass || '';
-      (0, _uiFile_manager.extendAttributes)(result, item, DEFAULT_ITEM_ALLOWED_PROPERTIES);
-      if ((0, _type.isDefined)(item.options)) {
-        (0, _uiFile_manager.extendAttributes)(result.options, item.options, DEFAULT_ITEM_ALLOWED_OPTION_PROPERTIES);
-      }
-      (0, _uiFile_manager.extendAttributes)(result.options, item, ['text', 'icon']);
-      if (item.cssClass) {
-        resultCssClass = `${resultCssClass} ${item.cssClass}`;
-      }
-      if (resultCssClass) {
-        result.cssClass = resultCssClass;
-      }
-      if (!(0, _type.isDefined)(item.visible)) {
-        result._autoHide = true;
-      }
-      if (result.widget === 'dxButton') {
-        if (result.showText === 'inMenu' && !(0, _type.isDefined)(result.options.hint)) {
-          result.options.hint = result.options.text;
-        }
-        if (result.compactMode && !(0, _type.isDefined)(result.options.hint)) {
-          this._configureHintForCompactMode(result);
-        }
-      }
-    } else {
-      (0, _extend.extend)(true, result, item);
-      if (!result.widget) {
-        result.widget = 'dxButton';
-      }
-      if (result.widget === 'dxButton' && !result.compactMode && !result.showText && result.options && result.options.icon && result.options.text) {
-        result.compactMode = {
-          showText: 'inMenu'
-        };
-      }
-    }
-    if (commandName && !result.name) {
-      (0, _extend.extend)(result, {
-        name: commandName
-      });
-    }
-    result.location = (0, _common.ensureDefined)(result.location, 'before');
-    if (!(0, _type.isDefined)((_result$options = result.options) === null || _result$options === void 0 ? void 0 : _result$options.stylingMode)) {
-      if (result.widget === 'dxButton') {
-        (0, _extend.extend)(true, result, {
-          options: {
-            stylingMode: 'text'
-          }
-        });
-      }
-      if (result.widget === 'dxSelectBox') {
-        (0, _extend.extend)(true, result, {
-          options: {
-            stylingMode: 'filled'
-          }
-        });
-      }
-    }
-    return result;
-  }
-  _isDefaultItem(commandName) {
-    return !!DEFAULT_ITEM_CONFIGS[commandName];
-  }
-  _createCommandItem(command) {
-    return {
-      widget: 'dxButton',
-      options: {
-        text: command.text,
-        hint: command.hint,
-        commandText: command.text,
-        icon: command.icon,
-        stylingMode: 'text',
-        onClick: e => this._executeCommand(command)
-      }
-    };
-  }
-  _createSeparatorItem() {
-    return {
-      template: (data, index, element) => {
-        (0, _renderer.default)(element).addClass(FILE_MANAGER_TOOLBAR_SEPARATOR_ITEM_CLASS);
-      }
-    };
-  }
-  _createViewModeItem() {
-    const commandItems = ['details', 'thumbnails'].map(name => {
-      const {
-        text,
-        icon
-      } = this._commandManager.getCommandByName(name);
-      return {
-        name,
-        text,
-        icon
-      };
-    });
-    const selectedIndex = this.option('itemViewMode') === 'thumbnails' ? 1 : 0;
-    const dropDownOptions = {
-      container: this._$viewSwitcherPopup
-    };
-    if ((0, _themes.isMaterial)()) {
-      dropDownOptions.width = (0, _themes.isCompact)() ? 28 : 36;
-    } else if ((0, _themes.isFluent)()) {
-      dropDownOptions.width = (0, _themes.isCompact)() ? 34 : 40;
-    }
-    return {
-      cssClass: FILE_MANAGER_TOOLBAR_VIEWMODE_ITEM_CLASS,
-      widget: 'dxDropDownButton',
-      options: {
-        items: commandItems,
-        keyExpr: 'name',
-        selectedItemKey: this.option('itemViewMode'),
-        displayExpr: ' ',
-        hint: commandItems[selectedIndex].text,
-        stylingMode: 'text',
-        showArrowIcon: false,
-        useSelectMode: true,
-        dropDownOptions,
-        onItemClick: e => this._executeCommand(e.itemData.name)
-      }
-    };
-  }
-  _configureHintForCompactMode(item) {
-    item.options.hint = '';
-    item.compactMode.options = item.compactMode.options || {};
-    item.compactMode.options.hint = item.options.text;
-  }
-  _checkCompactMode(toolbar) {
-    if (toolbar.compactMode) {
-      this._toggleCompactMode(toolbar, false);
-    }
-    const useCompactMode = this._toolbarHasItemsOverflow(toolbar);
-    if (toolbar.compactMode !== useCompactMode) {
-      if (!toolbar.compactMode) {
-        this._toggleCompactMode(toolbar, useCompactMode);
-      }
-      toolbar.compactMode = useCompactMode;
-    } else if (toolbar.compactMode) {
-      this._toggleCompactMode(toolbar, true);
-    }
-  }
-  _toolbarHasItemsOverflow(toolbar) {
-    const toolbarWidth = (0, _size.getWidth)(toolbar.$element());
-    const itemsWidth = toolbar._getItemsWidth();
-    return toolbarWidth < itemsWidth;
-  }
-  _toggleCompactMode(toolbar, useCompactMode) {
-    let hasModifications = false;
-    const items = toolbar.option('items');
-    items.forEach(item => {
-      if (item.compactMode) {
-        let optionsSource = null;
-        if (useCompactMode) {
-          item.saved = this._getCompactModeOptions(item, item._available);
-          optionsSource = item.compactMode;
-        } else {
-          optionsSource = item.saved;
-        }
-        const options = this._getCompactModeOptions(optionsSource, item._available);
-        (0, _extend.extend)(true, item, options);
-        hasModifications = true;
-      }
-    });
-    hasModifications = this._updateSeparatorsVisibility(items) || hasModifications;
-    if (hasModifications) {
-      toolbar.repaint();
-    }
-    this._updateSeparatorsVisibility(items, toolbar);
-  }
-  _getCompactModeOptions(_ref, available) {
-    let {
-      showText,
-      locateInMenu,
-      options
-    } = _ref;
-    return {
-      visible: available,
-      showText: (0, _common.ensureDefined)(showText, 'always'),
-      locateInMenu: (0, _common.ensureDefined)(locateInMenu, 'never'),
-      options: {
-        hint: options === null || options === void 0 ? void 0 : options.hint
-      }
-    };
-  }
-  _ensureAvailableCommandsVisible(toolbar) {
-    let hasModifications = false;
-    const items = toolbar.option('items');
-    items.forEach(item => {
-      if (item.name !== 'separator') {
-        const itemVisible = item._available;
-        this._setItemVisibleAvailable(item);
-        if (item._available !== itemVisible) {
-          hasModifications = true;
-        }
-      }
-    });
-    hasModifications = this._updateSeparatorsVisibility(items) || hasModifications;
-    if (hasModifications) {
-      toolbar.repaint();
-    }
-    this._updateSeparatorsVisibility(items, toolbar);
-  }
-  _setItemVisibleAvailable(item) {
-    var _item$originalItemDat;
-    const originalVisible = (_item$originalItemDat = item.originalItemData) === null || _item$originalItemDat === void 0 ? void 0 : _item$originalItemDat.visible;
-    item._available = this._isToolbarItemAvailable(item);
-    item.visible = (0, _type.isDefined)(originalVisible) ? originalVisible : item._available;
-  }
-  _fileToolbarHasEffectiveItems() {
-    const items = this._fileToolbar.option('items');
-    return items.some(item => this._isFileToolbarItemAvailable(item));
-  }
-  _executeCommand(command) {
-    this._commandManager.executeCommand(command);
-  }
-  _isToolbarItemAvailable(toolbarItem) {
-    if (!this._isDefaultItem(toolbarItem.name) || !toolbarItem._autoHide) {
-      return (0, _common.ensureDefined)(toolbarItem.visible, true);
-    }
-    if (toolbarItem.name === 'refresh') {
-      return this._generalToolbarVisible || !!this._isRefreshVisibleInFileToolbar;
-    }
-    if (ALWAYS_VISIBLE_TOOLBAR_ITEMS.indexOf(toolbarItem.name) > -1) {
-      return true;
-    }
-    return this._isCommandAvailable(toolbarItem.name);
-  }
-  _isFileToolbarItemAvailable(_ref2) {
-    let {
-      name,
-      visible
-    } = _ref2;
-    return !this._isDefaultItem(name) && (0, _common.ensureDefined)(visible, true) || name !== 'clearSelection' && name !== 'refresh' && this._isCommandAvailable(name);
-  }
-  _isCommandAvailable(name) {
-    return this._commandManager.isCommandAvailable(name, this.option('contextItems'));
-  }
-  _updateItemInToolbar(toolbar, commandName, options) {
-    toolbar.beginUpdate();
-    const items = toolbar.option('items');
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.name === commandName) {
-        toolbar.option(`items[${i}]`, options);
-        break;
-      }
-    }
-    toolbar.endUpdate();
-  }
-  _raiseItemClicked(args) {
-    const changedArgs = (0, _extend.extend)(true, {}, args);
-    changedArgs.itemData = args.itemData.originalItemData;
-    this._itemClickedAction(changedArgs);
-  }
-  _createItemClickedAction() {
-    this._itemClickedAction = this._createActionByOption('onItemClick');
-  }
-  _getDefaultOptions() {
-    return (0, _extend.extend)(super._getDefaultOptions(), {
-      commandManager: null,
-      generalItems: [],
-      fileItems: [],
-      contextItems: [],
-      itemViewMode: 'details',
-      onItemClick: null
-    });
-  }
-  _optionChanged(args) {
-    const name = args.name;
-    switch (name) {
-      case 'commandManager':
-      case 'itemViewMode':
-      case 'generalItems':
-      case 'fileItems':
-        this.repaint();
-        break;
-      case 'contextItems':
-        this._update();
-        break;
-      case 'onItemClick':
-        this._itemClickedAction = this._createActionByOption(name);
-        break;
-      default:
-        super._optionChanged(args);
-    }
-  }
-  updateItemPermissions() {
-    this.repaint();
-    this._restoreRefreshItemState();
-  }
-  _restoreRefreshItemState() {
-    this.updateRefreshItem(this._refreshItemState.message, this._refreshItemState.status);
-  }
-  updateRefreshItem(message, status) {
-    let generalToolbarOptions = null;
-    let text = _message.default.format('dxFileManager-commandRefresh');
-    let showText = 'inMenu';
-    this._isRefreshVisibleInFileToolbar = false;
-    this._refreshItemState = {
-      message,
-      status
-    };
-    if (status === 'default') {
-      generalToolbarOptions = {
-        options: {
-          icon: REFRESH_ICON_MAP.default
-        }
-      };
-    } else {
-      generalToolbarOptions = {
-        options: {
-          icon: REFRESH_ICON_MAP[status]
-        }
-      };
-      this._isRefreshVisibleInFileToolbar = true;
-      text = message;
-      showText = 'always';
-    }
-    const fileToolbarOptions = (0, _extend.extend)({}, generalToolbarOptions, {
-      visible: this._isRefreshVisibleInFileToolbar
-    });
-    this._applyRefreshItemOptions(generalToolbarOptions, fileToolbarOptions);
-    this._refreshItemTextTimeout = this._updateRefreshItemText(status === 'progress', text, showText);
-  }
-  _updateRefreshItemText(isDeferredUpdate, text, showText) {
-    const options = {
-      showText,
-      options: {
-        text
-      }
-    };
-    if (isDeferredUpdate) {
-      return setTimeout(() => {
-        this._applyRefreshItemOptions(options);
-        this._refreshItemTextTimeout = undefined;
-      }, REFRESH_ITEM_PROGRESS_MESSAGE_DELAY);
-    } else {
-      if (this._refreshItemTextTimeout) {
-        clearTimeout(this._refreshItemTextTimeout);
-      }
-      this._applyRefreshItemOptions(options);
-      return undefined;
-    }
-  }
-  _applyRefreshItemOptions(generalToolbarOptions, fileToolbarOptions) {
-    if (!fileToolbarOptions) {
-      fileToolbarOptions = (0, _extend.extend)({}, generalToolbarOptions);
-    }
-    this._updateItemInToolbar(this._generalToolbar, 'refresh', generalToolbarOptions);
-    this._updateItemInToolbar(this._fileToolbar, 'refresh', fileToolbarOptions);
-  }
-  _update() {
-    const showGeneralToolbar = this.option('contextItems').length === 0 || !this._fileToolbarHasEffectiveItems();
-    if (this._generalToolbarVisible !== showGeneralToolbar) {
-      this._generalToolbar.option('visible', showGeneralToolbar);
-      this._fileToolbar.option('visible', !showGeneralToolbar);
-      this._generalToolbarVisible = showGeneralToolbar;
-      this.$element().toggleClass(FILE_MANAGER_GENERAL_TOOLBAR_CLASS, showGeneralToolbar);
-      this.$element().toggleClass(FILE_MANAGER_FILE_TOOLBAR_CLASS, !showGeneralToolbar);
-    }
-    const toolbar = this._getVisibleToolbar();
-    this._ensureAvailableCommandsVisible(toolbar);
-    this._checkCompactMode(toolbar);
-  }
-  get _commandManager() {
-    return this.option('commandManager');
-  }
-}
-var _default = exports["default"] = FileManagerToolbar;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
 /***/ 26980:
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -303330,6 +308879,10 @@ var _ui = _interopRequireDefault(__webpack_require__(72986));
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
 var _default = exports["default"] = _ui.default; // STYLE gantt
 /**
+ * @name dxGanttOptions.rtlEnabled
+ * @hidden
+ */
+/**
  * @name dxGanttToolbarItem
  * @inherits dxToolbarItem
  */
@@ -303339,3506 +308892,6 @@ var _default = exports["default"] = _ui.default; // STYLE gantt
  */
 module.exports = exports.default;
 module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 43895:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-
-exports.getGanttViewCore = getGanttViewCore;
-var _ui = _interopRequireDefault(__webpack_require__(35185));
-var _devexpressGantt = _interopRequireDefault(__webpack_require__(1990));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-function getGanttViewCore() {
-  if (!_devexpressGantt.default) {
-    throw _ui.default.Error('E1041', 'devexpress-gantt');
-  }
-  return _devexpressGantt.default;
-}
-
-/***/ }),
-
-/***/ 28997:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-
-exports.GanttActionsManager = void 0;
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _element = __webpack_require__(61404);
-var _extend = __webpack_require__(52576);
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-/* eslint-disable spellcheck/spell-checker */
-const Actions = {
-  onContextMenuPreparing: 'onContextMenuPreparing',
-  onCustomCommand: 'onCustomCommand',
-  onDependencyDeleted: 'onDependencyDeleted',
-  onDependencyDeleting: 'onDependencyDeleting',
-  onDependencyInserted: 'onDependencyInserted',
-  onDependencyInserting: 'onDependencyInserting',
-  onResourceAssigned: 'onResourceAssigned',
-  onResourceAssigning: 'onResourceAssigning',
-  onResourceDeleted: 'onResourceDeleted',
-  onResourceDeleting: 'onResourceDeleting',
-  onResourceInserted: 'onResourceInserted',
-  onResourceInserting: 'onResourceInserting',
-  onResourceManagerDialogShowing: 'onResourceManagerDialogShowing',
-  onResourceUnassigned: 'onResourceUnassigned',
-  onResourceUnassigning: 'onResourceUnassigning',
-  onSelectionChanged: 'onSelectionChanged',
-  onTaskClick: 'onTaskClick',
-  onTaskDblClick: 'onTaskDblClick',
-  onTaskDeleted: 'onTaskDeleted',
-  onTaskDeleting: 'onTaskDeleting',
-  onTaskEditDialogShowing: 'onTaskEditDialogShowing',
-  onTaskInserted: 'onTaskInserted',
-  onTaskInserting: 'onTaskInserting',
-  onTaskMoving: 'onTaskMoving',
-  onTaskUpdated: 'onTaskUpdated',
-  onTaskUpdating: 'onTaskUpdating',
-  onScaleCellPrepared: 'onScaleCellPrepared'
-};
-const GANTT_TASKS = 'tasks';
-const GANTT_DEPENDENCIES = 'dependencies';
-const GANTT_RESOURCES = 'resources';
-const GANTT_RESOURCE_ASSIGNMENTS = 'resourceAssignments';
-const GANTT_NEW_TASK_CACHE_KEY = 'gantt_new_task_key';
-class GanttActionsManager {
-  constructor(gantt) {
-    this._gantt = gantt;
-    this._mappingHelper = gantt._mappingHelper;
-    this._customFieldsManager = gantt._customFieldsManager;
-  }
-  _createActionByOption(optionName) {
-    return this._gantt._createActionByOption(optionName);
-  }
-  _getTaskData(key) {
-    return this._gantt.getTaskData(key);
-  }
-  _convertCoreToMappedData(optionName, coreData) {
-    return this._mappingHelper.convertCoreToMappedData(optionName, coreData);
-  }
-  _convertMappedToCoreData(optionName, mappedData) {
-    return this._mappingHelper.convertMappedToCoreData(optionName, mappedData);
-  }
-  _convertMappedToCoreFields(optionName, fields) {
-    return this._mappingHelper.convertMappedToCoreFields(optionName, fields);
-  }
-  _convertCoreToMappedFields(optionName, fields) {
-    return this._mappingHelper.convertCoreToMappedFields(optionName, fields);
-  }
-  _saveCustomFieldsDataToCache(key, data) {
-    let forceUpdateOnKeyExpire = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
-    let isCustomFieldsUpdateOnly = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : false;
-    this._customFieldsManager.saveCustomFieldsDataToCache(key, data, forceUpdateOnKeyExpire, isCustomFieldsUpdateOnly);
-  }
-  createTaskDblClickAction() {
-    this._taskDblClickAction = this._createActionByOption(Actions.onTaskDblClick);
-  }
-  taskDblClickAction(args) {
-    if (!this._taskDblClickAction) {
-      this.createTaskDblClickAction();
-    }
-    this._taskDblClickAction(args);
-  }
-  raiseTaskDblClickAction(key, event) {
-    const args = {
-      cancel: false,
-      data: this._getTaskData(key),
-      event: event,
-      key: key
-    };
-    this.taskDblClickAction(args);
-    return !args.cancel;
-  }
-  createTaskClickAction() {
-    this._taskClickAction = this._createActionByOption(Actions.onTaskClick);
-  }
-  taskClickAction(args) {
-    if (!this._taskClickAction) {
-      this.createTaskClickAction();
-    }
-    this._taskClickAction(args);
-  }
-  raiseTaskClickAction(key, event) {
-    const args = {
-      key: key,
-      event: event,
-      data: this._getTaskData(key)
-    };
-    this.taskClickAction(args);
-  }
-  createSelectionChangedAction() {
-    this._selectionChangedAction = this._createActionByOption(Actions.onSelectionChanged);
-  }
-  selectionChangedAction(args) {
-    if (!this._selectionChangedAction) {
-      this.createSelectionChangedAction();
-    }
-    this._selectionChangedAction(args);
-  }
-  raiseSelectionChangedAction(selectedRowKey) {
-    this.selectionChangedAction({
-      selectedRowKey: selectedRowKey
-    });
-  }
-  createCustomCommandAction() {
-    this._customCommandAction = this._createActionByOption(Actions.onCustomCommand);
-  }
-  customCommandAction(args) {
-    if (!this._customCommandAction) {
-      this.createCustomCommandAction();
-    }
-    this._customCommandAction(args);
-  }
-  raiseCustomCommand(commandName) {
-    this.customCommandAction({
-      name: commandName
-    });
-  }
-  createContextMenuPreparingAction() {
-    this._contextMenuPreparingAction = this._createActionByOption(Actions.onContextMenuPreparing);
-  }
-  contextMenuPreparingAction(args) {
-    if (!this._contextMenuPreparingAction) {
-      this.createContextMenuPreparingAction();
-    }
-    this._contextMenuPreparingAction(args);
-  }
-  raiseContextMenuPreparing(options) {
-    this.contextMenuPreparingAction(options);
-  }
-  _getInsertingAction(optionName) {
-    switch (optionName) {
-      case GANTT_TASKS:
-        return this._getTaskInsertingAction();
-      case GANTT_DEPENDENCIES:
-        return this._getDependencyInsertingAction();
-      case GANTT_RESOURCES:
-        return this._getResourceInsertingAction();
-      case GANTT_RESOURCE_ASSIGNMENTS:
-        return this._getResourceAssigningAction();
-    }
-    return () => {};
-  }
-  raiseInsertingAction(optionName, coreArgs) {
-    const action = this._getInsertingAction(optionName);
-    if (action) {
-      const args = {
-        cancel: false,
-        values: this._convertCoreToMappedData(optionName, coreArgs.values)
-      };
-      action(args);
-      coreArgs.cancel = args.cancel;
-      (0, _extend.extend)(coreArgs.values, this._convertMappedToCoreData(optionName, args.values));
-      if (optionName === GANTT_TASKS) {
-        this._saveCustomFieldsDataToCache(GANTT_NEW_TASK_CACHE_KEY, args.values);
-      }
-    }
-  }
-  createTaskInsertingAction() {
-    this._taskInsertingAction = this._createActionByOption(Actions.onTaskInserting);
-  }
-  taskInsertingAction(args) {
-    const action = this._getTaskInsertingAction();
-    action(args);
-  }
-  _getTaskInsertingAction() {
-    if (!this._taskInsertingAction) {
-      this.createTaskInsertingAction();
-    }
-    return this._taskInsertingAction;
-  }
-  createDependencyInsertingAction() {
-    this._dependencyInsertingAction = this._createActionByOption(Actions.onDependencyInserting);
-  }
-  dependencyInsertingAction(args) {
-    const action = this._getDependencyInsertingAction();
-    action(args);
-  }
-  _getDependencyInsertingAction() {
-    if (!this._dependencyInsertingAction) {
-      this.createDependencyInsertingAction();
-    }
-    return this._dependencyInsertingAction;
-  }
-  createResourceInsertingAction() {
-    this._resourceInsertingAction = this._createActionByOption(Actions.onResourceInserting);
-  }
-  resourceInsertingAction(args) {
-    const action = this._getResourceInsertingAction();
-    action(args);
-  }
-  _getResourceInsertingAction() {
-    if (!this._resourceInsertingAction) {
-      this.createResourceInsertingAction();
-    }
-    return this._resourceInsertingAction;
-  }
-  createResourceAssigningAction() {
-    this._resourceAssigningAction = this._createActionByOption(Actions.onResourceAssigning);
-  }
-  resourceAssigningAction(args) {
-    const action = this._getResourceAssigningAction();
-    action(args);
-  }
-  _getResourceAssigningAction() {
-    if (!this._resourceAssigningAction) {
-      this.createResourceAssigningAction();
-    }
-    return this._resourceAssigningAction;
-  }
-  _getInsertedAction(optionName) {
-    switch (optionName) {
-      case GANTT_TASKS:
-        return this._getTaskInsertedAction();
-      case GANTT_DEPENDENCIES:
-        return this._getDependencyInsertedAction();
-      case GANTT_RESOURCES:
-        return this._getResourceInsertedAction();
-      case GANTT_RESOURCE_ASSIGNMENTS:
-        return this._getResourceAssignedAction();
-    }
-    return () => {};
-  }
-  raiseInsertedAction(optionName, data, key) {
-    const action = this._getInsertedAction(optionName);
-    if (action) {
-      const args = {
-        values: data,
-        key: key
-      };
-      action(args);
-    }
-  }
-  createTaskInsertedAction() {
-    this._taskInsertedAction = this._createActionByOption(Actions.onTaskInserted);
-  }
-  taskInsertedAction(args) {
-    const action = this._getTaskInsertedAction();
-    action(args);
-  }
-  _getTaskInsertedAction() {
-    if (!this._taskInsertedAction) {
-      this.createTaskInsertedAction();
-    }
-    return this._taskInsertedAction;
-  }
-  createDependencyInsertedAction() {
-    this._dependencyInsertedAction = this._createActionByOption(Actions.onDependencyInserted);
-  }
-  dependencyInsertedAction(args) {
-    const action = this._getDependencyInsertedAction();
-    action(args);
-  }
-  _getDependencyInsertedAction() {
-    if (!this._dependencyInsertedAction) {
-      this.createDependencyInsertedAction();
-    }
-    return this._dependencyInsertedAction;
-  }
-  createResourceInsertedAction() {
-    this._resourceInsertedAction = this._createActionByOption(Actions.onResourceInserted);
-  }
-  resourceInsertedAction(args) {
-    const action = this._getResourceInsertedAction();
-    action(args);
-  }
-  _getResourceInsertedAction() {
-    if (!this._resourceInsertedAction) {
-      this.createResourceInsertedAction();
-    }
-    return this._resourceInsertedAction;
-  }
-  createResourceAssignedAction() {
-    this._resourceAssignedAction = this._createActionByOption(Actions.onResourceAssigned);
-  }
-  resourceAssignedAction(args) {
-    const action = this._getResourceAssignedAction();
-    action(args);
-  }
-  _getResourceAssignedAction() {
-    if (!this._resourceAssignedAction) {
-      this.createResourceAssignedAction();
-    }
-    return this._resourceAssignedAction;
-  }
-  _getDeletingAction(optionName) {
-    switch (optionName) {
-      case GANTT_TASKS:
-        return this._getTaskDeletingAction();
-      case GANTT_DEPENDENCIES:
-        return this._getDependencyDeletingAction();
-      case GANTT_RESOURCES:
-        return this._getResourceDeletingAction();
-      case GANTT_RESOURCE_ASSIGNMENTS:
-        return this._getResourceUnassigningAction();
-    }
-    return () => {};
-  }
-  raiseDeletingAction(optionName, coreArgs) {
-    const action = this._getDeletingAction(optionName);
-    if (action) {
-      const args = {
-        cancel: false,
-        key: coreArgs.key,
-        values: this._convertCoreToMappedData(optionName, coreArgs.values)
-      };
-      action(args);
-      coreArgs.cancel = args.cancel;
-    }
-  }
-  createTaskDeletingAction() {
-    this._taskDeletingAction = this._createActionByOption(Actions.onTaskDeleting);
-  }
-  taskDeletingAction(args) {
-    const action = this._getTaskDeletingAction();
-    action(args);
-  }
-  _getTaskDeletingAction() {
-    if (!this._taskDeletingAction) {
-      this.createTaskDeletingAction();
-    }
-    return this._taskDeletingAction;
-  }
-  createDependencyDeletingAction() {
-    this._dependencyDeletingAction = this._createActionByOption(Actions.onDependencyDeleting);
-  }
-  dependencyDeletingAction(args) {
-    const action = this._getDependencyDeletingAction();
-    action(args);
-  }
-  _getDependencyDeletingAction() {
-    if (!this._dependencyDeletingAction) {
-      this.createDependencyDeletingAction();
-    }
-    return this._dependencyDeletingAction;
-  }
-  createResourceDeletingAction() {
-    this._resourceDeletingAction = this._createActionByOption(Actions.onResourceDeleting);
-  }
-  resourceDeletingAction(args) {
-    const action = this._getResourceDeletingAction();
-    action(args);
-  }
-  _getResourceDeletingAction() {
-    if (!this._resourceDeletingAction) {
-      this.createResourceDeletingAction();
-    }
-    return this._resourceDeletingAction;
-  }
-  createResourceUnassigningAction() {
-    this._resourceUnassigningAction = this._createActionByOption(Actions.onResourceUnassigning);
-  }
-  resourceUnassigningAction(args) {
-    const action = this._getResourceUnassigningAction();
-    action(args);
-  }
-  _getResourceUnassigningAction() {
-    if (!this._resourceUnassigningAction) {
-      this.createResourceUnassigningAction();
-    }
-    return this._resourceUnassigningAction;
-  }
-  _getDeletedAction(optionName) {
-    switch (optionName) {
-      case GANTT_TASKS:
-        return this._getTaskDeletedAction();
-      case GANTT_DEPENDENCIES:
-        return this._getDependencyDeletedAction();
-      case GANTT_RESOURCES:
-        return this._getResourceDeletedAction();
-      case GANTT_RESOURCE_ASSIGNMENTS:
-        return this._getResourceUnassignedAction();
-    }
-    return () => {};
-  }
-  raiseDeletedAction(optionName, key, data) {
-    const action = this._getDeletedAction(optionName);
-    if (action) {
-      const args = {
-        key: key,
-        values: data
-      };
-      action(args);
-    }
-  }
-  createTaskDeletedAction() {
-    this._taskDeletedAction = this._createActionByOption(Actions.onTaskDeleted);
-  }
-  taskDeletedAction(args) {
-    const action = this._getTaskDeletedAction();
-    action(args);
-  }
-  _getTaskDeletedAction() {
-    if (!this._taskDeletedAction) {
-      this.createTaskDeletedAction();
-    }
-    return this._taskDeletedAction;
-  }
-  createDependencyDeletedAction() {
-    this._dependencyDeletedAction = this._createActionByOption(Actions.onDependencyDeleted);
-  }
-  dependencyDeletedAction(args) {
-    const action = this._getDependencyDeletedAction();
-    action(args);
-  }
-  _getDependencyDeletedAction() {
-    if (!this._dependencyDeletedAction) {
-      this.createDependencyDeletedAction();
-    }
-    return this._dependencyDeletedAction;
-  }
-  createResourceDeletedAction() {
-    this._resourceDeletedAction = this._createActionByOption(Actions.onResourceDeleted);
-  }
-  resourceDeletedAction(args) {
-    const action = this._getResourceDeletedAction();
-    action(args);
-  }
-  _getResourceDeletedAction() {
-    if (!this._resourceDeletedAction) {
-      this.createResourceDeletedAction();
-    }
-    return this._resourceDeletedAction;
-  }
-  createResourceUnassignedAction() {
-    this._resourceUnassignedAction = this._createActionByOption(Actions.onResourceUnassigned);
-  }
-  resourceUnassignedAction(args) {
-    const action = this._getResourceUnassignedAction();
-    action(args);
-  }
-  _getResourceUnassignedAction() {
-    if (!this._resourceUnassignedAction) {
-      this.createResourceUnassignedAction();
-    }
-    return this._resourceUnassignedAction;
-  }
-  _getUpdatingAction(optionName) {
-    switch (optionName) {
-      case GANTT_TASKS:
-        return this._getTaskUpdatingAction();
-    }
-    return () => {};
-  }
-  raiseUpdatingAction(optionName, coreArgs, action) {
-    action = action || this._getUpdatingAction(optionName);
-    if (action) {
-      const isTaskUpdating = optionName === GANTT_TASKS;
-      const args = {
-        cancel: false,
-        key: coreArgs.key,
-        newValues: this._convertCoreToMappedData(optionName, coreArgs.newValues),
-        values: isTaskUpdating ? this._getTaskData(coreArgs.key) : this._convertCoreToMappedData(optionName, coreArgs.values)
-      };
-      if (isTaskUpdating && this._customFieldsManager.cache.hasData(args.key)) {
-        this._customFieldsManager.addCustomFieldsDataFromCache(args.key, args.newValues);
-      }
-      action(args);
-      coreArgs.cancel = args.cancel;
-      (0, _extend.extend)(coreArgs.newValues, this._convertMappedToCoreData(optionName, args.newValues));
-      if (isTaskUpdating) {
-        if (args.cancel) {
-          this._customFieldsManager.resetCustomFieldsDataCache(args.key);
-        } else {
-          const forceUpdateOnKeyExpire = !Object.keys(coreArgs.newValues).length;
-          this._saveCustomFieldsDataToCache(args.key, args.newValues, forceUpdateOnKeyExpire);
-        }
-      }
-    }
-  }
-  createTaskUpdatingAction() {
-    this._taskUpdatingAction = this._createActionByOption(Actions.onTaskUpdating);
-  }
-  taskUpdatingAction(args) {
-    const action = this._getTaskUpdatingAction();
-    action(args);
-  }
-  _getTaskUpdatingAction() {
-    if (!this._taskUpdatingAction) {
-      this.createTaskUpdatingAction();
-    }
-    return this._taskUpdatingAction;
-  }
-  _getUpdatedAction(optionName) {
-    switch (optionName) {
-      case GANTT_TASKS:
-        return this._getTaskUpdatedAction();
-    }
-    return () => {};
-  }
-  raiseUpdatedAction(optionName, data, key) {
-    const action = this._getUpdatedAction(optionName);
-    if (action) {
-      const args = {
-        values: data,
-        key: key
-      };
-      action(args);
-    }
-  }
-  createTaskUpdatedAction() {
-    this._taskUpdatedAction = this._createActionByOption(Actions.onTaskUpdated);
-  }
-  taskUpdatedAction(args) {
-    const action = this._getTaskUpdatedAction();
-    action(args);
-  }
-  _getTaskUpdatedAction() {
-    if (!this._taskUpdatedAction) {
-      this.createTaskUpdatedAction();
-    }
-    return this._taskUpdatedAction;
-  }
-  createTaskEditDialogShowingAction() {
-    this._taskEditDialogShowingAction = this._createActionByOption(Actions.onTaskEditDialogShowing);
-  }
-  taskEditDialogShowingAction(args) {
-    const action = this._getTaskEditDialogShowingAction();
-    action(args);
-  }
-  _getTaskEditDialogShowingAction() {
-    if (!this._taskEditDialogShowingAction) {
-      this.createTaskEditDialogShowingAction();
-    }
-    return this._taskEditDialogShowingAction;
-  }
-  raiseTaskEditDialogShowingAction(coreArgs) {
-    const action = this._getTaskEditDialogShowingAction();
-    if (action) {
-      const args = {
-        cancel: false,
-        key: coreArgs.key,
-        values: this._convertCoreToMappedData(GANTT_TASKS, coreArgs.values),
-        readOnlyFields: this._convertCoreToMappedFields(GANTT_TASKS, coreArgs.readOnlyFields),
-        hiddenFields: this._convertCoreToMappedFields(GANTT_TASKS, coreArgs.hiddenFields)
-      };
-      action(args);
-      coreArgs.cancel = args.cancel;
-      (0, _extend.extend)(coreArgs.values, this._convertMappedToCoreData(GANTT_TASKS, args.values));
-      coreArgs.readOnlyFields = this._convertMappedToCoreFields(GANTT_TASKS, args.readOnlyFields);
-      coreArgs.hiddenFields = this._convertMappedToCoreFields(GANTT_TASKS, args.hiddenFields);
-    }
-  }
-  createResourceManagerDialogShowingAction() {
-    this._resourceManagerDialogShowingAction = this._createActionByOption(Actions.onResourceManagerDialogShowing);
-  }
-  resourceManagerDialogShowingAction(args) {
-    const action = this._getResourceManagerDialogShowingAction();
-    action(args);
-  }
-  _getResourceManagerDialogShowingAction() {
-    if (!this._resourceManagerDialogShowingAction) {
-      this.createResourceManagerDialogShowingAction();
-    }
-    return this._resourceManagerDialogShowingAction;
-  }
-  raiseResourceManagerDialogShowingAction(coreArgs) {
-    const action = this._getResourceManagerDialogShowingAction();
-    if (action) {
-      const mappedResources = coreArgs.values.resources.items.map(r => this._convertMappedToCoreData(GANTT_RESOURCES, r));
-      const args = {
-        cancel: false,
-        values: mappedResources
-      };
-      action(args);
-      coreArgs.cancel = args.cancel;
-    }
-  }
-  createTaskMovingAction() {
-    this._taskMovingAction = this._createActionByOption(Actions.onTaskMoving);
-  }
-  taskMovingAction(args) {
-    const action = this.getTaskMovingAction();
-    action(args);
-  }
-  getTaskMovingAction() {
-    if (!this._taskMovingAction) {
-      this.createTaskMovingAction();
-    }
-    return this._taskMovingAction;
-  }
-  getScaleCellPreparedAction() {
-    if (!this._scaleCellPreparedAction) {
-      this.createScaleCellPreparedAction();
-    }
-    return this._scaleCellPreparedAction;
-  }
-  createScaleCellPreparedAction() {
-    this._scaleCellPreparedAction = this._createActionByOption(Actions.onScaleCellPrepared);
-  }
-  raiseScaleCellPreparedAction(data) {
-    const action = this.getScaleCellPreparedAction();
-    if (action) {
-      const args = {
-        scaleIndex: data.scaleIndex,
-        scaleType: this._getScaleType(data.scaleType),
-        scaleElement: (0, _element.getPublicElement)((0, _renderer.default)(data.scaleElement)),
-        separatorElement: (0, _element.getPublicElement)((0, _renderer.default)(data.separatorElement)),
-        startDate: new Date(data.start),
-        endDate: new Date(data.end)
-      };
-      action(args);
-    }
-  }
-  _getScaleType(viewType) {
-    switch (viewType) {
-      case 0:
-        return 'minutes';
-      case 1:
-        return 'hours';
-      case 2:
-        return 'sixHours';
-      case 3:
-        return 'days';
-      case 4:
-        return 'weeks';
-      case 5:
-        return 'months';
-      case 6:
-        return 'quarters';
-      case 7:
-        return 'years';
-      case 8:
-        return 'fiveYears';
-      default:
-        return undefined;
-    }
-  }
-}
-exports.GanttActionsManager = GanttActionsManager;
-
-/***/ }),
-
-/***/ 68962:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-
-exports.GanttToolbar = exports.GanttContextMenuBar = void 0;
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _toolbar = _interopRequireDefault(__webpack_require__(2850));
-var _context_menu = _interopRequireDefault(__webpack_require__(34378));
-var _message = _interopRequireDefault(__webpack_require__(4671));
-var _extend = __webpack_require__(52576);
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const TOOLBAR_SEPARATOR_CLASS = 'dx-gantt-toolbar-separator';
-const COMMANDS = {
-  createTask: 0,
-  createSubTask: 1,
-  removeTask: 2,
-  removeDependency: 3,
-  taskInformation: 4,
-  taskAddContextItem: 5,
-  undo: 6,
-  redo: 7,
-  zoomIn: 8,
-  zoomOut: 9,
-  fullScreen: 10,
-  collapseAll: 11,
-  expandAll: 12,
-  resourceManager: 13,
-  toggleResources: 14,
-  toggleDependencies: 15
-};
-class Bar {
-  constructor(element, owner) {
-    this._element = element;
-    this._owner = owner;
-    this._items = [];
-    this._createControl();
-  }
-  createItems(items) {
-    this._cache = null;
-    this._items = this._createItemsCore(items);
-    this._menu.option('items', this._items);
-  }
-  _createItemsCore(items) {
-    return items.map(item => {
-      let result;
-      if (typeof item === 'string') {
-        result = this._createItemByText(item);
-      } else {
-        result = item.name ? (0, _extend.extend)(this._createItemByText(item.name), item) : (0, _extend.extend)(this._getDefaultItemOptions(), item);
-      }
-      if (item.items) {
-        result.items = this._createItemsCore(item.items);
-      }
-      return result;
-    });
-  }
-  _createItemByText(text) {
-    switch (text.toLowerCase()) {
-      case 'separator':
-        return this._createSeparator();
-      case 'undo':
-        return this._createDefaultItem(COMMANDS.undo, _message.default.format('dxGantt-undo'), this._getIcon('undo'));
-      case 'redo':
-        return this._createDefaultItem(COMMANDS.redo, _message.default.format('dxGantt-redo'), this._getIcon('redo'));
-      case 'expandall':
-        return this._createDefaultItem(COMMANDS.expandAll, _message.default.format('dxGantt-expandAll'), this._getIcon('expand'));
-      case 'collapseall':
-        return this._createDefaultItem(COMMANDS.collapseAll, _message.default.format('dxGantt-collapseAll'), this._getIcon('collapse'));
-      case 'addtask':
-        return this._createDefaultItem(COMMANDS.createTask, _message.default.format('dxGantt-addNewTask'), this._getIcon('add'));
-      case 'addsubtask':
-        return this._createDefaultItem(COMMANDS.createSubTask, _message.default.format('dxGantt-contextMenuNewSubtask'), this._getIcon('add-sub-task'));
-      case 'deletetask':
-        return this._createDefaultItem(COMMANDS.removeTask, _message.default.format('dxGantt-deleteSelectedTask'), this._getIcon('delete'));
-      case 'deletedependency':
-        return this._createDefaultItem(COMMANDS.removeDependency, _message.default.format('dxGantt-contextMenuDeleteDependency'), this._getIcon('delete-dependency'));
-      case 'zoomin':
-        return this._createDefaultItem(COMMANDS.zoomIn, _message.default.format('dxGantt-zoomIn'), this._getIcon('zoom-in'));
-      case 'zoomout':
-        return this._createDefaultItem(COMMANDS.zoomOut, _message.default.format('dxGantt-zoomOut'), this._getIcon('zoom-out'));
-      case 'fullscreen':
-        return this._createDefaultItem(COMMANDS.fullScreen, _message.default.format('dxGantt-fullScreen'), this._getIcon('full-screen'));
-      case 'taskdetails':
-        return this._createDefaultItem(COMMANDS.taskInformation, _message.default.format('dxGantt-dialogTaskDetailsTitle') + '...', this._getIcon('task-details'));
-      case 'resourcemanager':
-        return this._createDefaultItem(COMMANDS.resourceManager, _message.default.format('dxGantt-dialogResourceManagerTitle'), this._getIcon('resource-manager'));
-      case 'showresources':
-        return this._createDefaultItem(COMMANDS.toggleResources, _message.default.format('dxGantt-showResources'), this._getIcon('toggle-resources'));
-      case 'showdependencies':
-        return this._createDefaultItem(COMMANDS.toggleDependencies, _message.default.format('dxGantt-showDependencies'), this._getIcon('toggle-dependencies'));
-      default:
-        return (0, _extend.extend)(this._getDefaultItemOptions(), {
-          options: {
-            text: text
-          }
-        });
-    }
-  }
-  _getDefaultItemOptions() {
-    return {};
-  }
-  _getItemsCache() {
-    if (!this._cache) {
-      this._cache = {};
-      this._fillCache(this._items);
-    }
-    return this._cache;
-  }
-  _fillCache(items) {
-    items.forEach(item => {
-      const key = item.commandId;
-      if (key !== undefined) {
-        if (!this._cache[key]) {
-          this._cache[key] = [];
-        }
-        this._cache[key].push(item);
-      }
-      if (item.items) {
-        this._fillCache(item.items);
-      }
-    });
-  }
-  _getIcon(name) {
-    return 'dx-gantt-i dx-gantt-i-' + name;
-  }
-
-  // IBar
-  getCommandKeys() {
-    const itemsCache = this._getItemsCache();
-    const result = [];
-    for (const itemKey in itemsCache) {
-      result.push(parseInt(itemKey));
-    }
-    return result;
-  }
-  setItemEnabled(key, enabled) {
-    const itemsCache = this._getItemsCache();
-    itemsCache[key].forEach(item => {
-      item.disabled = !enabled;
-    });
-  }
-  setItemVisible(key, visible) {
-    const itemsCache = this._getItemsCache();
-    itemsCache[key].forEach(item => {
-      item.visible = visible;
-    });
-  }
-  setItemValue(_key, _value) {}
-  setEnabled(enabled) {
-    this._menu.option('disabled', !enabled);
-  }
-  updateItemsList() {}
-  isVisible() {
-    return true;
-  }
-  isContextMenu() {
-    return false;
-  }
-  completeUpdate() {}
-}
-class GanttToolbar extends Bar {
-  _createControl() {
-    this._menu = this._owner._createComponent(this._element, _toolbar.default, {
-      onItemClick: e => {
-        const commandId = e.itemData.commandId;
-        if (commandId !== undefined) {
-          this._owner._executeCoreCommand(commandId);
-        }
-      }
-    });
-  }
-  _createDefaultItem(commandId, hint, icon) {
-    return {
-      commandId: commandId,
-      disabled: true,
-      widget: 'dxButton',
-      location: 'before',
-      options: {
-        icon: icon,
-        stylingMode: 'text',
-        hint: hint
-      }
-    };
-  }
-  _createSeparator() {
-    return {
-      location: 'before',
-      template: (_data, _index, element) => {
-        (0, _renderer.default)(element).addClass(TOOLBAR_SEPARATOR_CLASS);
-      }
-    };
-  }
-  _getDefaultItemOptions() {
-    return {
-      location: 'before',
-      widget: 'dxButton'
-    };
-  }
-
-  // IBar
-  completeUpdate() {
-    this._menu.option('items', this._items);
-  }
-}
-exports.GanttToolbar = GanttToolbar;
-class GanttContextMenuBar extends Bar {
-  _createControl() {
-    this._menu = this._owner._createComponent(this._element, _context_menu.default, {
-      showEvent: undefined,
-      onItemClick: e => {
-        if (e.itemData.commandId !== undefined) {
-          this._owner._executeCoreCommand(e.itemData.commandId);
-        } else {
-          if (e.itemData.name !== undefined) {
-            this._owner._actionsManager.raiseCustomCommand(e.itemData.name);
-          }
-        }
-      }
-    });
-  }
-  createItems(items) {
-    if (!items || items.length === 0) {
-      items = this._getDefaultItems();
-    }
-    super.createItems(items);
-  }
-  _getDefaultItems() {
-    return [{
-      text: _message.default.format('dxGantt-dialogButtonAdd'),
-      commandId: COMMANDS.taskAddContextItem,
-      icon: this._getIcon('add'),
-      items: [{
-        text: _message.default.format('dxGantt-contextMenuNewTask'),
-        commandId: COMMANDS.createTask,
-        icon: this._getIcon('add-task')
-      }, {
-        text: _message.default.format('dxGantt-contextMenuNewSubtask'),
-        commandId: COMMANDS.createSubTask,
-        icon: this._getIcon('add-sub-task')
-      }]
-    }, {
-      text: _message.default.format('dxGantt-dialogTaskDetailsTitle') + '...',
-      commandId: COMMANDS.taskInformation,
-      icon: this._getIcon('task-details')
-    }, {
-      text: _message.default.format('dxGantt-contextMenuDeleteTask'),
-      commandId: COMMANDS.removeTask,
-      icon: this._getIcon('delete')
-    }, {
-      text: _message.default.format('dxGantt-contextMenuDeleteDependency'),
-      commandId: COMMANDS.removeDependency,
-      icon: this._getIcon('delete-dependency')
-    }];
-  }
-  _createDefaultItem(commandId, text, icon) {
-    return {
-      commandId: commandId,
-      text: text,
-      icon: icon
-    };
-  }
-  show(point, items) {
-    this._menu.option('items', items || this._items);
-    this._menu.option('position.offset', {
-      x: point.x,
-      y: point.y
-    });
-    this._menu.option('position.collision', 'fit');
-    this._menu.show();
-  }
-  hide() {
-    this._menu.hide();
-  }
-
-  // IBar
-  isContextMenu() {
-    return true;
-  }
-}
-exports.GanttContextMenuBar = GanttContextMenuBar;
-
-/***/ }),
-
-/***/ 26344:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-
-exports.GanttDataCache = void 0;
-var _extend = __webpack_require__(52576);
-class GanttDataCache {
-  constructor() {
-    this._cache = {};
-    this._timers = {};
-  }
-  saveData(key, data, keyExpireCallback) {
-    if (data) {
-      this._clearTimer(key);
-      const storage = this._getCache(key, true);
-      (0, _extend.extendFromObject)(storage, data, true);
-      if (keyExpireCallback) {
-        this._setExpireTimer(key, keyExpireCallback);
-      }
-    }
-  }
-  pullDataFromCache(key, target) {
-    const data = this._getCache(key);
-    if (data) {
-      (0, _extend.extendFromObject)(target, data);
-    }
-    this._onKeyExpired(key);
-  }
-  hasData(key) {
-    return !!this._cache[key];
-  }
-  resetCache(key) {
-    this._onKeyExpired(key);
-  }
-  _getCache(key, forceCreate) {
-    if (!this._cache[key] && forceCreate) {
-      this._cache[key] = {};
-    }
-    return this._cache[key];
-  }
-  _setExpireTimer(key, callback) {
-    this._timers[key] = setTimeout(() => {
-      callback(key, this._getCache(key));
-      this._onKeyExpired(key);
-    }, 200);
-  }
-  _onKeyExpired(key) {
-    this._clearCache(key);
-    this._clearTimer(key);
-  }
-  _clearCache(key) {
-    delete this._cache[key];
-  }
-  _clearTimer(key) {
-    const timers = this._timers;
-    if (timers && timers[key]) {
-      clearTimeout(timers[key]);
-      delete timers[key];
-    }
-  }
-}
-exports.GanttDataCache = GanttDataCache;
-
-/***/ }),
-
-/***/ 57967:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-
-exports.GanttCustomFieldsManager = void 0;
-var _data = __webpack_require__(31000);
-var _uiGantt = __webpack_require__(26344);
-var _uiGantt2 = __webpack_require__(34376);
-const GANTT_TASKS = 'tasks';
-class GanttCustomFieldsManager {
-  constructor(gantt) {
-    this._gantt = gantt;
-    this._mappingHelper = gantt._mappingHelper;
-    this.cache = new _uiGantt.GanttDataCache();
-  }
-  _getTaskCustomFields() {
-    const columns = this._gantt.option('columns');
-    const columnFields = columns && columns.map(c => c.dataField);
-    const mappedFields = this._mappingHelper.getTaskMappedFieldNames();
-    return columnFields ? columnFields.filter(f => mappedFields.indexOf(f) < 0) : [];
-  }
-  _getCustomFieldsData(data) {
-    return this._getTaskCustomFields().reduce((previous, field) => {
-      if (data && data[field] !== undefined) {
-        previous[field] = data[field];
-      }
-      return previous;
-    }, {});
-  }
-  addCustomFieldsData(key, data) {
-    if (data) {
-      const modelData = this._gantt._tasksOption && this._gantt._tasksOption._getItems();
-      const keyGetter = (0, _data.compileGetter)(this._gantt.option(`${GANTT_TASKS}.keyExpr`));
-      const modelItem = modelData && modelData.filter(obj => keyGetter(obj) === key)[0];
-      const customFields = this._getTaskCustomFields();
-      if (modelItem) {
-        for (let i = 0; i < customFields.length; i++) {
-          const field = customFields[i];
-          if (Object.prototype.hasOwnProperty.call(modelItem, field)) {
-            data[field] = modelItem[field];
-          }
-        }
-      }
-    }
-  }
-  appendCustomFields(data) {
-    const modelData = this._gantt._tasksOption && this._gantt._tasksOption._getItems();
-    const keyGetter = this._gantt._getTaskKeyGetter();
-    const invertedData = _uiGantt2.GanttHelper.getInvertedData(modelData, keyGetter);
-    return data.reduce((previous, item) => {
-      const key = keyGetter(item);
-      const modelItem = invertedData[key];
-      if (!modelItem) {
-        previous.push(item);
-      } else {
-        const updatedItem = {};
-        for (const field in modelItem) {
-          updatedItem[field] = Object.prototype.hasOwnProperty.call(item, field) ? item[field] : modelItem[field];
-        }
-        previous.push(updatedItem);
-      }
-      return previous;
-    }, []);
-  }
-  addCustomFieldsDataFromCache(key, data) {
-    this.cache.pullDataFromCache(key, data);
-  }
-  saveCustomFieldsDataToCache(key, data) {
-    let forceUpdateOnKeyExpire = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
-    let isCustomFieldsUpdateOnly = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : false;
-    const customFieldsData = this._getCustomFieldsData(data);
-    if (Object.keys(customFieldsData).length > 0) {
-      const updateCallback = (key, data) => {
-        const dataOption = this._gantt[`_${GANTT_TASKS}Option`];
-        if (dataOption && data) {
-          dataOption.update(key, data, (data, key) => {
-            const updatedCustomFields = {};
-            this.addCustomFieldsData(key, updatedCustomFields);
-            dataOption._reloadDataSource().done(data => {
-              this._gantt._ganttTreeList.updateDataSource(data ?? dataOption._dataSource, false, isCustomFieldsUpdateOnly);
-            });
-            const selectedRowKey = this._gantt.option('selectedRowKey');
-            this._gantt._ganttView._selectTask(selectedRowKey);
-            this._gantt._actionsManager.raiseUpdatedAction(GANTT_TASKS, updatedCustomFields, key);
-          });
-        }
-      };
-      this.cache.saveData(key, customFieldsData, forceUpdateOnKeyExpire ? updateCallback : null);
-    }
-  }
-  resetCustomFieldsDataCache(key) {
-    this.cache.resetCache(key);
-  }
-}
-exports.GanttCustomFieldsManager = GanttCustomFieldsManager;
-
-/***/ }),
-
-/***/ 9121:
-/***/ (function(module, exports, __webpack_require__) {
-
-
-
-exports["default"] = void 0;
-var _component = __webpack_require__(17863);
-var _data = __webpack_require__(11036);
-class DataOption extends _component.Component {
-  constructor(optionName, getLoadPanel, dataSourceChangedCallback) {
-    super();
-    this._optionName = optionName;
-    this._getLoadPanel = getLoadPanel;
-    this._dataSourceChangedCallback = dataSourceChangedCallback;
-  }
-  insert(data, callback, errorCallback) {
-    this._showLoadPanel();
-    this._getStore().insert(data).done(response => {
-      if (callback) {
-        callback(response);
-      }
-      this._hideLoadPanel();
-    }).fail(error => {
-      if (errorCallback) {
-        errorCallback(error);
-      }
-      this._hideLoadPanel();
-    });
-  }
-  update(key, data, callback, errorCallback) {
-    this._showLoadPanel();
-    this._getStore().update(key, data).done((data, key) => {
-      if (callback) {
-        callback(data, key);
-      }
-      this._hideLoadPanel();
-    }).fail(error => {
-      if (errorCallback) {
-        errorCallback(error);
-      }
-      this._hideLoadPanel();
-    });
-  }
-  remove(key, callback, errorCallback) {
-    this._showLoadPanel();
-    this._getStore().remove(key).done(key => {
-      if (callback) {
-        callback(key);
-      }
-      this._hideLoadPanel();
-    }).fail(error => {
-      if (errorCallback) {
-        errorCallback(error);
-      }
-      this._hideLoadPanel();
-    });
-  }
-  _dataSourceChangedHandler(newItems, e) {
-    this._dataSourceChangedCallback(this._optionName, newItems);
-  }
-  _dataSourceOptions() {
-    return {
-      paginate: false
-    };
-  }
-  _dataSourceLoadingChangedHandler(isLoading) {
-    if (isLoading && !this._dataSource.isLoaded()) {
-      this._showLoadPanel();
-    } else {
-      this._hideLoadPanel();
-    }
-  }
-  _showLoadPanel() {
-    var _this$_getLoadPanel;
-    (_this$_getLoadPanel = this._getLoadPanel()) === null || _this$_getLoadPanel === void 0 || _this$_getLoadPanel.show();
-  }
-  _hideLoadPanel() {
-    var _this$_getLoadPanel2;
-    (_this$_getLoadPanel2 = this._getLoadPanel()) === null || _this$_getLoadPanel2 === void 0 || _this$_getLoadPanel2.hide();
-  }
-  _getStore() {
-    return this._dataSource.store();
-  }
-  _getItems() {
-    return this._getStore()._array || this._dataSource.items();
-  }
-  _reloadDataSource() {
-    return this._dataSource.load();
-  }
-  dispose() {
-    this._disposeDataSource();
-  }
-  _optionChanged(args) {
-    switch (args.name) {
-      case 'dataSource':
-        break;
-    }
-  }
-}
-DataOption.include(_data.DataHelperMixin);
-var _default = exports["default"] = DataOption;
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-/***/ }),
-
-/***/ 15337:
-/***/ (function(__unused_webpack_module, exports) {
-
-
-
-exports.GanttDataChangesProcessingHelper = void 0;
-class GanttDataChangesProcessingHelper {
-  constructor() {
-    this._waitingForGanttViewReady = false;
-    this._waitingForTreeListReady = false;
-    this._completionActions = [];
-  }
-  onGanttViewReady() {
-    this._stopWaitForGanttViewReady();
-    this.executeActionsIfPossible();
-  }
-  onTreeListReady() {
-    this._stopWaitForTreeListReady();
-    this.executeActionsIfPossible();
-  }
-  addCompletionAction(action, waitGanttViewReady, waitTreeListReady) {
-    if (action) {
-      if (waitGanttViewReady) {
-        this._startWaitForGanttViewReady();
-      }
-      if (waitTreeListReady) {
-        this._startWaitForTreeListReady();
-      }
-      this._completionActions.push(action);
-    }
-  }
-  executeActionsIfPossible() {
-    if (this._canExecuteActions()) {
-      this._completionActions.forEach(act => act());
-      this._completionActions = [];
-    }
-  }
-  _startWaitForGanttViewReady() {
-    this._waitingForGanttViewReady = true;
-  }
-  _stopWaitForGanttViewReady() {
-    this._waitingForGanttViewReady = false;
-  }
-  _startWaitForTreeListReady() {
-    this._waitingForTreeListReady = true;
-  }
-  _stopWaitForTreeListReady() {
-    this._waitingForTreeListReady = false;
-  }
-  _canExecuteActions() {
-    return !(this._waitingForGanttViewReady || this._waitingForTreeListReady);
-  }
-}
-exports.GanttDataChangesProcessingHelper = GanttDataChangesProcessingHelper;
-
-/***/ }),
-
-/***/ 51695:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-
-exports.GanttDialog = void 0;
-var _ui = _interopRequireDefault(__webpack_require__(10720));
-var _form = _interopRequireDefault(__webpack_require__(74075));
-__webpack_require__(4575);
-__webpack_require__(84798);
-var _date = _interopRequireDefault(__webpack_require__(38662));
-var _message = _interopRequireDefault(__webpack_require__(4671));
-__webpack_require__(80070);
-__webpack_require__(94660);
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-class GanttDialog {
-  constructor(owner, $element) {
-    this._popupInstance = owner._createComponent($element, _ui.default);
-    this.infoMap = {
-      TaskEdit: TaskEditDialogInfo,
-      Resources: ResourcesEditDialogInfo,
-      Confirmation: ConfirmDialogInfo,
-      ConstraintViolation: ConstraintViolationDialogInfo
-    };
-  }
-  _apply() {
-    if (this._dialogInfo.isValidated()) {
-      const result = this._dialogInfo.getResult();
-      this._callback(result);
-      this.hide();
-    }
-  }
-  show(name, parameters, callback, afterClosing, editingOptions) {
-    this._callback = callback;
-    this._afterClosing = afterClosing;
-    if (!this.infoMap[name]) {
-      return;
-    }
-    const isRefresh = this._popupInstance._isVisible() && this._dialogInfo && this._dialogInfo instanceof this.infoMap[name];
-    this._dialogInfo = new this.infoMap[name](parameters, this._apply.bind(this), this.hide.bind(this), editingOptions, this);
-    this._popupInstance.option({
-      showTitle: !!this._dialogInfo.getTitle(),
-      title: this._dialogInfo.getTitle(),
-      toolbarItems: this._dialogInfo.getToolbarItems(),
-      maxWidth: this._dialogInfo.getMaxWidth(),
-      height: this._dialogInfo.getHeight(),
-      contentTemplate: this._dialogInfo.getContentTemplate()
-    });
-    if (this._afterClosing) {
-      this._popupInstance.option('onHidden', this._afterClosing);
-    }
-    if (!isRefresh) {
-      this._popupInstance.show();
-    }
-  }
-  hide() {
-    if (this._dialogInfo.shouldHidePopup()) {
-      this._popupInstance.hide();
-    }
-    if (this._afterClosing) {
-      this._afterClosing();
-    }
-  }
-}
-exports.GanttDialog = GanttDialog;
-class DialogInfoBase {
-  constructor(parameters, applyAction, hideAction, editingOptions, owner) {
-    this._parameters = parameters;
-    this._applyAction = applyAction;
-    this._hideAction = hideAction;
-    this._editingOptions = editingOptions;
-    this._owner = owner;
-  }
-  _getFormItems() {
-    return {};
-  }
-  _getFormCssClass() {
-    return '';
-  }
-  _getFormData() {
-    return this._parameters;
-  }
-  _updateParameters() {}
-  _getOkToolbarItem() {
-    return this._getToolbarItem('OK', this._applyAction);
-  }
-  _getCancelToolbarItem() {
-    return this._getToolbarItem('Cancel', this._hideAction);
-  }
-  _getYesToolbarItem() {
-    return this._getToolbarItem('Yes', this._applyAction);
-  }
-  _getNoToolbarItem() {
-    return this._getToolbarItem('No', this._hideAction);
-  }
-  _getToolbarItem(localizationText, action) {
-    return {
-      widget: 'dxButton',
-      toolbar: 'bottom',
-      options: {
-        text: _message.default.format(localizationText),
-        onClick: action
-      }
-    };
-  }
-  getTitle() {
-    return '';
-  }
-  getToolbarItems() {
-    return this._editingOptions.enabled ? [this._getOkToolbarItem(), this._getCancelToolbarItem()] : [this._getCancelToolbarItem()];
-  }
-  getMaxWidth() {
-    return 400;
-  }
-  getHeight() {
-    return 'auto';
-  }
-  getContentTemplate() {
-    return content => {
-      this._form = new _form.default(content, {
-        formData: this._getFormData(),
-        items: this._getFormItems(),
-        elementAttr: {
-          class: this._getFormCssClass()
-        },
-        rtlEnabled: false
-      });
-      return content;
-    };
-  }
-  getResult() {
-    const formData = this.getFormData();
-    this._updateParameters(formData);
-    return this._parameters;
-  }
-  getFormData() {
-    const formData = this._form && this._form.option('formData');
-    return formData;
-  }
-  isValidated() {
-    return true;
-  }
-  shouldHidePopup() {
-    return true;
-  }
-}
-class TaskEditDialogInfo extends DialogInfoBase {
-  getTitle() {
-    return _message.default.format('dxGantt-dialogTaskDetailsTitle');
-  }
-  _getFormItems() {
-    const readOnly = !this._editingOptions.enabled || !this._editingOptions.allowTaskUpdating;
-    const readOnlyRange = readOnly || !this._parameters.enableRangeEdit;
-    return [{
-      dataField: 'title',
-      editorType: 'dxTextBox',
-      label: {
-        text: _message.default.format('dxGantt-dialogTitle')
-      },
-      editorOptions: {
-        readOnly: readOnly || this._isReadOnlyField('title')
-      },
-      visible: !this._isHiddenField('title')
-    }, {
-      dataField: 'start',
-      editorType: 'dxDateBox',
-      label: {
-        text: _message.default.format('dxGantt-dialogStartTitle')
-      },
-      editorOptions: {
-        type: 'datetime',
-        width: '100%',
-        readOnly: readOnlyRange || this._isReadOnlyField('start')
-      },
-      visible: !this._isHiddenField('start'),
-      validationRules: [{
-        type: 'required',
-        message: _message.default.format('validation-required-formatted', _message.default.format('dxGantt-dialogStartTitle'))
-      }, {
-        type: 'custom',
-        validationCallback: e => {
-          if (this._parameters.isValidationRequired) {
-            const correctDateRange = this._parameters.getCorrectDateRange(this._parameters.id, e.value, this._parameters.end);
-            if (correctDateRange.start.getTime() !== e.value.getTime()) {
-              e.rule.message = this._getValidationMessage(true, correctDateRange.start);
-              return false;
-            }
-          }
-          return true;
-        }
-      }]
-    }, {
-      dataField: 'end',
-      editorType: 'dxDateBox',
-      label: {
-        text: _message.default.format('dxGantt-dialogEndTitle')
-      },
-      editorOptions: {
-        type: 'datetime',
-        width: '100%',
-        readOnly: readOnlyRange || this._isReadOnlyField('end')
-      },
-      visible: !this._isHiddenField('end'),
-      validationRules: [{
-        type: 'required',
-        message: _message.default.format('validation-required-formatted', _message.default.format('dxGantt-dialogEndTitle'))
-      }, {
-        type: 'custom',
-        validationCallback: e => {
-          if (this._parameters.isValidationRequired) {
-            const correctDateRange = this._parameters.getCorrectDateRange(this._parameters.id, this._parameters.start, e.value);
-            if (correctDateRange.end.getTime() !== e.value.getTime()) {
-              e.rule.message = this._getValidationMessage(false, correctDateRange.end);
-              return false;
-            }
-          }
-          return true;
-        }
-      }]
-    }, {
-      dataField: 'progress',
-      editorType: 'dxNumberBox',
-      label: {
-        text: _message.default.format('dxGantt-dialogProgressTitle')
-      },
-      editorOptions: {
-        showSpinButtons: true,
-        min: 0,
-        max: 1,
-        format: '#0%',
-        step: 0.01,
-        readOnly: readOnlyRange || this._isReadOnlyField('progress')
-      },
-      visible: !this._isHiddenField('progress')
-    }, {
-      dataField: 'assigned.items',
-      editorType: 'dxTagBox',
-      label: {
-        text: _message.default.format('dxGantt-dialogResourcesTitle')
-      },
-      editorOptions: {
-        readOnly: readOnly || !this._editingOptions.allowTaskResourceUpdating,
-        dataSource: this._parameters.resources.items,
-        displayExpr: 'text',
-        buttons: [{
-          name: 'editResources',
-          location: 'after',
-          options: {
-            disabled: !this._editingOptions.allowResourceAdding && !this._editingOptions.allowResourceDeleting,
-            text: '...',
-            hint: _message.default.format('dxGantt-dialogEditResourceListHint'),
-            onClick: () => {
-              const formData = this.getFormData();
-              const showTaskEditDialogCallback = () => {
-                this._parameters.showTaskEditDialogCommand.execute();
-                this._restoreFormData(formData);
-              };
-              this._parameters.showResourcesDialogCommand.execute(showTaskEditDialogCallback);
-            }
-          }
-        }]
-      }
-    }];
-  }
-  _restoreFormData(formData) {
-    const newForm = this._owner._dialogInfo._form;
-    const titleEdit = newForm.getEditor('title');
-    const assignedEdit = newForm.getEditor('assigned.items');
-    const startEdit = newForm.getEditor('start');
-    const endEdit = newForm.getEditor('end');
-    const progressEdit = newForm.getEditor('progress');
-    titleEdit.option('value', formData.title);
-    assignedEdit.option('value', formData.assigned.items);
-    startEdit.option('value', formData.start);
-    endEdit.option('value', formData.end);
-    progressEdit.option('value', formData.progress);
-  }
-  _getValidationMessage(isStartDependencies, correctDate) {
-    if (isStartDependencies) {
-      return _message.default.format('dxGantt-dialogStartDateValidation', this._getFormattedDateText(correctDate));
-    }
-    return _message.default.format('dxGantt-dialogEndDateValidation', this._getFormattedDateText(correctDate));
-  }
-  _getFormattedDateText(date) {
-    return date ? _date.default.format(date, 'shortDateShortTime') : '';
-  }
-  _isReadOnlyField(field) {
-    return this._parameters.readOnlyFields.indexOf(field) > -1;
-  }
-  _isHiddenField(field) {
-    return this._parameters.hiddenFields.indexOf(field) > -1;
-  }
-  _getFormData() {
-    const data = {};
-    for (const field in this._parameters) {
-      data[field] = field === 'progress' ? this._parameters[field] / 100 : this._parameters[field];
-    }
-    return data;
-  }
-  _updateParameters(formData) {
-    this._parameters.title = formData.title;
-    this._parameters.start = formData.start;
-    this._parameters.end = formData.end;
-    this._parameters.progress = Math.round(formData.progress * 100);
-    this._parameters.assigned = formData.assigned;
-  }
-  isValidated() {
-    var _this$_form;
-    const validationResult = (_this$_form = this._form) === null || _this$_form === void 0 ? void 0 : _this$_form.validate();
-    return validationResult === null || validationResult === void 0 ? void 0 : validationResult.isValid;
-  }
-}
-class ResourcesEditDialogInfo extends DialogInfoBase {
-  getTitle() {
-    return _message.default.format('dxGantt-dialogResourceManagerTitle');
-  }
-  _getFormItems() {
-    return [{
-      label: {
-        visible: false
-      },
-      dataField: 'resources.items',
-      editorType: 'dxList',
-      editorOptions: {
-        allowItemDeleting: this._editingOptions.enabled && this._editingOptions.allowResourceDeleting,
-        itemDeleteMode: 'static',
-        selectionMode: 'none',
-        items: this._parameters.resources.items,
-        height: 250,
-        noDataText: _message.default.format('dxGantt-dialogEditNoResources'),
-        onInitialized: e => {
-          this.list = e.component;
-        },
-        onItemDeleted: e => {
-          this._parameters.resources.remove(e.itemData);
-        }
-      }
-    }, {
-      label: {
-        visible: false
-      },
-      editorType: 'dxTextBox',
-      editorOptions: {
-        readOnly: !this._editingOptions.enabled || !this._editingOptions.allowResourceAdding,
-        onInitialized: e => {
-          this.textBox = e.component;
-        },
-        onInput: e => {
-          const addButton = e.component.getButton('addResource');
-          const resourceName = e.component.option('text');
-          addButton.option('disabled', resourceName.length === 0);
-        },
-        buttons: [{
-          name: 'addResource',
-          location: 'after',
-          options: {
-            text: _message.default.format('dxGantt-dialogButtonAdd'),
-            disabled: true,
-            onClick: e => {
-              const newItem = this._parameters.resources.createItem();
-              newItem.text = this.textBox.option('text');
-              this._parameters.resources.add(newItem);
-              this.list.option('items', this._parameters.resources.items);
-              this.list.scrollToItem(newItem);
-              this.textBox.clear();
-              e.component.option('disabled', true);
-            }
-          }
-        }]
-      }
-    }];
-  }
-  shouldHidePopup() {
-    return false;
-  }
-}
-class ConfirmDialogInfo extends DialogInfoBase {
-  getContentTemplate() {
-    return content => {
-      return this._getConfirmMessage();
-    };
-  }
-  _getConfirmMessage() {
-    switch (this._parameters.type) {
-      case 0:
-        return _message.default.format('dxGantt-dialogTaskDeleteConfirmation');
-      case 1:
-        return _message.default.format('dxGantt-dialogDependencyDeleteConfirmation');
-      case 2:
-        return _message.default.format('dxGantt-dialogResourcesDeleteConfirmation', this._parameters.message);
-      default:
-        return '';
-    }
-  }
-  getToolbarItems() {
-    return [this._getYesToolbarItem(), this._getNoToolbarItem()];
-  }
-}
-class ConstraintViolationDialogInfo extends DialogInfoBase {
-  _getFormItems() {
-    const hasCriticalErrors = this._parameters.hasCriticalErrors;
-    const severalErrors = this._parameters.errorsCount > 1;
-    const items = [];
-    const deleteMessage = severalErrors ? 'dxGantt-dialogDeleteDependenciesMessage' : 'dxGantt-dialogDeleteDependencyMessage';
-    const moveMessage = severalErrors ? 'dxGantt-dialogMoveTaskAndKeepDependenciesMessage' : 'dxGantt-dialogMoveTaskAndKeepDependencyMessage';
-    let titleMessage;
-    if (hasCriticalErrors) {
-      titleMessage = severalErrors ? 'dxGantt-dialogConstraintCriticalViolationSeveralTasksMessage' : 'dxGantt-dialogConstraintCriticalViolationMessage';
-    } else {
-      titleMessage = severalErrors ? 'dxGantt-dialogConstraintViolationSeveralTasksMessage' : 'dxGantt-dialogConstraintViolationMessage';
-    }
-    items.push({
-      text: _message.default.format('dxGantt-dialogCancelOperationMessage'),
-      value: 0
-    });
-    items.push({
-      text: _message.default.format(deleteMessage),
-      value: 1
-    });
-    if (!hasCriticalErrors) {
-      items.push({
-        text: _message.default.format(moveMessage),
-        value: 2
-      });
-    }
-    return [{
-      template: _message.default.format(titleMessage)
-    }, {
-      cssClass: 'dx-cv-dialog-row',
-      dataField: 'option',
-      label: {
-        visible: false
-      },
-      editorType: 'dxRadioGroup',
-      editorOptions: {
-        items: items,
-        valueExpr: 'value',
-        value: 0
-      }
-    }];
-  }
-  _getFormCssClass() {
-    return 'dx-cv-dialog';
-  }
-  _updateParameters(formData) {
-    this._parameters.option = formData.option;
-  }
-}
-
-/***/ }),
-
-/***/ 51237:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-
-exports.GanttExportHelper = void 0;
-var _window = __webpack_require__(3104);
-var _m_utils = _interopRequireDefault(__webpack_require__(53226));
-var _type = __webpack_require__(11528);
-var _date = _interopRequireDefault(__webpack_require__(38662));
-var _number = _interopRequireDefault(__webpack_require__(52771));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const window = (0, _window.getWindow)();
-const TREELIST_EMPTY_SPACE = 'dx-treelist-empty-space';
-const TREELIST_TABLE = 'dx-treelist-table';
-class GanttExportHelper {
-  constructor(gantt) {
-    this._gantt = gantt;
-    this._treeList = gantt._treeList;
-    this._cache = {};
-  }
-  reset() {
-    this._cache = {};
-  }
-  getTreeListTableStyle() {
-    const table = this._getTreeListTable();
-    const style = window.getComputedStyle(table);
-    return {
-      color: style.color,
-      backgroundColor: style.backgroundColor,
-      fontSize: style.fontSize,
-      fontFamily: style.fontFamily,
-      fontWeight: style.fontWeight,
-      fontStyle: style.fontStyle,
-      textAlign: 'left',
-      verticalAlign: 'middle'
-    };
-  }
-  getTreeListColCount() {
-    const headerView = this._getHeaderView();
-    const widths = headerView.getColumnWidths().filter(w => w > 0);
-    return widths.length;
-  }
-  getTreeListHeaderInfo(colIndex) {
-    const element = this._getHeaderElement(colIndex);
-    if (!element) return null;
-    const style = window.getComputedStyle(element);
-    const styleForExport = {
-      color: style.color,
-      padding: style.padding,
-      paddingLeft: style.paddingLeft,
-      paddingTop: style.paddingTop,
-      paddingRight: style.paddingRight,
-      paddingBottom: style.paddingBottom,
-      verticalAlign: style.verticalAlign,
-      width: this._getColumnWidth(colIndex)
-    };
-    return {
-      content: element.textContent,
-      styles: styleForExport
-    };
-  }
-  getTreeListCellInfo(key, colIndex) {
-    const node = this._treeList.getNodeByKey(key);
-    const visibleRowIndex = this._treeList.getRowIndexByKey(key);
-    const cell = visibleRowIndex > -1 ? this._getDataCell(visibleRowIndex, colIndex) : null;
-    const style = cell ? window.getComputedStyle(cell) : this._getColumnCellStyle(colIndex);
-    const styleForExport = {
-      color: style.color,
-      padding: style.padding,
-      paddingLeft: style.paddingLeft,
-      paddingTop: style.paddingTop,
-      paddingRight: style.paddingRight,
-      paddingBottom: style.paddingBottom,
-      width: this._getColumnWidth(colIndex)
-    };
-    if (colIndex === 0) {
-      styleForExport.extraLeftPadding = this._getEmptySpaceWidth(node.level);
-    }
-    return {
-      content: (cell === null || cell === void 0 ? void 0 : cell.textContent) ?? this._getDisplayText(key, colIndex),
-      styles: styleForExport
-    };
-  }
-  getTreeListEmptyDataCellInfo() {
-    return {
-      content: this._treeList.option('noDataText')
-    };
-  }
-  _ensureColumnWidthCache(colIndex) {
-    var _this$_cache, _columnWidths;
-    (_this$_cache = this._cache)[_columnWidths = 'columnWidths'] ?? (_this$_cache[_columnWidths] = {});
-    if (!this._cache['columnWidths'][colIndex]) {
-      const header = this._getHeaderElement(colIndex);
-      this._cache['columnWidths'][colIndex] = (header === null || header === void 0 ? void 0 : header.clientWidth) ?? 0;
-    }
-  }
-  _getColumnWidth(colIndex) {
-    this._ensureColumnWidthCache(colIndex);
-    const widths = this._cache['columnWidths'];
-    return widths && widths[colIndex];
-  }
-  _getEmptySpaceWidth(level) {
-    if (!this._cache['emptyWidth']) {
-      var _this$_cache2, _emptyWidth;
-      const element = this._getTreeListElement(TREELIST_EMPTY_SPACE);
-      (_this$_cache2 = this._cache)[_emptyWidth = 'emptyWidth'] ?? (_this$_cache2[_emptyWidth] = element.offsetWidth ?? 0);
-    }
-    return this._cache['emptyWidth'] * (level + 1);
-  }
-  _getColumnCellStyle(colIndex) {
-    this._ensureColumnCellStyleCache(colIndex);
-    return this._cache['columnStyles'][colIndex];
-  }
-  _ensureColumnCellStyleCache(colIndex) {
-    var _this$_cache3, _columnStyles;
-    (_this$_cache3 = this._cache)[_columnStyles = 'columnStyles'] ?? (_this$_cache3[_columnStyles] = {});
-    if (!this._cache['columnStyles'][colIndex]) {
-      const cell = this._getDataCell(0, colIndex);
-      this._cache['columnStyles'][colIndex] = window.getComputedStyle(cell);
-    }
-  }
-  _getTask(key) {
-    this._ensureTaskCache(key);
-    return this._cache['tasks'][key];
-  }
-  _ensureTaskCache(key) {
-    var _this$_cache4, _tasks, _this$_cache$tasks;
-    (_this$_cache4 = this._cache)[_tasks = 'tasks'] ?? (_this$_cache4[_tasks] = {});
-    (_this$_cache$tasks = this._cache['tasks'])[key] ?? (_this$_cache$tasks[key] = this._gantt._findTaskByKey(key));
-  }
-  _getTreeListTable() {
-    return this._getTreeListElement(TREELIST_TABLE);
-  }
-  _getTreeListElement(className) {
-    return this._treeList._$element.find('.' + className).get(0);
-  }
-  _getDataCell(rowIndex, colIndex) {
-    const treeList = this._treeList;
-    const cellElement = treeList.getCellElement(rowIndex, colIndex);
-    return cellElement && cellElement.length ? cellElement[0] : cellElement;
-  }
-  _getHeaderElement(index) {
-    return this._getHeaderView().getHeaderElement(index).get(0);
-  }
-  _getHeaderView() {
-    return this._treeList._views.columnHeadersView;
-  }
-  _getDisplayText(key, colIndex) {
-    const task = this._getTask(key);
-    return task && this._getGridDisplayText(colIndex, task);
-  }
-  _getGridDisplayText(colIndex, data) {
-    const columns = this._treeList.getController('columns').getVisibleColumns();
-    const column = columns[colIndex];
-    const field = column === null || column === void 0 ? void 0 : column.dataField;
-    const format = column === null || column === void 0 ? void 0 : column.format;
-    const value = _m_utils.default.getDisplayValue(column, data[field], data, 'data');
-    if ((0, _type.isDefined)(format)) {
-      if ((column === null || column === void 0 ? void 0 : column.dataType) === 'date' || (column === null || column === void 0 ? void 0 : column.dataType) === 'datetime') {
-        const date = (0, _type.isDate)(value) ? value : new Date(value);
-        return _date.default.format(date, format);
-      }
-      if ((0, _type.isNumeric)(value)) {
-        return _number.default.format(value, format);
-      }
-    }
-    return typeof value === 'string' ? value : value === null || value === void 0 ? void 0 : value.toString();
-  }
-}
-exports.GanttExportHelper = GanttExportHelper;
-
-/***/ }),
-
-/***/ 34376:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-
-exports.GanttHelper = void 0;
-var _data = __webpack_require__(31000);
-var _type = __webpack_require__(11528);
-var _message = _interopRequireDefault(__webpack_require__(4671));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const GanttHelper = exports.GanttHelper = {
-  prepareMapHandler(getters) {
-    return data => {
-      return Object.keys(getters).reduce((previous, key) => {
-        const resultKey = key === 'key' ? 'id' : key;
-        previous[resultKey] = getters[key](data);
-        return previous;
-      }, {});
-    };
-  },
-  prepareSetterMapHandler(setters) {
-    return data => {
-      return Object.keys(setters).reduce((previous, key) => {
-        const resultKey = key === 'key' ? 'id' : key;
-        setters[key](previous, data[resultKey]);
-        return previous;
-      }, {});
-    };
-  },
-  compileGettersByOption(optionValue) {
-    const getters = {};
-    for (const field in optionValue) {
-      const exprMatches = field.match(/(\w*)Expr/);
-      if (exprMatches) {
-        getters[exprMatches[1]] = (0, _data.compileGetter)(optionValue[exprMatches[0]]);
-      }
-    }
-    return getters;
-  },
-  compileSettersByOption(optionValue) {
-    const setters = {};
-    for (const field in optionValue) {
-      const exprMatches = field.match(/(\w*)Expr/);
-      if (exprMatches && !(0, _type.isFunction)(optionValue[exprMatches[0]])) {
-        setters[exprMatches[1]] = (0, _data.compileSetter)(optionValue[exprMatches[0]]);
-      }
-    }
-    return setters;
-  },
-  compileFuncSettersByOption(optionValue) {
-    const setters = {};
-    for (const field in optionValue) {
-      const exprMatches = field.match(/(\w*)Expr/);
-      if (exprMatches && (0, _type.isFunction)(optionValue[exprMatches[0]])) {
-        setters[exprMatches[1]] = optionValue[exprMatches[0]];
-      }
-    }
-    return setters;
-  },
-  getStoreObject(option, modelObject) {
-    const setters = GanttHelper.compileSettersByOption(option);
-    return Object.keys(setters).reduce((previous, key) => {
-      if (key !== 'key') {
-        setters[key](previous, modelObject[key]);
-      }
-      return previous;
-    }, {});
-  },
-  getInvertedData(data, keyGetter) {
-    const inverted = {};
-    if (data) {
-      for (let i = 0; i < data.length; i++) {
-        const dataItem = data[i];
-        const key = keyGetter(dataItem);
-        inverted[key] = dataItem;
-      }
-    }
-    return inverted;
-  },
-  getArrayFromOneElement(element) {
-    return element === undefined || element === null ? [] : [element];
-  },
-  getSelectionMode(allowSelection) {
-    return allowSelection ? 'single' : 'none';
-  },
-  convertTreeToList(node, array) {
-    if (node !== null && node !== void 0 && node.data && node !== null && node !== void 0 && node.visible) {
-      array.push(node.data);
-    }
-    for (let i = 0; i < ((_node$children = node.children) === null || _node$children === void 0 ? void 0 : _node$children.length); i++) {
-      var _node$children;
-      const child = node.children[i];
-      GanttHelper.convertTreeToList(child, array);
-    }
-  },
-  getAllParentNodesKeys(node, array) {
-    var _node$parent;
-    if (node !== null && node !== void 0 && node.data) {
-      array.push(node.key);
-    }
-    if (node !== null && node !== void 0 && (_node$parent = node.parent) !== null && _node$parent !== void 0 && _node$parent.data) {
-      GanttHelper.getAllParentNodesKeys(node.parent, array);
-    }
-  },
-  getDefaultOptions() {
-    return {
-      /**
-      * @name dxGanttOptions.rtlEnabled
-      * @hidden
-      */
-
-      tasks: {
-        dataSource: null,
-        keyExpr: 'id',
-        parentIdExpr: 'parentId',
-        startExpr: 'start',
-        endExpr: 'end',
-        progressExpr: 'progress',
-        titleExpr: 'title',
-        colorExpr: 'color'
-      },
-      dependencies: {
-        dataSource: null,
-        keyExpr: 'id',
-        predecessorIdExpr: 'predecessorId',
-        successorIdExpr: 'successorId',
-        typeExpr: 'type'
-      },
-      resources: {
-        dataSource: null,
-        keyExpr: 'id',
-        textExpr: 'text',
-        colorExpr: 'color'
-      },
-      resourceAssignments: {
-        dataSource: null,
-        keyExpr: 'id',
-        taskIdExpr: 'taskId',
-        resourceIdExpr: 'resourceId'
-      },
-      columns: undefined,
-      taskListWidth: 300,
-      showResources: true,
-      showDependencies: true,
-      taskTitlePosition: 'inside',
-      firstDayOfWeek: undefined,
-      selectedRowKey: undefined,
-      onSelectionChanged: null,
-      onTaskClick: null,
-      onTaskDblClick: null,
-      onTaskInserting: null,
-      onTaskInserted: null,
-      onTaskDeleting: null,
-      onTaskDeleted: null,
-      onTaskUpdating: null,
-      onTaskUpdated: null,
-      onTaskMoving: null,
-      onTaskEditDialogShowing: null,
-      onDependencyInserting: null,
-      onDependencyInserted: null,
-      onDependencyDeleting: null,
-      onDependencyDeleted: null,
-      onResourceInserting: null,
-      onResourceInserted: null,
-      onResourceDeleting: null,
-      onResourceDeleted: null,
-      onResourceAssigning: null,
-      onResourceAssigned: null,
-      // eslint-disable-next-line spellcheck/spell-checker
-      onResourceUnassigning: null,
-      // eslint-disable-next-line spellcheck/spell-checker
-      onResourceUnassigned: null,
-      onCustomCommand: null,
-      onContextMenuPreparing: null,
-      allowSelection: true,
-      showRowLines: true,
-      stripLines: undefined,
-      scaleType: 'auto',
-      scaleTypeRange: {
-        min: 'minutes',
-        max: 'years'
-      },
-      editing: {
-        enabled: false,
-        allowTaskAdding: true,
-        allowTaskDeleting: true,
-        allowTaskUpdating: true,
-        allowDependencyAdding: true,
-        allowDependencyDeleting: true,
-        allowResourceAdding: true,
-        allowResourceDeleting: true,
-        allowResourceUpdating: true,
-        allowTaskResourceUpdating: true
-      },
-      validation: {
-        validateDependencies: false,
-        autoUpdateParentTasks: false,
-        enablePredecessorGap: false
-      },
-      toolbar: null,
-      contextMenu: {
-        enabled: true,
-        items: undefined
-      },
-      taskTooltipContentTemplate: null,
-      taskProgressTooltipContentTemplate: null,
-      taskTimeTooltipContentTemplate: null,
-      taskContentTemplate: null,
-      rootValue: 0,
-      sorting: {
-        ascendingText: _message.default.format('dxGantt-sortingAscendingText'),
-        descendingText: _message.default.format('dxGantt-sortingDescendingText'),
-        clearText: _message.default.format('dxGantt-sortingClearText'),
-        mode: 'single',
-        showSortIndexes: false
-      },
-      filterRow: undefined,
-      headerFilter: undefined,
-      rtlEnabled: false
-    };
-  }
-};
-
-/***/ }),
-
-/***/ 86235:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-
-exports.GanttMappingHelper = void 0;
-var _type = __webpack_require__(11528);
-var _data = __webpack_require__(31000);
-const GANTT_TASKS = 'tasks';
-const GANTT_MAPPED_FIELD_REGEX = /(\w*)Expr/;
-class GanttMappingHelper {
-  constructor(gantt) {
-    this._gantt = gantt;
-  }
-  _getMappedFieldName(optionName, coreField) {
-    let coreFieldName = coreField;
-    if (coreField === 'id') {
-      coreFieldName = 'key';
-    }
-    return this._gantt.option(`${optionName}.${coreFieldName}Expr`);
-  }
-  getTaskMappedFieldNames() {
-    const mappedFields = [];
-    const mappedFieldsData = this._gantt.option(GANTT_TASKS);
-    for (const field in mappedFieldsData) {
-      const exprMatches = field.match(GANTT_MAPPED_FIELD_REGEX);
-      const mappedFieldName = exprMatches && mappedFieldsData[exprMatches[0]];
-      if (mappedFieldName) {
-        mappedFields.push(mappedFieldName);
-      }
-    }
-    return mappedFields;
-  }
-  convertCoreToMappedData(optionName, coreData) {
-    return Object.keys(coreData).reduce((previous, f) => {
-      const mappedField = this._getMappedFieldName(optionName, f);
-      if (mappedField && !(0, _type.isFunction)(mappedField)) {
-        const setter = (0, _data.compileSetter)(mappedField);
-        setter(previous, coreData[f]);
-      }
-      return previous;
-    }, {});
-  }
-  convertMappedToCoreData(optionName, mappedData) {
-    const coreData = {};
-    if (mappedData) {
-      const mappedFields = this._gantt.option(optionName);
-      for (const field in mappedFields) {
-        const exprMatches = field.match(GANTT_MAPPED_FIELD_REGEX);
-        const mappedFieldName = exprMatches && mappedFields[exprMatches[0]];
-        if (mappedFieldName && mappedData[mappedFieldName] !== undefined) {
-          const getter = (0, _data.compileGetter)(mappedFieldName);
-          const coreFieldName = exprMatches[1];
-          coreData[coreFieldName] = getter(mappedData);
-        }
-      }
-    }
-    return coreData;
-  }
-  convertCoreToMappedFields(optionName, fields) {
-    return fields.reduce((previous, f) => {
-      const mappedField = this._getMappedFieldName(optionName, f);
-      if (mappedField) {
-        previous.push(mappedField);
-      }
-      return previous;
-    }, []);
-  }
-  convertMappedToCoreFields(optionName, fields) {
-    const coreFields = [];
-    const mappedFields = this._gantt.option(optionName);
-    for (const field in mappedFields) {
-      const exprMatches = field.match(GANTT_MAPPED_FIELD_REGEX);
-      const mappedFieldName = exprMatches && mappedFields[exprMatches[0]];
-      if (mappedFieldName && fields.indexOf(mappedFieldName) > -1) {
-        const coreFieldName = exprMatches[1];
-        coreFields.push(coreFieldName);
-      }
-    }
-    return coreFields;
-  }
-}
-exports.GanttMappingHelper = GanttMappingHelper;
-
-/***/ }),
-
-/***/ 70136:
-/***/ (function(__unused_webpack_module, exports) {
-
-
-
-exports.ModelChangesListener = void 0;
-const GANTT_TASKS = 'tasks';
-const GANTT_DEPENDENCIES = 'dependencies';
-const GANTT_RESOURCES = 'resources';
-const GANTT_RESOURCE_ASSIGNMENTS = 'resourceAssignments';
-const ModelChangesListener = exports.ModelChangesListener = {
-  create(gantt) {
-    return {
-      // IModelChangesListener
-      NotifyTaskCreated: (task, callback, errorCallback) => {
-        gantt._onRecordInserted(GANTT_TASKS, task, callback);
-      },
-      NotifyTaskRemoved: (taskId, errorCallback, task) => {
-        gantt._onRecordRemoved(GANTT_TASKS, taskId, task);
-      },
-      NotifyTaskUpdated: (taskId, newValues, errorCallback) => {
-        gantt._onRecordUpdated(GANTT_TASKS, taskId, newValues);
-      },
-      NotifyParentTaskUpdated: (task, errorCallback) => {
-        gantt._onParentTaskUpdated(task);
-      },
-      NotifyDependencyInserted: (dependency, callback, errorCallback) => {
-        gantt._onRecordInserted(GANTT_DEPENDENCIES, dependency, callback);
-      },
-      NotifyDependencyRemoved: (dependencyId, errorCallback, dependency) => {
-        gantt._onRecordRemoved(GANTT_DEPENDENCIES, dependencyId, dependency);
-      },
-      NotifyResourceCreated: (resource, callback, errorCallback) => {
-        gantt._onRecordInserted(GANTT_RESOURCES, resource, callback);
-      },
-      NotifyResourceRemoved: (resourceId, errorCallback, resource) => {
-        gantt._onRecordRemoved(GANTT_RESOURCES, resourceId, resource);
-      },
-      NotifyResourceAssigned: (assignment, callback, errorCallback) => {
-        gantt._onRecordInserted(GANTT_RESOURCE_ASSIGNMENTS, assignment, callback);
-      },
-      NotifyResourceUnassigned: (assignmentId, errorCallback, assignment) => {
-        gantt._onRecordRemoved(GANTT_RESOURCE_ASSIGNMENTS, assignmentId, assignment);
-      },
-      NotifyParentDataRecalculated: data => {
-        gantt._onParentTasksRecalculated(data);
-      },
-      NotifyTaskCreating: args => {
-        gantt._actionsManager.raiseInsertingAction(GANTT_TASKS, args);
-      },
-      NotifyTaskRemoving: args => {
-        gantt._actionsManager.raiseDeletingAction(GANTT_TASKS, args);
-      },
-      NotifyTaskUpdating: args => {
-        gantt._actionsManager.raiseUpdatingAction(GANTT_TASKS, args);
-      },
-      NotifyTaskMoving: args => {
-        gantt._actionsManager.raiseUpdatingAction(GANTT_TASKS, args, gantt._actionsManager.getTaskMovingAction());
-      },
-      NotifyTaskEditDialogShowing: args => {
-        gantt._actionsManager.raiseTaskEditDialogShowingAction(args);
-      },
-      NotifyResourceManagerDialogShowing: args => {
-        gantt._actionsManager.raiseResourceManagerDialogShowingAction(args);
-      },
-      NotifyDependencyInserting: args => {
-        gantt._actionsManager.raiseInsertingAction(GANTT_DEPENDENCIES, args);
-      },
-      NotifyDependencyRemoving: args => {
-        gantt._actionsManager.raiseDeletingAction(GANTT_DEPENDENCIES, args);
-      },
-      NotifyResourceCreating: args => {
-        gantt._actionsManager.raiseInsertingAction(GANTT_RESOURCES, args);
-      },
-      NotifyResourceRemoving: args => {
-        gantt._actionsManager.raiseDeletingAction(GANTT_RESOURCES, args);
-      },
-      NotifyResourceAssigning: args => {
-        gantt._actionsManager.raiseInsertingAction(GANTT_RESOURCE_ASSIGNMENTS, args);
-      },
-      // eslint-disable-next-line spellcheck/spell-checker
-      NotifyResourceUnassigning: args => {
-        gantt._actionsManager.raiseDeletingAction(GANTT_RESOURCE_ASSIGNMENTS, args);
-      },
-      NotifyScaleCellPrepared: args => {
-        gantt._actionsManager.raiseScaleCellPreparedAction(args);
-      },
-      NotifyGanttViewUpdated: () => {
-        gantt._onGanttViewCoreUpdated();
-      }
-    };
-  }
-};
-
-/***/ }),
-
-/***/ 3116:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-
-exports.GanttSizeHelper = void 0;
-var _size = __webpack_require__(57653);
-var _window = __webpack_require__(3104);
-class GanttSizeHelper {
-  constructor(gantt) {
-    this._gantt = gantt;
-  }
-  _setTreeListDimension(dimension, value) {
-    var _this$_gantt$_ganttTr;
-    const setter = dimension === 'width' ? _size.setWidth : _size.setHeight;
-    const getter = dimension === 'width' ? _size.getWidth : _size.getHeight;
-    setter(this._gantt._$treeListWrapper, value);
-    (_this$_gantt$_ganttTr = this._gantt._ganttTreeList) === null || _this$_gantt$_ganttTr === void 0 || _this$_gantt$_ganttTr.setOption(dimension, getter(this._gantt._$treeListWrapper));
-  }
-  _setGanttViewDimension(dimension, value) {
-    const setter = dimension === 'width' ? _size.setWidth : _size.setHeight;
-    const getter = dimension === 'width' ? _size.getWidth : _size.getHeight;
-    setter(this._gantt._$ganttView, value);
-    this._gantt._setGanttViewOption(dimension, getter(this._gantt._$ganttView));
-  }
-  _getPanelsWidthByOption() {
-    var _leftPanelWidth$index, _leftPanelWidth$index2;
-    const ganttWidth = (0, _size.getWidth)(this._gantt._$element);
-    const leftPanelWidth = this._gantt.option('taskListWidth');
-    let rightPanelWidth;
-    if (!isNaN(leftPanelWidth)) {
-      rightPanelWidth = ganttWidth - parseInt(leftPanelWidth);
-    } else if (((_leftPanelWidth$index = leftPanelWidth.indexOf) === null || _leftPanelWidth$index === void 0 ? void 0 : _leftPanelWidth$index.call(leftPanelWidth, 'px')) > 0) {
-      rightPanelWidth = ganttWidth - parseInt(leftPanelWidth.replace('px', '')) + 'px';
-    } else if (((_leftPanelWidth$index2 = leftPanelWidth.indexOf) === null || _leftPanelWidth$index2 === void 0 ? void 0 : _leftPanelWidth$index2.call(leftPanelWidth, '%')) > 0) {
-      rightPanelWidth = 100 - parseInt(leftPanelWidth.replace('%', '')) + '%';
-    }
-    return {
-      leftPanelWidth: leftPanelWidth,
-      rightPanelWidth: rightPanelWidth
-    };
-  }
-  onAdjustControl() {
-    const elementHeight = (0, _size.getHeight)(this._gantt._$element);
-    this.updateGanttWidth();
-    this.setGanttHeight(elementHeight);
-  }
-  onApplyPanelSize(e) {
-    this.setInnerElementsWidth(e);
-    this.updateGanttRowHeights();
-  }
-  updateGanttRowHeights() {
-    const rowHeight = this._gantt._ganttTreeList.getRowHeight();
-    if (this._gantt._getGanttViewOption('rowHeight') !== rowHeight) {
-      var _this$_gantt$_ganttVi;
-      this._gantt._setGanttViewOption('rowHeight', rowHeight);
-      (_this$_gantt$_ganttVi = this._gantt._ganttView) === null || _this$_gantt$_ganttVi === void 0 || _this$_gantt$_ganttVi._ganttViewCore.updateRowHeights(rowHeight);
-    }
-  }
-  adjustHeight() {
-    if (!this._gantt._hasHeight) {
-      this._gantt._setGanttViewOption('height', 0);
-      this._gantt._setGanttViewOption('height', this._gantt._ganttTreeList.getOffsetHeight());
-    }
-  }
-  setInnerElementsWidth(widths) {
-    if (!(0, _window.hasWindow)()) {
-      return;
-    }
-    const takeWithFromOption = !widths;
-    if (takeWithFromOption) {
-      widths = this._getPanelsWidthByOption();
-      this._setTreeListDimension('width', 0);
-      this._setGanttViewDimension('width', 0);
-    }
-    this._setTreeListDimension('width', widths.leftPanelWidth);
-    this._setGanttViewDimension('width', widths.rightPanelWidth);
-    if (takeWithFromOption) {
-      this._gantt._splitter._setSplitterPositionLeft();
-    }
-  }
-  updateGanttWidth() {
-    this._gantt._splitter._dimensionChanged();
-  }
-  setGanttHeight(height) {
-    var _this$_gantt$_ganttVi2;
-    const toolbarHeightOffset = this._gantt._$toolbarWrapper.get(0).offsetHeight;
-    const mainWrapperHeight = height - toolbarHeightOffset;
-    this._setTreeListDimension('height', mainWrapperHeight);
-    this._setGanttViewDimension('height', mainWrapperHeight);
-    (_this$_gantt$_ganttVi2 = this._gantt._ganttView) === null || _this$_gantt$_ganttVi2 === void 0 || _this$_gantt$_ganttVi2._ganttViewCore.resetAndUpdate();
-  }
-}
-exports.GanttSizeHelper = GanttSizeHelper;
-
-/***/ }),
-
-/***/ 45471:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-
-exports.TaskAreaContainer = void 0;
-var _scroll_view = _interopRequireDefault(__webpack_require__(91374));
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-class TaskAreaContainer {
-  constructor(element, ganttViewWidget) {
-    this._element = element;
-    this._scrollView = ganttViewWidget._createComponent(this._element, _scroll_view.default, {
-      scrollByContent: false,
-      scrollByThumb: true,
-      showScrollbar: 'onHover',
-      direction: 'both',
-      onScroll: () => {
-        ganttViewWidget.updateView();
-      }
-    });
-  }
-
-  // ITaskAreaContainer
-  get scrollTop() {
-    return this._scrollView.scrollTop();
-  }
-  set scrollTop(value) {
-    const diff = value - this._scrollView.scrollTop();
-    if (diff !== 0) {
-      this._scrollView.scrollBy({
-        left: 0,
-        top: diff
-      });
-    }
-  }
-  get scrollLeft() {
-    return this._scrollView.scrollLeft();
-  }
-  set scrollLeft(value) {
-    const diff = value - this._scrollView.scrollLeft();
-    if (diff !== 0) {
-      this._scrollView.scrollBy({
-        left: diff,
-        top: 0
-      });
-    }
-  }
-  get scrollWidth() {
-    return this._scrollView.scrollWidth();
-  }
-  get scrollHeight() {
-    return this._scrollView.scrollHeight();
-  }
-  get isExternal() {
-    return true;
-  }
-  getWidth() {
-    return this._element.offsetWidth;
-  }
-  getHeight() {
-    return this._element.offsetHeight;
-  }
-  getElement() {
-    return this._element;
-  }
-}
-exports.TaskAreaContainer = TaskAreaContainer;
-
-/***/ }),
-
-/***/ 41141:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-
-exports.GanttTemplatesManager = void 0;
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _element = __webpack_require__(61404);
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-class GanttTemplatesManager {
-  constructor(gantt) {
-    this._gantt = gantt;
-  }
-  getTaskTooltipContentTemplateFunc(taskTooltipContentTemplateOption) {
-    const isTooltipShowing = true;
-    const template = taskTooltipContentTemplateOption && this._gantt._getTemplate(taskTooltipContentTemplateOption);
-    const createTemplateFunction = template && ((container, item, callback) => {
-      template.render({
-        model: this._gantt.getTaskDataByCoreData(item),
-        container: (0, _element.getPublicElement)((0, _renderer.default)(container)),
-        onRendered: () => {
-          callback();
-        }
-      });
-      return isTooltipShowing;
-    });
-    return createTemplateFunction;
-  }
-  getTaskProgressTooltipContentTemplateFunc(taskTooltipContentTemplateOption) {
-    const isTooltipShowing = true;
-    const template = taskTooltipContentTemplateOption && this._gantt._getTemplate(taskTooltipContentTemplateOption);
-    const createTemplateFunction = template && ((container, item, callback) => {
-      template.render({
-        model: item,
-        container: (0, _element.getPublicElement)((0, _renderer.default)(container)),
-        onRendered: () => {
-          callback();
-        }
-      });
-      return isTooltipShowing;
-    });
-    return createTemplateFunction;
-  }
-  getTaskTimeTooltipContentTemplateFunc(taskTooltipContentTemplateOption) {
-    const isTooltipShowing = true;
-    const template = taskTooltipContentTemplateOption && this._gantt._getTemplate(taskTooltipContentTemplateOption);
-    const createTemplateFunction = template && ((container, item, callback) => {
-      template.render({
-        model: item,
-        container: (0, _element.getPublicElement)((0, _renderer.default)(container)),
-        onRendered: () => {
-          callback();
-        }
-      });
-      return isTooltipShowing;
-    });
-    return createTemplateFunction;
-  }
-  getTaskContentTemplateFunc(taskContentTemplateOption) {
-    const isTaskShowing = true;
-    const template = taskContentTemplateOption && this._gantt._getTemplate(taskContentTemplateOption);
-    const createTemplateFunction = template && ((container, item, callback, index) => {
-      item.taskData = this._gantt.getTaskDataByCoreData(item.taskData);
-      template.render({
-        model: item,
-        container: (0, _element.getPublicElement)((0, _renderer.default)(container)),
-        onRendered: () => {
-          callback(container, index);
-        }
-      });
-      return isTaskShowing;
-    });
-    return createTemplateFunction;
-  }
-}
-exports.GanttTemplatesManager = GanttTemplatesManager;
-
-/***/ }),
-
-/***/ 95736:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-
-exports.GanttTreeList = void 0;
-var _size = __webpack_require__(57653);
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _tree_list = _interopRequireDefault(__webpack_require__(21872));
-var _position = __webpack_require__(41639);
-var _type = __webpack_require__(11528);
-var _uiGantt = __webpack_require__(34376);
-var _data_source = _interopRequireDefault(__webpack_require__(14479));
-var _array_store = _interopRequireDefault(__webpack_require__(80556));
-var _data = __webpack_require__(31000);
-var _uiGanttTreelist = __webpack_require__(19701);
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-const GANTT_TASKS = 'tasks';
-const GANTT_COLLAPSABLE_ROW = 'dx-gantt-collapsable-row';
-const GANTT_DEFAULT_ROW_HEIGHT = 34;
-const GANTT_SCROLL_ACTIVATION_LEVEL = 2;
-class GanttTreeList {
-  constructor(gantt) {
-    this._gantt = gantt;
-    this._$treeList = this._gantt._$treeList;
-  }
-  getTreeList() {
-    const {
-      keyExpr,
-      parentIdExpr
-    } = this._gantt.option(GANTT_TASKS);
-    this._treeList = this._gantt._createComponent(this._$treeList, _tree_list.default, {
-      dataSource: this.createDataSource(this._gantt._tasksRaw, keyExpr),
-      keyExpr: keyExpr,
-      filterSyncEnabled: true,
-      parentIdExpr: parentIdExpr,
-      columns: this.getColumns(),
-      columnResizingMode: 'nextColumn',
-      height: this._getHeight(),
-      width: this._gantt.option('taskListWidth'),
-      selection: {
-        mode: _uiGantt.GanttHelper.getSelectionMode(this._gantt.option('allowSelection'))
-      },
-      selectedRowKeys: _uiGantt.GanttHelper.getArrayFromOneElement(this._gantt.option('selectedRowKey')),
-      sorting: this._gantt.option('sorting'),
-      filterRow: this._gantt.option('filterRow'),
-      headerFilter: this._gantt.option('headerFilter'),
-      scrolling: {
-        showScrollbar: 'onHover',
-        mode: 'virtual'
-      },
-      allowColumnResizing: true,
-      autoExpandAll: true,
-      showRowLines: this._gantt.option('showRowLines'),
-      rootValue: this._gantt.option('rootValue'),
-      onContentReady: e => {
-        this._onContentReady(e);
-      },
-      onSelectionChanged: e => {
-        this._onSelectionChanged(e);
-      },
-      onRowCollapsed: e => {
-        this._onRowCollapsed(e);
-      },
-      onRowExpanded: e => {
-        this._onRowExpanded(e);
-      },
-      onRowPrepared: e => {
-        this._onRowPrepared(e);
-      },
-      onContextMenuPreparing: e => {
-        this._onContextMenuPreparing(e);
-      },
-      onRowClick: e => {
-        this.onRowClick(e);
-      },
-      onRowDblClick: e => {
-        this.onRowDblClick(e);
-      },
-      onNodesInitialized: e => {
-        this._onNodesInitialized(e);
-      },
-      _disableDeprecationWarnings: true
-    });
-    return this._treeList;
-  }
-  onAfterTreeListCreate() {
-    if (this._postponedGanttInitRequired) {
-      this._initGanttOnContentReady({
-        component: this._treeList
-      });
-      delete this._postponedGanttInitRequired;
-    }
-  }
-  _onContentReady(e) {
-    const hasTreeList = !!this._treeList;
-    if (hasTreeList) {
-      this._initGanttOnContentReady(e);
-    } else {
-      this._postponedGanttInitRequired = true;
-    }
-    this._gantt._onTreeListContentReady(e);
-  }
-  _initGanttOnContentReady(e) {
-    if (e.component.getDataSource()) {
-      this._gantt._initGanttView();
-      this._initScrollSync(e.component);
-    }
-    this._gantt._sortAndFilter();
-    this._gantt._sizeHelper.updateGanttRowHeights();
-  }
-  _onSelectionChanged(e) {
-    const selectedRowKey = e.currentSelectedRowKeys[0];
-    this._gantt._setGanttViewOption('selectedRowKey', selectedRowKey);
-    this._gantt._setOptionWithoutOptionChange('selectedRowKey', selectedRowKey);
-    this._gantt._actionsManager.raiseSelectionChangedAction(selectedRowKey);
-  }
-  _onRowCollapsed(e) {
-    this._gantt._onTreeListRowExpandChanged(e, false);
-  }
-  _onRowExpanded(e) {
-    this._gantt._onTreeListRowExpandChanged(e, true);
-  }
-  _onRowPrepared(e) {
-    if (e.rowType === 'data' && e.node.children.length > 0) {
-      (0, _renderer.default)(e.rowElement).addClass(GANTT_COLLAPSABLE_ROW);
-    }
-  }
-  _onContextMenuPreparing(e) {
-    var _e$row, _e$row2;
-    if (e.target === 'header') {
-      return;
-    }
-    if (((_e$row = e.row) === null || _e$row === void 0 ? void 0 : _e$row.rowType) === 'data') {
-      this.setOption('selectedRowKeys', [e.row.data[this._gantt.option('tasks.keyExpr')]]);
-    }
-    const info = {
-      cancel: false,
-      event: e.event,
-      type: 'task',
-      key: (_e$row2 = e.row) === null || _e$row2 === void 0 ? void 0 : _e$row2.key,
-      position: {
-        x: e.event.pageX,
-        y: e.event.pageY
-      }
-    };
-    this._gantt._showPopupMenu(info);
-    e.event.preventDefault();
-  }
-  _getHeight() {
-    if ((0, _size.getHeight)(this._$treeList)) {
-      return (0, _size.getHeight)(this._$treeList);
-    }
-    this._gantt._hasHeight = (0, _type.isDefined)(this._gantt.option('height')) && this._gantt.option('height') !== '';
-    return this._gantt._hasHeight ? '100%' : '';
-  }
-  _initScrollSync(treeList) {
-    const treeListScrollable = treeList.getScrollable();
-    if (treeListScrollable) {
-      treeListScrollable.off('scroll');
-      treeListScrollable.on('scroll', e => {
-        this._onScroll(e);
-      });
-    }
-  }
-  _onScroll(treeListScrollView) {
-    const ganttViewTaskAreaContainer = this._gantt._ganttView.getTaskAreaContainer();
-    if (ganttViewTaskAreaContainer.scrollTop !== treeListScrollView.component.scrollTop()) {
-      ganttViewTaskAreaContainer.scrollTop = treeListScrollView.component.scrollTop();
-    }
-  }
-  _correctRowsViewRowHeight(height) {
-    const view = this._treeList._views && this._treeList._views['rowsView'];
-    if ((view === null || view === void 0 ? void 0 : view._rowHeight) !== height) {
-      view._rowHeight = height;
-    }
-  }
-  _skipUpdateTreeListDataSource() {
-    return this._gantt.option('validation.autoUpdateParentTasks');
-  }
-  selectRows(keys) {
-    this.setOption('selectedRowKeys', keys);
-  }
-  scrollBy(scrollTop) {
-    const treeListScrollable = this._treeList.getScrollable();
-    if (treeListScrollable) {
-      const diff = scrollTop - treeListScrollable.scrollTop();
-      if (Math.abs(diff) >= GANTT_SCROLL_ACTIVATION_LEVEL) {
-        treeListScrollable.scrollBy({
-          left: 0,
-          top: diff
-        });
-      }
-    }
-  }
-  updateDataSource(data) {
-    let forceUpdate = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
-    let forceCustomData = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
-    if (!this._skipUpdateTreeListDataSource() || forceUpdate) {
-      this.setDataSource(data);
-    } else if (forceCustomData) {
-      const data = this._treeList.option('dataSource');
-      this._gantt._onParentTasksRecalculated(data);
-    }
-  }
-  setDataSource(data) {
-    this.setOption('dataSource', this.createDataSource(data));
-  }
-  createDataSource(data, key) {
-    return data && new _data_source.default({
-      store: new _array_store.default({
-        data: data,
-        key: key || this.getOption('keyExpr')
-      })
-    });
-  }
-  onRowClick(e) {
-    this._gantt._actionsManager.raiseTaskClickAction(e.key, e.event);
-  }
-  onRowDblClick(e) {
-    if (this._gantt._actionsManager.raiseTaskDblClickAction(e.key, e.event)) {
-      this._gantt._ganttView._ganttViewCore.showTaskEditDialog();
-    }
-  }
-  saveExpandedKeys() {
-    const treeList = this._treeList;
-    const visibleRowCount = treeList === null || treeList === void 0 ? void 0 : treeList.getVisibleRows().length;
-    if (visibleRowCount > 0) {
-      const nodes = this.getAllNodes();
-      const keys = this.getOption('expandedRowKeys');
-      const hasExpandedRows = keys && nodes.length !== visibleRowCount;
-      if (hasExpandedRows) {
-        const state = this.getNodesState();
-        state.applyNodes(nodes, this.getOption('rootValue'));
-        state.saveExpandedState(keys);
-      }
-    }
-  }
-  _onNodesInitialized(e) {
-    const state = this.getNodesState();
-    const savedKeys = state.getExpandedKeys();
-    const nodes = this.getAllNodes();
-    state.applyNodes(nodes, this.getOption('rootValue'));
-    const expandedKeys = state.getExpandedKeys();
-    if (expandedKeys) {
-      this.setOption('expandedRowKeys', expandedKeys);
-    }
-    if (this.isExpandedStateChanged(savedKeys, expandedKeys)) {
-      const expandedState = nodes.reduce((previous, node) => {
-        previous[node.key] = expandedKeys ? expandedKeys.includes(node.key) : true;
-        return previous;
-      }, {});
-      this._gantt._ganttView.applyTasksExpandedState(expandedState);
-    }
-    state.clear();
-  }
-  getNodesState() {
-    if (!this._nodeState) {
-      this._nodeState = new _uiGanttTreelist.GanttTreeListNodesState();
-    }
-    return this._nodeState;
-  }
-  getAllNodes() {
-    var _this$_treeList, _this$_treeList2;
-    const store = (_this$_treeList = this._treeList) === null || _this$_treeList === void 0 || (_this$_treeList = _this$_treeList.getDataSource()) === null || _this$_treeList === void 0 ? void 0 : _this$_treeList.store();
-    if (!store || !((_this$_treeList2 = this._treeList) !== null && _this$_treeList2 !== void 0 && _this$_treeList2.getNodeByKey)) {
-      return [];
-    }
-    const keyGetter = (0, _data.compileGetter)(store.key());
-    return store._array.map(item => this._treeList.getNodeByKey(keyGetter(item))).filter(item => !!item);
-  }
-  isExpandedStateChanged(keys1, keys2) {
-    if (keys1 === null && keys2 === null) {
-      return false;
-    }
-    if ((keys1 === null || keys1 === void 0 ? void 0 : keys1.length) !== (keys2 === null || keys2 === void 0 ? void 0 : keys2.length)) {
-      return true;
-    }
-    return keys1.some((key, index) => key !== keys2[index]);
-  }
-  getOffsetHeight() {
-    return this._gantt._treeList._$element.get(0).offsetHeight;
-  }
-  getRowHeight() {
-    const $row = this._treeList._$element.find('.dx-data-row');
-    let height = $row.length ? (0, _position.getBoundingRect)($row.last().get(0)).height : GANTT_DEFAULT_ROW_HEIGHT;
-    if (!height) {
-      height = GANTT_DEFAULT_ROW_HEIGHT;
-    }
-    this._correctRowsViewRowHeight(height);
-    return height;
-  }
-  getHeaderHeight() {
-    return (0, _position.getBoundingRect)(this._treeList._$element.find('.dx-treelist-headers').get(0)).height;
-  }
-  getColumns() {
-    const columns = this._gantt.option('columns');
-    if (columns) {
-      for (let i = 0; i < columns.length; i++) {
-        const column = columns[i];
-        const isKeyColumn = column.dataField === this._gantt.option(`${GANTT_TASKS}.keyExpr`) || column.dataField === this._gantt.option(`${GANTT_TASKS}.parentIdExpr`);
-        if (isKeyColumn && !column.dataType) {
-          column.dataType = 'object';
-        }
-      }
-    }
-    return columns;
-  }
-  getSievedItems() {
-    const rootNode = this._treeList.getRootNode();
-    if (!rootNode) {
-      return undefined;
-    }
-    const resultArray = [];
-    _uiGantt.GanttHelper.convertTreeToList(rootNode, resultArray);
-    const getters = _uiGantt.GanttHelper.compileGettersByOption(this._gantt.option(GANTT_TASKS));
-    const validatedData = this._gantt._validateSourceData(GANTT_TASKS, resultArray);
-    const mappedData = validatedData.map(_uiGantt.GanttHelper.prepareMapHandler(getters));
-    return mappedData;
-  }
-  setOption(optionName, value) {
-    this._treeList && this._treeList.option(optionName, value);
-  }
-  getOption(optionName) {
-    var _this$_treeList3;
-    return (_this$_treeList3 = this._treeList) === null || _this$_treeList3 === void 0 ? void 0 : _this$_treeList3.option(optionName);
-  }
-  onTaskInserted(insertedId, parentId) {
-    if ((0, _type.isDefined)(parentId)) {
-      const expandedRowKeys = this.getOption('expandedRowKeys');
-      if (expandedRowKeys.indexOf(parentId) === -1) {
-        expandedRowKeys.push(parentId);
-        this.setOption('expandedRowKeys', expandedRowKeys);
-      }
-    }
-    this.selectRows(_uiGantt.GanttHelper.getArrayFromOneElement(insertedId));
-    this.setOption('focusedRowKey', insertedId);
-  }
-  getDataSource() {
-    var _this$_treeList4;
-    return (_this$_treeList4 = this._treeList) === null || _this$_treeList4 === void 0 ? void 0 : _this$_treeList4.getDataSource();
-  }
-}
-exports.GanttTreeList = GanttTreeList;
-
-/***/ }),
-
-/***/ 19701:
-/***/ (function(__unused_webpack_module, exports) {
-
-
-
-exports.GanttTreeListNodesState = exports.GanttTreeListNodeState = void 0;
-class GanttTreeListNodeState {
-  constructor(treeListNode) {
-    var _treeListNode$parent;
-    this.collapsed = false;
-    this.key = treeListNode.key;
-    this.children = treeListNode.children.map(node => node.key);
-    this.parentKey = (_treeListNode$parent = treeListNode.parent) === null || _treeListNode$parent === void 0 ? void 0 : _treeListNode$parent.key;
-  }
-  hasChildren() {
-    return this.children.length > 0;
-  }
-  removeChild(state) {
-    const index = this.children.indexOf(state.key);
-    if (index > -1) {
-      this.children = this.children.splice(index, 1);
-    }
-  }
-  equal(state) {
-    if (!state || state.key !== this.key || state.parentKey !== this.parentKey) {
-      return false;
-    }
-    if (this.children.length !== state.children.length || this.children.some((value, index) => value !== state.children[index])) {
-      return false;
-    }
-    return true;
-  }
-}
-exports.GanttTreeListNodeState = GanttTreeListNodeState;
-class GanttTreeListNodesState {
-  constructor() {
-    this._resetHash();
-  }
-  clear() {
-    this._resetHash();
-  }
-  applyNodes(nodes, rootValue) {
-    if (this._rootValue !== rootValue) {
-      this._resetHash();
-      this._rootValue = rootValue;
-    }
-    this._removeNonExistentNodes(nodes.map(node => node.key));
-    nodes.forEach(node => this._applyNode(node));
-    this._validateHash();
-  }
-  saveExpandedState(expandedKeys) {
-    this._hasCollapsed = false;
-    this._forEachState(state => {
-      if (state.hasChildren() && !expandedKeys.includes(state.key)) {
-        state.collapsed = true;
-        this._hasCollapsed = true;
-      }
-    });
-  }
-  getExpandedKeys() {
-    if (this._hasCollapsed) {
-      const keys = [];
-      this._forEachState(state => {
-        if (state.hasChildren() && !state.collapsed) {
-          keys.push(state.key);
-        }
-      });
-      return keys;
-    }
-    return null;
-  }
-  _resetHash() {
-    this._nodeHash = {};
-    this._hasCollapsed = false;
-  }
-  _getNodeState(key) {
-    return this._nodeHash[key];
-  }
-  _removeNonExistentNodes(existingKeys) {
-    if (existingKeys) {
-      this._forEachState(state => {
-        if (!existingKeys.includes(state.key)) {
-          this._removeStateWithChildren(state);
-        }
-      });
-    }
-  }
-  _removeStateWithChildren(key) {
-    const state = this._getNodeState(key);
-    if (state) {
-      state.children.forEach(child => this._removeStateWithChildren(child));
-      const parent = this._getNodeState(state.parentKey);
-      if (parent) {
-        parent.removeChild(state);
-      }
-      delete this._nodeHash[key];
-    }
-  }
-  _applyNode(node) {
-    const nodeState = new GanttTreeListNodeState(node);
-    const oldState = this._getNodeState(node.key);
-    if (!(oldState !== null && oldState !== void 0 && oldState.equal(nodeState))) {
-      this._nodeHash[node.key] = nodeState;
-      this._expandTreelineToNode(node.key);
-    }
-  }
-  _expandTreelineToNode(key) {
-    const state = this._getNodeState(key);
-    let parent = this._getNodeState(state === null || state === void 0 ? void 0 : state.parentKey);
-    while (parent) {
-      parent.collapsed = false;
-      parent = this._getNodeState(parent.parentKey);
-    }
-  }
-  _validateHash() {
-    Object.keys(this._nodeHash).forEach(key => {
-      const state = this._getNodeState(key);
-      const parentKey = state === null || state === void 0 ? void 0 : state.parentKey;
-      if (parentKey !== this._rootValue && !this._getNodeState(parentKey)) {
-        this._removeStateWithChildren(key);
-      }
-    });
-  }
-  _forEachState(callback) {
-    Object.keys(this._nodeHash).forEach(key => {
-      const state = this._nodeHash[key];
-      if (state) {
-        callback(state);
-      }
-    });
-  }
-}
-exports.GanttTreeListNodesState = GanttTreeListNodesState;
-
-/***/ }),
-
-/***/ 79669:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-
-
-exports.GanttView = void 0;
-var _renderer = _interopRequireDefault(__webpack_require__(64553));
-var _ui = _interopRequireDefault(__webpack_require__(11118));
-var _gantt_importer = __webpack_require__(43895);
-var _uiGanttTaskArea = __webpack_require__(45471);
-var _date = _interopRequireDefault(__webpack_require__(38662));
-var _type = __webpack_require__(11528);
-var _message = _interopRequireDefault(__webpack_require__(4671));
-var _string = __webpack_require__(54497);
-var _core = _interopRequireDefault(__webpack_require__(84109));
-var _frame = __webpack_require__(84096);
-function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
-const visualStateKey = 'visualState';
-const fullScreenModeKey = 'fullScreen';
-class GanttView extends _ui.default {
-  _init() {
-    super._init();
-    this._onSelectionChanged = this._createActionByOption('onSelectionChanged');
-    this._onViewTypeChanged = this._createActionByOption('onViewTypeChanged');
-    this._onScroll = this._createActionByOption('onScroll');
-    this._onDialogShowing = this._createActionByOption('onDialogShowing');
-    this._onPopupMenuShowing = this._createActionByOption('onPopupMenuShowing');
-    this._onPopupMenuHiding = this._createActionByOption('onPopupMenuHiding');
-    this._expandAll = this._createActionByOption('onExpandAll');
-    this._collapseAll = this._createActionByOption('onCollapseAll');
-    this._taskClick = this._createActionByOption('onTaskClick');
-    this._taskDblClick = this._createActionByOption('onTaskDblClick');
-    this._onAdjustControl = this._createActionByOption('onAdjustControl');
-  }
-  _initMarkup() {
-    var _this$option;
-    const GanttView = (0, _gantt_importer.getGanttViewCore)();
-    this._ganttViewCore = new GanttView(this.$element().get(0), this, {
-      showResources: this.option('showResources'),
-      showDependencies: this.option('showDependencies'),
-      taskTitlePosition: this._getTaskTitlePosition(this.option('taskTitlePosition')),
-      firstDayOfWeek: this._getFirstDayOfWeek(this.option('firstDayOfWeek')),
-      allowSelectTask: this.option('allowSelection'),
-      startDateRange: this.option('startDateRange'),
-      endDateRange: this.option('endDateRange'),
-      editing: this._parseEditingSettings(this.option('editing')),
-      validation: this.option('validation'),
-      stripLines: {
-        stripLines: (_this$option = this.option('stripLines')) === null || _this$option === void 0 ? void 0 : _this$option.map(item => _extends({}, item))
-      },
-      areHorizontalBordersEnabled: this.option('showRowLines'),
-      areAlternateRowsEnabled: false,
-      viewType: this._getViewTypeByScaleType(this.option('scaleType')),
-      viewTypeRange: this._parseViewTypeRangeSettings(this.option('scaleTypeRange')),
-      cultureInfo: this._getCultureInfo(),
-      taskTooltipContentTemplate: this.option('taskTooltipContentTemplate'),
-      taskProgressTooltipContentTemplate: this.option('taskProgressTooltipContentTemplate'),
-      taskTimeTooltipContentTemplate: this.option('taskTimeTooltipContentTemplate'),
-      taskContentTemplate: this.option('taskContentTemplate'),
-      sieve: this.option('sieve')
-    });
-    this._selectTask(this.option('selectedRowKey'));
-    this.updateBarItemsState();
-    const visualState = this.option(visualStateKey);
-    if (visualState) {
-      this._restoreStateFrameId = (0, _frame.requestAnimationFrame)(() => this._restoreVisualState(visualState));
-    }
-  }
-  _dispose() {
-    super._dispose();
-    (0, _frame.cancelAnimationFrame)(this._restoreStateFrameId);
-  }
-  _restoreVisualState(state) {
-    if (state[fullScreenModeKey]) {
-      this._ganttViewCore.setFullScreenMode();
-    }
-  }
-  _getFirstDayOfWeek(value) {
-    return (0, _type.isDefined)(value) ? value : _date.default.firstDayOfWeekIndex();
-  }
-  getTaskAreaContainer() {
-    return this._ganttViewCore.getTaskAreaContainer();
-  }
-  getBarManager() {
-    return this._ganttViewCore.barManager;
-  }
-  executeCoreCommand(id) {
-    const command = this._ganttViewCore.getCommandByKey(id);
-    if (command) {
-      command.execute();
-    }
-  }
-  changeTaskExpanded(id, value) {
-    this._ganttViewCore.changeTaskExpanded(id, value);
-  }
-  updateView() {
-    var _this$_ganttViewCore;
-    (_this$_ganttViewCore = this._ganttViewCore) === null || _this$_ganttViewCore === void 0 || _this$_ganttViewCore.updateView();
-  }
-  updateBarItemsState() {
-    this._ganttViewCore.barManager.updateItemsState([]);
-  }
-  setWidth(value) {
-    this._ganttViewCore.setWidth(value);
-  }
-  _onDimensionChanged() {
-    this._ganttViewCore.onBrowserWindowResize();
-  }
-  _selectTask(id) {
-    this._ganttViewCore.selectTaskById(id);
-  }
-  _update(keepExpandState) {
-    var _this$_ganttViewCore2;
-    (_this$_ganttViewCore2 = this._ganttViewCore) === null || _this$_ganttViewCore2 === void 0 || _this$_ganttViewCore2.updateWithDataReload(keepExpandState);
-  }
-  _getCultureInfo() {
-    return {
-      monthNames: _date.default.getMonthNames('wide'),
-      dayNames: _date.default.getDayNames('wide'),
-      abbrMonthNames: _date.default.getMonthNames('abbreviated'),
-      abbrDayNames: _date.default.getDayNames('abbreviated'),
-      quarterNames: this._getQuarterNames(),
-      amText: this._getAmText(),
-      pmText: this._getPmText(),
-      start: _message.default.format('dxGantt-dialogStartTitle'),
-      end: _message.default.format('dxGantt-dialogEndTitle'),
-      progress: _message.default.format('dxGantt-dialogProgressTitle')
-    };
-  }
-  _getAmText() {
-    return this._hasAmPM() ? _date.default.getPeriodNames()[0] : '';
-  }
-  _getPmText() {
-    return this._hasAmPM() ? _date.default.getPeriodNames()[1] : '';
-  }
-  _hasAmPM() {
-    const date = new Date(Date.UTC(2012, 11, 12, 3, 0, 0));
-    const dateString = date.toLocaleTimeString(_core.default.locale());
-    return dateString.match(/am|pm/i) || date.toString().match(/am|pm/i);
-  }
-  _getQuarterNames() {
-    const quarterFormat = _message.default.format('dxGantt-quarter');
-    if (!quarterFormat) {
-      return _date.default.getQuarterNames();
-    }
-    return [(0, _string.format)(quarterFormat, 1), (0, _string.format)(quarterFormat, 2), (0, _string.format)(quarterFormat, 3), (0, _string.format)(quarterFormat, 4)];
-  }
-  _getTaskTitlePosition(value) {
-    switch (value) {
-      case 'outside':
-        return 1;
-      case 'none':
-        return 2;
-      default:
-        return 0;
-    }
-  }
-  _getViewTypeByScaleType(scaleType) {
-    switch (scaleType) {
-      case 'minutes':
-        return 0;
-      case 'hours':
-        return 1;
-      case 'sixHours':
-        return 2;
-      case 'days':
-        return 3;
-      case 'weeks':
-        return 4;
-      case 'months':
-        return 5;
-      case 'quarters':
-        return 6;
-      case 'years':
-        return 7;
-      default:
-        return undefined;
-    }
-  }
-  _parseEditingSettings(value) {
-    return {
-      enabled: value.enabled,
-      allowDependencyDelete: value.allowDependencyDeleting,
-      allowDependencyInsert: value.allowDependencyAdding,
-      allowTaskDelete: value.allowTaskDeleting,
-      allowTaskInsert: value.allowTaskAdding,
-      allowTaskUpdate: value.allowTaskUpdating,
-      allowResourceDelete: value.allowResourceDeleting,
-      allowResourceInsert: value.allowResourceAdding,
-      allowResourceUpdate: value.allowResourceUpdating,
-      allowTaskResourceUpdate: value.allowTaskResourceUpdating
-    };
-  }
-  _parseViewTypeRangeSettings(value) {
-    return {
-      min: this._getViewTypeByScaleType(value.min),
-      max: this._getViewTypeByScaleType(value.max)
-    };
-  }
-  _optionChanged(args) {
-    switch (args.name) {
-      case 'width':
-        super._optionChanged(args);
-        this._ganttViewCore.setWidth(args.value);
-        break;
-      case 'height':
-        this._ganttViewCore.setHeight(args.value);
-        break;
-      case 'tasks':
-      case 'dependencies':
-      case 'resources':
-      case 'resourceAssignments':
-        this._sieveOptions = undefined;
-        this._update(true);
-        break;
-      case 'showResources':
-        this._ganttViewCore.setShowResources(args.value);
-        break;
-      case 'showDependencies':
-        this._ganttViewCore.setShowDependencies(args.value);
-        break;
-      case 'taskTitlePosition':
-        this._ganttViewCore.setTaskTitlePosition(this._getTaskTitlePosition(args.value));
-        break;
-      case 'firstDayOfWeek':
-        this._ganttViewCore.setFirstDayOfWeek(this._getFirstDayOfWeek(args.value));
-        break;
-      case 'startDateRange':
-        this._ganttViewCore.setStartDateRange(args.value);
-        break;
-      case 'endDateRange':
-        this._ganttViewCore.setEndDateRange(args.value);
-        break;
-      case 'allowSelection':
-        this._ganttViewCore.setAllowSelection(args.value);
-        break;
-      case 'selectedRowKey':
-        this._selectTask(args.value);
-        break;
-      case 'editing':
-        this._ganttViewCore.setEditingSettings(this._parseEditingSettings(args.value));
-        break;
-      case 'validation':
-        this._ganttViewCore.setValidationSettings(args.value);
-        this._update(true);
-        break;
-      case 'showRowLines':
-        this._ganttViewCore.setRowLinesVisible(args.value);
-        break;
-      case 'scaleType':
-        this._ganttViewCore.setViewType(this._getViewTypeByScaleType(args.value));
-        break;
-      case 'scaleTypeRange':
-        this._ganttViewCore.setViewTypeRange(this._getViewTypeByScaleType(args.value.min), this._getViewTypeByScaleType(args.value.max));
-        break;
-      case 'stripLines':
-        this._ganttViewCore.setStripLines({
-          stripLines: this.option('stripLines')
-        });
-        break;
-      case 'taskTooltipContentTemplate':
-        this._ganttViewCore.setTaskTooltipContentTemplate(args.value);
-        break;
-      case 'taskProgressTooltipContentTemplate':
-        this._ganttViewCore.setTaskProgressTooltipContentTemplate(args.value);
-        break;
-      case 'taskTimeTooltipContentTemplate':
-        this._ganttViewCore.setTaskTimeTooltipContentTemplate(args.value);
-        break;
-      case 'taskContentTemplate':
-        this._ganttViewCore.setTaskContentTemplate(args.value);
-        break;
-      case 'sieve':
-        this._sortAndFilter(args.value);
-        break;
-      default:
-        super._optionChanged(args);
-    }
-  }
-
-  // IGanttOwner
-  get bars() {
-    return this.option('bars');
-  }
-  getRowHeight() {
-    return this.option('rowHeight');
-  }
-  getHeaderHeight() {
-    return this.option('headerHeight');
-  }
-  getGanttTasksData() {
-    const tasks = this.option('tasks');
-    const sieveOptions = this.getSieveOptions();
-    if (sieveOptions !== null && sieveOptions !== void 0 && sieveOptions.sievedItems && sieveOptions !== null && sieveOptions !== void 0 && sieveOptions.sieveColumn) {
-      return sieveOptions.sievedItems;
-    }
-    return tasks;
-  }
-  _sortAndFilter(args) {
-    this._sieveOptions = args;
-    this._update(!(args !== null && args !== void 0 && args.expandTasks));
-    const selectedRowKey = this.option('selectedRowKey');
-    this._selectTask(selectedRowKey);
-  }
-  getSieveOptions() {
-    return this._sieveOptions;
-  }
-  getGanttDependenciesData() {
-    return this.option('dependencies');
-  }
-  getGanttResourcesData() {
-    return this.option('resources');
-  }
-  getGanttResourceAssignmentsData() {
-    return this.option('resourceAssignments');
-  }
-  getGanttWorkTimeRules() {
-    return null;
-  }
-  getExternalTaskAreaContainer(element) {
-    if (!this._taskAreaContainer) {
-      this._taskAreaContainer = new _uiGanttTaskArea.TaskAreaContainer(element, this);
-    }
-    return this._taskAreaContainer;
-  }
-  prepareExternalTaskAreaContainer(element, info) {
-    if (info !== null && info !== void 0 && info.height) {
-      this._taskAreaContainer._scrollView.option('height', info.height);
-    }
-  }
-  changeGanttTaskSelection(id, selected) {
-    this._onSelectionChanged({
-      id: id,
-      selected: selected
-    });
-  }
-  onGanttScroll(scrollTop) {
-    this._onScroll({
-      scrollTop: scrollTop
-    });
-  }
-  showDialog(name, parameters, callback, afterClosing) {
-    this._onDialogShowing({
-      name: name,
-      parameters: parameters,
-      callback: callback,
-      afterClosing: afterClosing
-    });
-  }
-  getModelChangesListener() {
-    return this.option('modelChangesListener');
-  }
-  getExportInfo() {
-    return this.option('exportInfo');
-  }
-  showPopupMenu(info) {
-    this._onPopupMenuShowing(info);
-  }
-  hidePopupMenu(info) {
-    this._onPopupMenuHiding(info);
-  }
-  getMainElement() {
-    return this.option('mainElement').get(0);
-  }
-  adjustControl() {
-    this._onAdjustControl();
-  }
-  getRequireFirstLoadParentAutoCalc() {
-    return this.option('validation.autoUpdateParentTasks');
-  }
-  collapseAll() {
-    this._collapseAll();
-  }
-  expandAll() {
-    this._expandAll();
-  }
-  onTaskClick(key, event) {
-    this._taskClick({
-      key: key,
-      event: event
-    });
-    return true;
-  }
-  onTaskDblClick(key, event) {
-    return this._taskDblClick({
-      key: key,
-      event: event
-    });
-  }
-  onGanttViewContextMenu(event, key, type) {
-    return true;
-  }
-  getFormattedDateText(date) {
-    let result = '';
-    if (date) {
-      const datePart = _date.default.format(date, 'shortDate');
-      const timeFormat = this._hasAmPM() ? 'hh:mm a' : 'HH:mm';
-      const timePart = _date.default.format(date, timeFormat);
-      result = datePart + ' ' + timePart;
-    }
-    return result;
-  }
-  destroyTemplate(container) {
-    (0, _renderer.default)(container).empty();
-  }
-  onTaskAreaSizeChanged(info) {
-    const scrollView = this._taskAreaContainer._scrollView;
-    if ((0, _type.isDefined)(info === null || info === void 0 ? void 0 : info.height)) {
-      const direction = (info === null || info === void 0 ? void 0 : info.height) > this._taskAreaContainer.getHeight() ? 'both' : 'horizontal';
-      scrollView.option('direction', direction);
-    }
-  }
-  updateGanttViewType(type) {
-    this._onViewTypeChanged({
-      type: type
-    });
-  }
-  // export
-  getTreeListTableStyle() {
-    return this.callExportHelperMethod('getTreeListTableStyle');
-  }
-  getTreeListColCount() {
-    return this.callExportHelperMethod('getTreeListColCount');
-  }
-  getTreeListHeaderInfo(colIndex) {
-    return this.callExportHelperMethod('getTreeListHeaderInfo', colIndex);
-  }
-  getTreeListCellInfo(rowIndex, colIndex, key) {
-    return this.callExportHelperMethod('getTreeListCellInfo', key, colIndex);
-  }
-  getTreeListEmptyDataCellInfo() {
-    return this.callExportHelperMethod('getTreeListEmptyDataCellInfo');
-  }
-  callExportHelperMethod(methodName) {
-    const helper = this.option('exportHelper');
-    for (var _len = arguments.length, args = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-      args[_key - 1] = arguments[_key];
-    }
-    return helper[methodName](...args);
-  }
-  applyTasksExpandedState(state) {
-    var _this$_ganttViewCore3;
-    (_this$_ganttViewCore3 = this._ganttViewCore) === null || _this$_ganttViewCore3 === void 0 || _this$_ganttViewCore3.applyTasksExpandedState(state);
-  }
-  getVisualStateToRestore() {
-    var _this$_ganttViewCore4, _this$_ganttViewCore5;
-    return {
-      [fullScreenModeKey]: (_this$_ganttViewCore4 = this._ganttViewCore) === null || _this$_ganttViewCore4 === void 0 || (_this$_ganttViewCore5 = _this$_ganttViewCore4.isInFullScreenMode) === null || _this$_ganttViewCore5 === void 0 ? void 0 : _this$_ganttViewCore5.call(_this$_ganttViewCore4)
-    };
-  }
-}
-exports.GanttView = GanttView;
 
 /***/ }),
 
